@@ -87,18 +87,18 @@ PROTONDB_CACHE_DAYS=30
 
 Create a new database in Notion with these properties:
 
-| Property Name      | Type          | Description                    |
-|--------------------|---------------|--------------------------------|
-| Name               | Title         | Game name                      |
-| Canonical ID       | Text          | Unique identifier              |
-| Primary Source     | Select        | Main platform (Steam, Xbox...) |
-| Owned On           | Multi-select  | All platforms where owned      |
-| Steam App ID       | Number        | Steam AppID (if applicable)    |
-| Playtime (hours)   | Number        | Total playtime                 |
-| Last Played        | Date          | Last played date               |
-| Proton Tier        | Select        | ProtonDB compatibility         |
-| Steam Deck         | Select        | Steam Deck verification status |
-| Cover Image        | URL           | Game cover art                 |
+| Property Name    | Type         | Description                    |
+| ---------------- | ------------ | ------------------------------ |
+| Name             | Title        | Game name                      |
+| Canonical ID     | Text         | Unique identifier              |
+| Primary Source   | Select       | Main platform (Steam, Xbox...) |
+| Owned On         | Multi-select | All platforms where owned      |
+| Steam App ID     | Number       | Steam AppID (if applicable)    |
+| Playtime (hours) | Number       | Total playtime                 |
+| Last Played      | Date         | Last played date               |
+| Proton Tier      | Select       | ProtonDB compatibility         |
+| Steam Deck       | Select       | Steam Deck verification status |
+| Cover Image      | URL          | Game cover art                 |
 
 Then share the database with your Notion integration.
 
@@ -126,6 +126,7 @@ npm start
 ### First Run
 
 The first sync will:
+
 1. Fetch all games from Steam
 2. Load games from Playnite snapshot
 3. Deduplicate based on Steam AppID or name matching
@@ -167,14 +168,14 @@ gamekeeper/
 
 ```typescript
 interface UnifiedGame {
-  canonicalId: string;           // "steam:123456" or normalized slug
+  canonicalId: string; // "steam:123456" or normalized slug
   name: string;
-  primarySource: Source;         // Highest priority platform
-  ownedSources: Source[];        // All platforms where owned
+  primarySource: Source; // Highest priority platform
+  ownedSources: Source[]; // All platforms where owned
   steamAppId?: number;
-  playtimeHours?: number;        // Sum of playtime across platforms
+  playtimeHours?: number; // Sum of playtime across platforms
   lastPlayedAt?: Date;
-  proton?: ProtonInfo;           // PC games only
+  proton?: ProtonInfo; // PC games only
   coverImageUrl?: string;
   releaseDate?: Date;
   genres?: string[];

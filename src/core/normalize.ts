@@ -9,7 +9,10 @@ export function normalizeGameName(name: string): string {
     .replace(/[:'-]/g, ' ') // Replace punctuation with spaces
     .replace(/\s+/g, ' ') // Normalize whitespace
     .replace(/\b(the|a|an)\b/g, '') // Remove articles
-    .replace(/\b(goty|game of the year|edition|definitive|complete|enhanced|remastered|directors cut)\b/g, '')
+    .replace(
+      /\b(goty|game of the year|edition|definitive|complete|enhanced|remastered|directors cut)\b/g,
+      ''
+    )
     .trim();
 }
 

@@ -21,10 +21,19 @@ async function main() {
 
     // 2. Initialize adapters
     console.log('🔧 Initializing adapters...');
-    const steamAdapter = new SteamAdapter(config.steam.apiKey, config.steam.userId);
+    const steamAdapter = new SteamAdapter(
+      config.steam.apiKey,
+      config.steam.userId
+    );
     const playniteAdapter = new PlayniteAdapter('./data/playnite-export.json');
-    const protonDbAdapter = new ProtonDBAdapter('.cache/protondb', config.protondb.cacheDays);
-    const notionClient = new NotionClient(config.notion.apiKey, config.notion.databaseId);
+    const protonDbAdapter = new ProtonDBAdapter(
+      '.cache/protondb',
+      config.protondb.cacheDays
+    );
+    const notionClient = new NotionClient(
+      config.notion.apiKey,
+      config.notion.databaseId
+    );
 
     await protonDbAdapter.init();
     console.log('✅ Adapters initialized\n');
@@ -33,13 +42,15 @@ async function main() {
     console.log('🔍 Verifying Notion database...');
     const notionAccessible = await notionClient.verifyDatabase();
     if (!notionAccessible) {
-      throw new Error('Cannot access Notion database. Check your API key and database ID.');
+      throw new Error(
+        'Cannot access Notion database. Check your API key and database ID.'
+      );
     }
     console.log('✅ Notion database verified\n');
 
     // 4. Fetch games from all sources
     console.log('📥 Fetching games from sources...\n');
-    
+
     const rawGames: RawGameData[] = [];
 
     // Fetch Steam games
@@ -79,27 +90,32 @@ async function main() {
     // 6. Enrich PC games with ProtonDB data
     console.log('🐧 Enriching PC games with ProtonDB data...');
     let enrichedCount = 0;
-    
+
     for (const game of unifiedGames) {
       // Only enrich if game has a Steam AppID (PC games)
       if (game.steamAppId) {
         try {
-          const protonInfo = await protonDbAdapter.fetchCompatibility(game.steamAppId);
+          const protonInfo = await protonDbAdapter.fetchCompatibility(
+            game.steamAppId
+          );
           if (protonInfo) {
             game.proton = protonInfo;
             enrichedCount++;
           }
-          
+
           // Rate limiting for ProtonDB
           if (enrichedCount % 5 === 0) {
             await sleep(1000);
           }
         } catch (error) {
-          console.warn(`Failed to fetch ProtonDB data for "${game.name}":`, error);
+          console.warn(
+            `Failed to fetch ProtonDB data for "${game.name}":`,
+            error
+          );
         }
       }
     }
-    
+
     console.log(`✅ Enriched ${enrichedCount} games with ProtonDB data\n`);
 
     // 7. Clean expired ProtonDB cache
@@ -116,7 +132,7 @@ async function main() {
     console.log('📈 Summary:');
     console.log(`   • Total unique games: ${unifiedGames.length}`);
     console.log(`   • Games with ProtonDB data: ${enrichedCount}`);
-    
+
     const sourceBreakdown = getSourceBreakdown(unifiedGames);
     console.log(`   • Source breakdown:`);
     for (const [source, count] of Object.entries(sourceBreakdown)) {
@@ -135,11 +151,11 @@ async function main() {
  */
 function getSourceBreakdown(games: UnifiedGame[]): Record<string, number> {
   const breakdown: Record<string, number> = {};
-  
+
   for (const game of games) {
     breakdown[game.primarySource] = (breakdown[game.primarySource] || 0) + 1;
   }
-  
+
   return breakdown;
 }
 
@@ -147,11 +163,11 @@ function getSourceBreakdown(games: UnifiedGame[]): Record<string, number> {
  * Sleep helper
  */
 function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 // Run main function
-main().catch((error) => {
+main().catch(error => {
   console.error('Fatal error:', error);
   process.exit(1);
 });

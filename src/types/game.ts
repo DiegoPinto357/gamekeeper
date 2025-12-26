@@ -84,12 +84,12 @@ export const UnifiedGameSchema = z.object({
   lastPlayedAt: z.date().optional(),
   interest: InterestSchema.optional(),
   proton: ProtonInfoSchema.optional(),
-  
+
   // Additional metadata
   coverImageUrl: z.string().optional(),
   releaseDate: z.date().optional(),
   genres: z.array(z.string()).optional(),
-  
+
   // Tracking
   createdAt: z.date(),
   updatedAt: z.date(),

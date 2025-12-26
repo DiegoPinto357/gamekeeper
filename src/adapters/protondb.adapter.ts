@@ -78,7 +78,7 @@ export class ProtonDBAdapter {
     try {
       // Fetch from ProtonDB API
       const protonData = await this.fetchProtonDBData(steamAppId);
-      
+
       // Fetch Steam Deck verification status
       const deckStatus = await this.fetchSteamDeckStatus(steamAppId);
 
@@ -101,7 +101,10 @@ export class ProtonDBAdapter {
 
       return protonInfo;
     } catch (error) {
-      console.warn(`Failed to fetch ProtonDB data for app ${steamAppId}:`, error);
+      console.warn(
+        `Failed to fetch ProtonDB data for app ${steamAppId}:`,
+        error
+      );
       return null;
     }
   }
@@ -145,9 +148,12 @@ export class ProtonDBAdapter {
         timeout: 5000,
       });
 
-      if (response.data.success === 1 && response.data.results?.resolved_category) {
+      if (
+        response.data.success === 1 &&
+        response.data.results?.resolved_category
+      ) {
         const category = response.data.results.resolved_category;
-        
+
         // Steam Deck categories: 3 = Verified, 2 = Playable, 1 = Unsupported
         switch (category) {
           case 3:
@@ -230,7 +236,10 @@ export class ProtonDBAdapter {
 
       await fs.writeFile(cachePath, JSON.stringify(entry, null, 2), 'utf-8');
     } catch (error) {
-      console.warn(`Failed to cache ProtonDB data for app ${steamAppId}:`, error);
+      console.warn(
+        `Failed to cache ProtonDB data for app ${steamAppId}:`,
+        error
+      );
     }
   }
 

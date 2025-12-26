@@ -15,7 +15,7 @@ interface PlayniteGame {
   ReleaseDate?: string; // ISO date string
   Genres?: Array<{ Name: string }>;
   Categories?: Array<{ Name: string }>;
-  
+
   // Additional fields that might be useful
   IsInstalled?: boolean;
   Platform?: string;
@@ -44,7 +44,7 @@ export class PlayniteAdapter {
   async loadSnapshot(): Promise<RawGameData[]> {
     try {
       console.log(`Loading Playnite snapshot from ${this.exportPath}...`);
-      
+
       const fileContent = await fs.readFile(this.exportPath, 'utf-8');
       const data: PlayniteExport = JSON.parse(fileContent);
 
@@ -56,10 +56,10 @@ export class PlayniteAdapter {
 
       // Filter and map games
       const rawGames: RawGameData[] = [];
-      
+
       for (const game of data.Games) {
         const source = this.mapPlayniteSource(game.Source);
-        
+
         // Skip Steam games (they come from Steam adapter)
         if (source === 'steam') {
           continue;
@@ -72,8 +72,10 @@ export class PlayniteAdapter {
         }
       }
 
-      console.log(`Processed ${rawGames.length} games from Playnite (Epic, GOG, Xbox)`);
-      
+      console.log(
+        `Processed ${rawGames.length} games from Playnite (Epic, GOG, Xbox)`
+      );
+
       const breakdown = this.getSourceBreakdown(rawGames);
       console.log('Source breakdown:', breakdown);
 
@@ -96,22 +98,27 @@ export class PlayniteAdapter {
     }
 
     const normalized = playniteSource.toLowerCase();
-    
+
     if (normalized.includes('steam')) return 'steam';
     if (normalized.includes('epic')) return 'epic';
     if (normalized.includes('gog')) return 'gog';
-    if (normalized.includes('xbox') || normalized.includes('microsoft')) return 'xbox';
-    if (normalized.includes('gamepass') || normalized.includes('game pass')) return 'gamepass';
-    
+    if (normalized.includes('xbox') || normalized.includes('microsoft'))
+      return 'xbox';
+    if (normalized.includes('gamepass') || normalized.includes('game pass'))
+      return 'gamepass';
+
     return 'manual';
   }
 
   /**
    * Map Playnite game data to our internal raw format
    */
-  private mapPlayniteGameToRaw(game: PlayniteGame, source: Source): RawGameData {
+  private mapPlayniteGameToRaw(
+    game: PlayniteGame,
+    source: Source
+  ): RawGameData {
     const playtimeHours = game.Playtime ? game.Playtime / 3600 : undefined;
-    
+
     const lastPlayedAt = game.LastActivity
       ? new Date(game.LastActivity)
       : undefined;
@@ -120,7 +127,7 @@ export class PlayniteAdapter {
       ? new Date(game.ReleaseDate)
       : undefined;
 
-    const genres = game.Genres?.map((g) => g.Name) || undefined;
+    const genres = game.Genres?.map(g => g.Name) || undefined;
 
     // Try to extract Steam AppID from SourceId if available
     // Some Playnite plugins store Steam AppID even for non-Steam sources
@@ -137,7 +144,8 @@ export class PlayniteAdapter {
       externalId: game.GameId,
       name: game.Name,
       steamAppId,
-      playtimeHours: playtimeHours && playtimeHours > 0 ? playtimeHours : undefined,
+      playtimeHours:
+        playtimeHours && playtimeHours > 0 ? playtimeHours : undefined,
       lastPlayedAt,
       coverImageUrl: game.CoverImage,
       releaseDate,
@@ -150,11 +158,11 @@ export class PlayniteAdapter {
    */
   private getSourceBreakdown(games: RawGameData[]): Record<string, number> {
     const breakdown: Record<string, number> = {};
-    
+
     for (const game of games) {
       breakdown[game.source] = (breakdown[game.source] || 0) + 1;
     }
-    
+
     return breakdown;
   }
 
@@ -165,7 +173,7 @@ export class PlayniteAdapter {
     try {
       const content = await fs.readFile(exportPath, 'utf-8');
       const data = JSON.parse(content);
-      
+
       return data.Games && Array.isArray(data.Games);
     } catch {
       return false;

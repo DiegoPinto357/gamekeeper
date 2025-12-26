@@ -18,7 +18,7 @@ async function validate() {
 
   // Check .env file
   console.log('📋 Checking environment variables...');
-  
+
   const requiredEnvVars = [
     'STEAM_API_KEY',
     'STEAM_USER_ID',
@@ -39,7 +39,9 @@ async function validate() {
   // Validate Steam ID format
   if (process.env.STEAM_USER_ID) {
     if (!SteamAdapter.isValidSteamId(process.env.STEAM_USER_ID)) {
-      console.log(`   ⚠️  STEAM_USER_ID format looks incorrect (should be 17 digits)`);
+      console.log(
+        `   ⚠️  STEAM_USER_ID format looks incorrect (should be 17 digits)`
+      );
       hasErrors = true;
     }
   }
@@ -48,7 +50,7 @@ async function validate() {
 
   // Check data directory
   console.log('📁 Checking data directory...');
-  
+
   try {
     await fs.access('./data');
     console.log('   ✅ data/ directory exists');
@@ -57,7 +59,9 @@ async function validate() {
       await fs.access('./data/playnite-export.json');
       console.log('   ✅ data/playnite-export.json found');
     } catch {
-      console.log('   ⚠️  data/playnite-export.json not found (optional, but needed for Epic/GOG/Xbox)');
+      console.log(
+        '   ⚠️  data/playnite-export.json not found (optional, but needed for Epic/GOG/Xbox)'
+      );
     }
   } catch {
     console.log('   ❌ data/ directory not found');
@@ -68,7 +72,7 @@ async function validate() {
 
   // Check cache directory
   console.log('📦 Checking cache directory...');
-  
+
   try {
     await fs.access('.cache');
     console.log('   ✅ .cache/ directory exists');
@@ -82,9 +86,13 @@ async function validate() {
     console.log('❌ Setup validation failed. Please fix the errors above.\n');
     console.log('💡 Tips:');
     console.log('   • Copy .env.example to .env and fill in your credentials');
-    console.log('   • Get Steam API key: https://steamcommunity.com/dev/apikey');
+    console.log(
+      '   • Get Steam API key: https://steamcommunity.com/dev/apikey'
+    );
     console.log('   • Get Steam ID: https://steamid.io/');
-    console.log('   • Create Notion integration: https://www.notion.so/my-integrations\n');
+    console.log(
+      '   • Create Notion integration: https://www.notion.so/my-integrations\n'
+    );
     process.exit(1);
   } else {
     console.log('✅ Setup validation passed!\n');
@@ -93,7 +101,7 @@ async function validate() {
   }
 }
 
-validate().catch((error) => {
+validate().catch(error => {
   console.error('Validation error:', error);
   process.exit(1);
 });

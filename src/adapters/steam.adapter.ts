@@ -68,7 +68,9 @@ export class SteamAdapter {
       };
 
       console.log('Fetching Steam library...');
-      const response = await axios.get<SteamOwnedGamesResponse>(url, { params });
+      const response = await axios.get<SteamOwnedGamesResponse>(url, {
+        params,
+      });
 
       if (!response.data.response.games) {
         console.warn('No games found in Steam library');
@@ -78,7 +80,7 @@ export class SteamAdapter {
       const games = response.data.response.games;
       console.log(`Found ${games.length} games in Steam library`);
 
-      return games.map((game) => this.mapSteamGameToRaw(game));
+      return games.map(game => this.mapSteamGameToRaw(game));
     } catch (error) {
       if (axios.isAxiosError(error)) {
         throw new Error(`Steam API error: ${error.message}`);
@@ -91,7 +93,9 @@ export class SteamAdapter {
    * Fetch detailed information for a specific Steam app
    * Note: This is rate-limited and should be used sparingly
    */
-  async fetchAppDetails(appId: number): Promise<SteamAppDetails['0']['data'] | null> {
+  async fetchAppDetails(
+    appId: number
+  ): Promise<SteamAppDetails['0']['data'] | null> {
     try {
       const url = `${this.storeUrl}/appdetails`;
       const params = { appids: appId };
@@ -127,7 +131,8 @@ export class SteamAdapter {
       externalId: game.appid.toString(),
       name: game.name,
       steamAppId: game.appid,
-      playtimeHours: game.playtime_forever > 0 ? game.playtime_forever / 60 : undefined,
+      playtimeHours:
+        game.playtime_forever > 0 ? game.playtime_forever / 60 : undefined,
       lastPlayedAt,
       coverImageUrl,
     };

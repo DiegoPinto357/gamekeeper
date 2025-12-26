@@ -40,7 +40,7 @@ export class NotionClient {
     // Fetch existing pages to avoid duplicates
     const existingPages = await this.fetchAllPages();
     const existingByCanonicalId = new Map(
-      existingPages.map((page) => [this.extractCanonicalId(page), page])
+      existingPages.map(page => [this.extractCanonicalId(page), page])
     );
 
     console.log(`Found ${existingPages.length} existing pages in Notion`);
@@ -73,7 +73,9 @@ export class NotionClient {
       }
     }
 
-    console.log(`Sync complete: ${created} created, ${updated} updated, ${errors} errors`);
+    console.log(
+      `Sync complete: ${created} created, ${updated} updated, ${errors} errors`
+    );
   }
 
   /**
@@ -105,7 +107,9 @@ export class NotionClient {
   /**
    * Fetch all pages from the database
    */
-  private async fetchAllPages(): Promise<Array<{ id: string; properties: any }>> {
+  private async fetchAllPages(): Promise<
+    Array<{ id: string; properties: any }>
+  > {
     const pages: Array<{ id: string; properties: any }> = [];
     let cursor: string | undefined;
 
@@ -141,7 +145,9 @@ export class NotionClient {
   /**
    * Convert UnifiedGame to Notion properties
    */
-  private gameToNotionProperties(game: UnifiedGame): Partial<NotionGameProperties> {
+  private gameToNotionProperties(
+    game: UnifiedGame
+  ): Partial<NotionGameProperties> {
     return {
       Name: {
         title: [{ text: { content: game.name } }],
@@ -153,7 +159,7 @@ export class NotionClient {
         select: { name: this.capitalizeSource(game.primarySource) },
       },
       'Owned On': {
-        multi_select: game.ownedSources.map((source) => ({
+        multi_select: game.ownedSources.map(source => ({
           name: this.capitalizeSource(source),
         })),
       },
@@ -161,7 +167,9 @@ export class NotionClient {
         number: game.steamAppId || null,
       },
       'Playtime (hours)': {
-        number: game.playtimeHours ? Math.round(game.playtimeHours * 10) / 10 : null,
+        number: game.playtimeHours
+          ? Math.round(game.playtimeHours * 10) / 10
+          : null,
       },
       'Last Played': game.lastPlayedAt
         ? {
@@ -206,7 +214,7 @@ export class NotionClient {
    * Sleep helper for rate limiting
    */
   private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   /**

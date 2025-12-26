@@ -9,14 +9,9 @@
       "LastActivity": "2024-01-15T18:30:00Z",
       "CoverImage": "https://example.com/hades-cover.jpg",
       "ReleaseDate": "2020-09-17T00:00:00Z",
-      "Genres": [
-        { "Name": "Action" },
-        { "Name": "Roguelike" }
-      ],
+      "Genres": [{ "Name": "Action" }, { "Name": "Roguelike" }],
       "IsInstalled": true,
-      "Platforms": [
-        { "Name": "PC" }
-      ]
+      "Platforms": [{ "Name": "PC" }]
     },
     {
       "GameId": "gog-game-1",
@@ -27,10 +22,7 @@
       "LastActivity": "2024-02-20T22:15:00Z",
       "CoverImage": "https://example.com/witcher3-cover.jpg",
       "ReleaseDate": "2015-05-19T00:00:00Z",
-      "Genres": [
-        { "Name": "RPG" },
-        { "Name": "Open World" }
-      ],
+      "Genres": [{ "Name": "RPG" }, { "Name": "Open World" }],
       "IsInstalled": false
     },
     {
@@ -40,13 +32,8 @@
       "SourceId": "9NKX70BBCDRN",
       "Playtime": 14400,
       "LastActivity": "2024-03-01T16:45:00Z",
-      "Genres": [
-        { "Name": "Racing" }
-      ],
-      "Platforms": [
-        { "Name": "Xbox" },
-        { "Name": "PC" }
-      ]
+      "Genres": [{ "Name": "Racing" }],
+      "Platforms": [{ "Name": "Xbox" }, { "Name": "PC" }]
     }
   ]
 }

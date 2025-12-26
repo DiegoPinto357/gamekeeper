@@ -19,6 +19,7 @@ nano .env
 ```
 
 Required values:
+
 - **STEAM_API_KEY** - Get from https://steamcommunity.com/dev/apikey
 - **STEAM_USER_ID** - Your 64-bit Steam ID from https://steamid.io/
 - **NOTION_API_KEY** - Create integration at https://www.notion.so/my-integrations
@@ -68,6 +69,7 @@ npm run dev
 ```
 
 The first sync will:
+
 - Fetch all your Steam games
 - Load Playnite snapshot (if available)
 - Deduplicate across platforms
@@ -81,14 +83,17 @@ Just run `npm run dev` again. The sync is idempotent - it will update existing g
 ## Troubleshooting
 
 ### "Steam API error"
+
 - Check your API key and Steam ID
 - Make sure your Steam profile is public
 
 ### "Cannot access Notion database"
+
 - Verify the integration has access to the database
 - Check the database ID is correct
 
 ### "Playnite export not found"
+
 - This is optional - skip if you only use Steam
 - Otherwise, export from Playnite to `data/playnite-export.json`
 

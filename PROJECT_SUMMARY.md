@@ -7,39 +7,46 @@ A complete, production-ready **game library aggregator** with the following comp
 ### Core Features Implemented
 
 1. **Steam Integration** (`src/adapters/steam.adapter.ts`)
+
    - Fetches owned games via Steam Web API
    - Includes playtime and last played data
    - Generates cover image URLs
 
 2. **Playnite Snapshot Support** (`src/adapters/playnite.adapter.ts`)
+
    - Parses Playnite JSON exports
    - Processes Epic, GOG, and Xbox games
    - Skips Steam games (to avoid duplicates)
 
 3. **ProtonDB Enrichment** (`src/adapters/protondb.adapter.ts`)
+
    - Fetches ProtonDB compatibility tiers
    - Gets Steam Deck verification status
    - Implements 30-day disk cache
    - Auto-cleanup of expired cache
 
 4. **Smart Deduplication** (`src/core/deduplicate.ts`)
+
    - Deduplicates by Steam AppID (most reliable)
    - Falls back to fuzzy name matching (85% similarity)
    - Applies platform priority: Steam > Xbox > Epic > GOG
    - Merges playtime across platforms
 
 5. **Name Normalization** (`src/core/normalize.ts`)
+
    - Removes special characters and editions
    - Levenshtein distance for fuzzy matching
    - Generates canonical IDs for non-Steam games
 
 6. **Notion Sync** (`src/notion/notion.client.ts`)
+
    - Idempotent sync (safe to run multiple times)
    - Creates and updates pages
    - Rate limiting (3 req/sec)
    - Rich property mapping
 
 7. **Configuration Management** (`src/config.ts`)
+
    - Environment-based config
    - Zod validation
    - Clear error messages
@@ -53,6 +60,7 @@ A complete, production-ready **game library aggregator** with the following comp
 ### Data Model
 
 **UnifiedGame** - The canonical representation:
+
 ```typescript
 {
   canonicalId: string          // "steam:123456" or slug
@@ -112,18 +120,20 @@ gamekeeper/
 ✅ **ProtonDB for PC only** - Only enriches games with Steam AppIDs  
 ✅ **Notion as UI only** - Never a source of truth  
 ✅ **Idempotent sync** - Safe to run multiple times  
-✅ **Disk caching** - ProtonDB responses cached for 30 days  
+✅ **Disk caching** - ProtonDB responses cached for 30 days
 
 ## 🚀 How to Use
 
 ### Initial Setup
 
 1. **Install dependencies**
+
    ```bash
    npm install
    ```
 
 2. **Configure environment**
+
    ```bash
    cp .env.example .env
    # Edit .env with your credentials
@@ -132,9 +142,11 @@ gamekeeper/
 3. **Set up Notion database** with required properties (see README)
 
 4. **Export from Playnite** (optional)
+
    - Save to `data/playnite-export.json`
 
 5. **Validate setup**
+
    ```bash
    npm run validate
    ```
@@ -226,6 +238,7 @@ npm run validate
 ```
 
 This checks:
+
 - Environment variables are set
 - Steam ID format is correct
 - Data directory exists
@@ -252,6 +265,6 @@ The system delivers on all MVP requirements:
 ✅ ProtonDB enrichment  
 ✅ Clean Notion sync  
 ✅ Robust error handling  
-✅ Clear logging  
+✅ Clear logging
 
 **Ready for production use!**
