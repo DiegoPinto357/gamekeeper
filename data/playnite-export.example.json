@@ -1,0 +1,52 @@
+{
+  "Games": [
+    {
+      "GameId": "epic-game-1",
+      "Name": "Hades",
+      "Source": "Epic",
+      "SourceId": "hades-epic-id",
+      "Playtime": 7200,
+      "LastActivity": "2024-01-15T18:30:00Z",
+      "CoverImage": "https://example.com/hades-cover.jpg",
+      "ReleaseDate": "2020-09-17T00:00:00Z",
+      "Genres": [
+        { "Name": "Action" },
+        { "Name": "Roguelike" }
+      ],
+      "IsInstalled": true,
+      "Platforms": [
+        { "Name": "PC" }
+      ]
+    },
+    {
+      "GameId": "gog-game-1",
+      "Name": "The Witcher 3: Wild Hunt",
+      "Source": "GOG",
+      "SourceId": "1207664663",
+      "Playtime": 36000,
+      "LastActivity": "2024-02-20T22:15:00Z",
+      "CoverImage": "https://example.com/witcher3-cover.jpg",
+      "ReleaseDate": "2015-05-19T00:00:00Z",
+      "Genres": [
+        { "Name": "RPG" },
+        { "Name": "Open World" }
+      ],
+      "IsInstalled": false
+    },
+    {
+      "GameId": "xbox-game-1",
+      "Name": "Forza Horizon 5",
+      "Source": "Xbox",
+      "SourceId": "9NKX70BBCDRN",
+      "Playtime": 14400,
+      "LastActivity": "2024-03-01T16:45:00Z",
+      "Genres": [
+        { "Name": "Racing" }
+      ],
+      "Platforms": [
+        { "Name": "Xbox" },
+        { "Name": "PC" }
+      ]
+    }
+  ]
+}
