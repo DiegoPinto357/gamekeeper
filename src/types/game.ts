@@ -110,7 +110,7 @@ export type RawGameData = {
   coverImageUrl?: string;
   releaseDate?: Date;
   genres?: string[];
-}
+};
 
 /**
  * Configuration for the application

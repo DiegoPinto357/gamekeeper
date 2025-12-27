@@ -38,7 +38,7 @@ type SteamDeckVerifiedResponse = {
 type CacheEntry = {
   data: ProtonInfo;
   timestamp: number;
-}
+};
 
 /**
  * ProtonDB adapter with disk-based caching

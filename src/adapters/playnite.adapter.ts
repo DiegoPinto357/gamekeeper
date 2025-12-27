@@ -24,7 +24,7 @@ type PlayniteGame = {
 
 type PlayniteExport = {
   Games: PlayniteGame[];
-}
+};
 
 /**
  * Playnite snapshot adapter

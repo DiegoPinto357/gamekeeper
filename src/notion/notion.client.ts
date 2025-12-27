@@ -16,7 +16,7 @@ type NotionGameProperties = {
   'Steam Deck': { select: { name: string } | null };
   'Cover Image': { url: string | null };
   'Canonical ID': { rich_text: Array<{ text: { content: string } }> };
-}
+};
 
 /**
  * Notion client for syncing game library

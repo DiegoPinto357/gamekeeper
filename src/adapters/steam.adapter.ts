@@ -36,7 +36,7 @@ type SteamAppDetails = {
       categories?: Array<{ description: string }>;
     };
   };
-}
+};
 
 /**
  * Steam Web API adapter
