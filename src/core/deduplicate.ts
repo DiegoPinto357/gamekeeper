@@ -9,9 +9,9 @@ import {
  * Deduplicate raw games from multiple sources
  * Applies platform priority: Steam > Xbox > Epic > GOG > Game Pass > Manual
  */
-export function deduplicateGames(
+export const deduplicateGames = (
   rawGames: RawGameData[]
-): Map<string, RawGameData[]> {
+): Map<string, RawGameData[]> => {
   const gameGroups = new Map<string, RawGameData[]>();
 
   for (const game of rawGames) {
@@ -51,7 +51,7 @@ export function deduplicateGames(
  * Merge a group of duplicate raw games into a single unified game
  * Applies platform priority for metadata source
  */
-export function mergeGameGroup(games: RawGameData[]): UnifiedGame {
+export const mergeGameGroup = (games: RawGameData[]): UnifiedGame => {
   if (games.length === 0) {
     throw new Error('Cannot merge empty game group');
   }
@@ -108,7 +108,7 @@ export function mergeGameGroup(games: RawGameData[]): UnifiedGame {
 /**
  * Process raw games from multiple sources into deduplicated unified games
  */
-export function processRawGames(rawGames: RawGameData[]): UnifiedGame[] {
+export const processRawGames = (rawGames: RawGameData[]): UnifiedGame[] => {
   console.log(`Processing ${rawGames.length} raw games...`);
 
   const gameGroups = deduplicateGames(rawGames);

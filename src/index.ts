@@ -10,7 +10,7 @@ import { RawGameData, UnifiedGame } from './types/game';
  * Main orchestration function
  * Coordinates the entire sync process
  */
-async function main() {
+const main = async () => {
   console.log('🎮 GameKeeper - Starting sync...\n');
 
   try {
@@ -149,7 +149,7 @@ async function main() {
 /**
  * Get breakdown of games by primary source
  */
-function getSourceBreakdown(games: UnifiedGame[]): Record<string, number> {
+const getSourceBreakdown = (games: UnifiedGame[]): Record<string, number> => {
   const breakdown: Record<string, number> = {};
 
   for (const game of games) {
@@ -162,9 +162,9 @@ function getSourceBreakdown(games: UnifiedGame[]): Record<string, number> {
 /**
  * Sleep helper
  */
-function sleep(ms: number): Promise<void> {
+const sleep = (ms: number): Promise<void> => {
   return new Promise(resolve => setTimeout(resolve, ms));
-}
+};
 
 // Run main function
 main().catch(error => {

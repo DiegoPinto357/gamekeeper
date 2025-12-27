@@ -2,7 +2,7 @@
  * Normalize game name for matching
  * Removes special characters, extra whitespace, and common suffixes
  */
-export function normalizeGameName(name: string): string {
+export const normalizeGameName = (name: string): string => {
   return name
     .toLowerCase()
     .replace(/[™®©]/g, '') // Remove trademark symbols
@@ -20,7 +20,7 @@ export function normalizeGameName(name: string): string {
  * Generate a canonical ID from a game name
  * Used when no Steam AppID is available
  */
-export function generateCanonicalId(name: string): string {
+export const generateCanonicalId = (name: string): string => {
   const normalized = normalizeGameName(name);
   return normalized
     .replace(/[^a-z0-9]/g, '-')
@@ -32,7 +32,7 @@ export function generateCanonicalId(name: string): string {
  * Check if two game names are likely the same game
  * Uses fuzzy matching to account for minor variations
  */
-export function areNamesMatching(name1: string, name2: string): boolean {
+export const areNamesMatching = (name1: string, name2: string): boolean => {
   const normalized1 = normalizeGameName(name1);
   const normalized2 = normalizeGameName(name2);
 
@@ -58,7 +58,7 @@ export function areNamesMatching(name1: string, name2: string): boolean {
 /**
  * Calculate Levenshtein distance between two strings
  */
-function levenshteinDistance(str1: string, str2: string): number {
+const levenshteinDistance = (str1: string, str2: string): number => {
   const matrix: number[][] = [];
 
   for (let i = 0; i <= str2.length; i++) {

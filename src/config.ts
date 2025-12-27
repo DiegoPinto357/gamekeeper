@@ -6,7 +6,7 @@ dotenv.config();
 /**
  * Load and validate configuration from environment variables
  */
-export function loadConfig(): Config {
+export const loadConfig = (): Config => {
   const config = {
     steam: {
       apiKey: process.env.STEAM_API_KEY || '',

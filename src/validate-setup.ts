@@ -11,7 +11,7 @@ import { SteamAdapter } from './adapters/steam.adapter';
 
 dotenv.config();
 
-async function validate() {
+const validate = async () => {
   console.log('🔍 GameKeeper Setup Validation\n');
 
   let hasErrors = false;
@@ -99,7 +99,7 @@ async function validate() {
     console.log('You can now run:');
     console.log('   npm run dev\n');
   }
-}
+};
 
 validate().catch(error => {
   console.error('Validation error:', error);
