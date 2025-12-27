@@ -1,8 +1,8 @@
 import { loadConfig } from './config';
-import { SteamAdapter } from './adapters/steam.adapter';
-import { PlayniteAdapter } from './adapters/playnite.adapter';
-import { ProtonDBAdapter } from './adapters/protondb.adapter';
-import { NotionClient } from './notion/notion.client';
+import { steamAdapter } from './adapters/steam.adapter';
+import { playniteAdapter } from './adapters/playnite.adapter';
+import { createProtonDBAdapter } from './adapters/protondb.adapter';
+import { createNotionClient } from './notion/notion.client';
 import { processRawGames } from './core/deduplicate';
 import { RawGameData, UnifiedGame } from './types/game';
 
@@ -21,16 +21,11 @@ const main = async () => {
 
     // 2. Initialize adapters
     console.log('🔧 Initializing adapters...');
-    const steamAdapter = new SteamAdapter(
-      config.steam.apiKey,
-      config.steam.userId
-    );
-    const playniteAdapter = new PlayniteAdapter('./data/playnite-export.json');
-    const protonDbAdapter = new ProtonDBAdapter(
+    const protonDbAdapter = createProtonDBAdapter(
       '.cache/protondb',
       config.protondb.cacheDays
     );
-    const notionClient = new NotionClient(
+    const notionClient = createNotionClient(
       config.notion.apiKey,
       config.notion.databaseId
     );
@@ -56,7 +51,10 @@ const main = async () => {
     // Fetch Steam games
     console.log('⚙️  Fetching from Steam...');
     try {
-      const steamGames = await steamAdapter.fetchOwnedGames();
+      const steamGames = await steamAdapter.fetchOwnedGames(
+        config.steam.apiKey,
+        config.steam.userId
+      );
       rawGames.push(...steamGames);
       console.log(`✅ Steam: ${steamGames.length} games\n`);
     } catch (error) {
@@ -67,7 +65,9 @@ const main = async () => {
     // Load Playnite snapshot
     console.log('📦 Loading Playnite snapshot...');
     try {
-      const playniteGames = await playniteAdapter.loadSnapshot();
+      const playniteGames = await playniteAdapter.loadSnapshot(
+        './data/playnite-export.json'
+      );
       rawGames.push(...playniteGames);
       console.log(`✅ Playnite: ${playniteGames.length} games\n`);
     } catch (error) {

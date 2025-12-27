@@ -7,7 +7,7 @@
 
 import dotenv from 'dotenv';
 import fs from 'fs/promises';
-import { SteamAdapter } from './adapters/steam.adapter';
+import { steamAdapter } from './adapters/steam.adapter';
 
 dotenv.config();
 
@@ -38,7 +38,7 @@ const validate = async () => {
 
   // Validate Steam ID format
   if (process.env.STEAM_USER_ID) {
-    if (!SteamAdapter.isValidSteamId(process.env.STEAM_USER_ID)) {
+    if (!steamAdapter.isValidSteamId(process.env.STEAM_USER_ID)) {
       console.log(
         `   ⚠️  STEAM_USER_ID format looks incorrect (should be 17 digits)`
       );
