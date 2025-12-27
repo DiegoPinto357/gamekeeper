@@ -7,7 +7,7 @@
 
 import dotenv from 'dotenv';
 import fs from 'fs/promises';
-import { SteamAdapter } from './adapters/steam.adapter.js';
+import { SteamAdapter } from './adapters/steam.adapter';
 
 dotenv.config();
 

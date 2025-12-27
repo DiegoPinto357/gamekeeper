@@ -1,4 +1,4 @@
-import { Config, ConfigSchema } from './types/game.js';
+import { Config, ConfigSchema } from './types/game';
 import dotenv from 'dotenv';
 
 dotenv.config();

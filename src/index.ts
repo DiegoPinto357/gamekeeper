@@ -1,10 +1,10 @@
-import { loadConfig } from './config.js';
-import { SteamAdapter } from './adapters/steam.adapter.js';
-import { PlayniteAdapter } from './adapters/playnite.adapter.js';
-import { ProtonDBAdapter } from './adapters/protondb.adapter.js';
-import { NotionClient } from './notion/notion.client.js';
-import { processRawGames } from './core/deduplicate.js';
-import { RawGameData, UnifiedGame } from './types/game.js';
+import { loadConfig } from './config';
+import { SteamAdapter } from './adapters/steam.adapter';
+import { PlayniteAdapter } from './adapters/playnite.adapter';
+import { ProtonDBAdapter } from './adapters/protondb.adapter';
+import { NotionClient } from './notion/notion.client';
+import { processRawGames } from './core/deduplicate';
+import { RawGameData, UnifiedGame } from './types/game';
 
 /**
  * Main orchestration function

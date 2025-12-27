@@ -1,5 +1,5 @@
 import { Client } from '@notionhq/client';
-import { UnifiedGame } from '../types/game.js';
+import { UnifiedGame } from '../types/game';
 
 /**
  * Notion database properties schema

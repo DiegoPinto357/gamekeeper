@@ -1,7 +1,7 @@
 import axios from 'axios';
 import fs from 'fs/promises';
 import path from 'path';
-import { ProtonInfo, ProtonTier, SteamDeckStatus } from '../types/game.js';
+import { ProtonInfo, ProtonTier, SteamDeckStatus } from '../types/game';
 
 /**
  * ProtonDB API response types

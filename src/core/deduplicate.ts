@@ -1,9 +1,9 @@
-import { RawGameData, UnifiedGame, PLATFORM_PRIORITY } from '../types/game.js';
+import { RawGameData, UnifiedGame, PLATFORM_PRIORITY } from '../types/game';
 import {
   normalizeGameName,
   generateCanonicalId,
   areNamesMatching,
-} from './normalize.js';
+} from './normalize';
 
 /**
  * Deduplicate raw games from multiple sources

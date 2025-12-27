@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { RawGameData } from '../types/game.js';
+import { RawGameData } from '../types/game';
 
 /**
  * Steam Web API response types
