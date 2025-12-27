@@ -98,6 +98,8 @@ const fetchOwnedGames = async (
     return games.map(game => mapSteamGameToRaw(game));
   } catch (error) {
     if (axios.isAxiosError(error)) {
+      const errorDetails = error.response?.data || error.message;
+      console.error('Steam API Error Details:', errorDetails);
       throw new Error(`Steam API error: ${error.message}`);
     }
     throw error;

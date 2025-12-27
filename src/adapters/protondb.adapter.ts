@@ -78,12 +78,11 @@ const fetchProtonDBData = async (
 ): Promise<ProtonDBAppSummary | null> => {
   try {
     const url = `${PROTONDB_URL}/${steamAppId}.json`;
-    const response = await axios.get<ProtonDBResponse>(url, {
+    const response = await axios.get<ProtonDBAppSummary>(url, {
       timeout: 5000,
     });
 
-    const appData = response.data[steamAppId.toString()];
-    return appData || null;
+    return response.data || null;
   } catch (error) {
     if (axios.isAxiosError(error) && error.response?.status === 404) {
       // App not in ProtonDB, this is normal
