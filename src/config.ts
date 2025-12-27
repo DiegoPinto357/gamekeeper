@@ -22,4 +22,4 @@ export const loadConfig = (): Config => {
   };
 
   return ConfigSchema.parse(config);
-}
+};

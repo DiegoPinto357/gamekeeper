@@ -14,7 +14,7 @@ export const normalizeGameName = (name: string): string => {
       ''
     )
     .trim();
-}
+};
 
 /**
  * Generate a canonical ID from a game name
@@ -26,7 +26,7 @@ export const generateCanonicalId = (name: string): string => {
     .replace(/[^a-z0-9]/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '');
-}
+};
 
 /**
  * Check if two game names are likely the same game
@@ -53,7 +53,7 @@ export const areNamesMatching = (name1: string, name2: string): boolean => {
 
   // Consider a match if 85% similar
   return similarity >= 0.85;
-}
+};
 
 /**
  * Calculate Levenshtein distance between two strings
@@ -84,4 +84,4 @@ const levenshteinDistance = (str1: string, str2: string): number => {
   }
 
   return matrix[str2.length][str1.length];
-}
+};

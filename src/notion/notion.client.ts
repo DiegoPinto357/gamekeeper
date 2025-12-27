@@ -5,7 +5,7 @@ import { UnifiedGame } from '../types/game';
  * Notion database properties schema
  * Customize this based on your Notion database structure
  */
-interface NotionGameProperties {
+type NotionGameProperties = {
   Name: { title: Array<{ text: { content: string } }> };
   'Primary Source': { select: { name: string } };
   'Owned On': { multi_select: Array<{ name: string }> };

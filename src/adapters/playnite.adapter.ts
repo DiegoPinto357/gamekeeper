@@ -4,7 +4,7 @@ import { RawGameData, Source } from '../types/game';
 /**
  * Playnite export JSON structure
  */
-interface PlayniteGame {
+type PlayniteGame = {
   GameId: string;
   Name: string;
   Source?: string; // e.g., "Epic", "GOG", "Xbox"
@@ -20,9 +20,9 @@ interface PlayniteGame {
   IsInstalled?: boolean;
   Platform?: string;
   Platforms?: Array<{ Name: string }>;
-}
+};
 
-interface PlayniteExport {
+type PlayniteExport = {
   Games: PlayniteGame[];
 }
 

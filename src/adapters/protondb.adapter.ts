@@ -6,23 +6,23 @@ import { ProtonInfo, ProtonTier, SteamDeckStatus } from '../types/game';
 /**
  * ProtonDB API response types
  */
-interface ProtonDBAppSummary {
+type ProtonDBAppSummary = {
   bestReportedTier: string;
   confidence: string;
   score: number;
   tier: string;
   total: number;
   trendingTier: string;
-}
+};
 
-interface ProtonDBResponse {
+type ProtonDBResponse = {
   [appId: string]: ProtonDBAppSummary;
-}
+};
 
 /**
  * Steam Deck verification API response
  */
-interface SteamDeckVerifiedResponse {
+type SteamDeckVerifiedResponse = {
   success: number;
   results?: {
     resolved_category?: number;
@@ -30,12 +30,12 @@ interface SteamDeckVerifiedResponse {
       tag?: string;
     }>;
   };
-}
+};
 
 /**
  * Cache entry structure
  */
-interface CacheEntry {
+type CacheEntry = {
   data: ProtonInfo;
   timestamp: number;
 }

@@ -100,7 +100,7 @@ export type UnifiedGame = z.infer<typeof UnifiedGameSchema>;
 /**
  * Raw game data from various sources before normalization
  */
-export interface RawGameData {
+export type RawGameData = {
   source: Source;
   externalId: string; // Source-specific ID
   name: string;

@@ -144,7 +144,7 @@ const main = async () => {
     console.error('\n❌ Error during sync:', error);
     process.exit(1);
   }
-}
+};
 
 /**
  * Get breakdown of games by primary source
@@ -157,7 +157,7 @@ const getSourceBreakdown = (games: UnifiedGame[]): Record<string, number> => {
   }
 
   return breakdown;
-}
+};
 
 /**
  * Sleep helper

@@ -45,7 +45,7 @@ export const deduplicateGames = (
   }
 
   return gameGroups;
-}
+};
 
 /**
  * Merge a group of duplicate raw games into a single unified game
@@ -103,7 +103,7 @@ export const mergeGameGroup = (games: RawGameData[]): UnifiedGame => {
   };
 
   return unified;
-}
+};
 
 /**
  * Process raw games from multiple sources into deduplicated unified games
@@ -131,4 +131,4 @@ export const processRawGames = (rawGames: RawGameData[]): UnifiedGame[] => {
   }
 
   return unifiedGames;
-}
+};

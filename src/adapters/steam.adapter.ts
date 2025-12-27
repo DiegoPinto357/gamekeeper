@@ -4,7 +4,7 @@ import { RawGameData } from '../types/game';
 /**
  * Steam Web API response types
  */
-interface SteamGame {
+type SteamGame = {
   appid: number;
   name: string;
   playtime_forever: number; // in minutes
@@ -12,16 +12,16 @@ interface SteamGame {
   img_icon_url?: string;
   img_logo_url?: string;
   rtime_last_played?: number; // Unix timestamp
-}
+};
 
-interface SteamOwnedGamesResponse {
+type SteamOwnedGamesResponse = {
   response: {
     game_count: number;
     games: SteamGame[];
   };
-}
+};
 
-interface SteamAppDetails {
+type SteamAppDetails = {
   [appId: string]: {
     success: boolean;
     data?: {
