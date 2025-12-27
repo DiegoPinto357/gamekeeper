@@ -27,7 +27,9 @@ const main = async () => {
     );
     const notionClient = createNotionClient(
       config.notion.apiKey,
-      config.notion.databaseId
+      config.notion.databaseId,
+      config.notion.titleProperty,
+      config.notion.syncProperties
     );
 
     await protonDbAdapter.init();

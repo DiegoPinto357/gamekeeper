@@ -113,6 +113,23 @@ export type RawGameData = {
 };
 
 /**
+ * Notion sync configuration - which properties to include
+ */
+export const NotionSyncPropertiesSchema = z.object({
+  canonicalId: z.boolean().default(true),
+  primarySource: z.boolean().default(true),
+  ownedOn: z.boolean().default(true),
+  steamAppId: z.boolean().default(true),
+  playtime: z.boolean().default(true),
+  lastPlayed: z.boolean().default(true),
+  protonTier: z.boolean().default(true),
+  steamDeck: z.boolean().default(true),
+  coverImage: z.boolean().default(true),
+});
+
+export type NotionSyncProperties = z.infer<typeof NotionSyncPropertiesSchema>;
+
+/**
  * Configuration for the application
  */
 export const ConfigSchema = z.object({
@@ -123,6 +140,8 @@ export const ConfigSchema = z.object({
   notion: z.object({
     apiKey: z.string(),
     databaseId: z.string(),
+    titleProperty: z.string().default('Name'),
+    syncProperties: NotionSyncPropertiesSchema.optional().default({}),
   }),
   protondb: z.object({
     cacheDays: z.number().default(30),

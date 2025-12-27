@@ -1,5 +1,5 @@
 import { Client } from '@notionhq/client';
-import { UnifiedGame } from '../types/game';
+import { UnifiedGame, NotionSyncProperties } from '../types/game';
 
 /**
  * Notion database properties schema
@@ -64,48 +64,80 @@ const extractCanonicalId = (page: any): string | null => {
 
 /**
  * Convert UnifiedGame to Notion properties
+ * Only includes properties that are enabled in syncProperties config
  */
 const gameToNotionProperties = (
-  game: UnifiedGame
+  game: UnifiedGame,
+  titleProperty: string,
+  syncProperties: NotionSyncProperties
 ): Partial<NotionGameProperties> => {
-  return {
-    Name: {
+  const properties: Partial<NotionGameProperties> = {
+    [titleProperty]: {
       title: [{ text: { content: game.name } }],
     },
-    'Canonical ID': {
+  };
+
+  if (syncProperties.canonicalId) {
+    properties['Canonical ID'] = {
       rich_text: [{ text: { content: game.canonicalId } }],
-    },
-    'Primary Source': {
+    };
+  }
+
+  if (syncProperties.primarySource) {
+    properties['Primary Source'] = {
       select: { name: capitalizeSource(game.primarySource) },
-    },
-    'Owned On': {
+    };
+  }
+
+  if (syncProperties.ownedOn) {
+    properties['Owned On'] = {
       multi_select: game.ownedSources.map(source => ({
         name: capitalizeSource(source),
       })),
-    },
-    'Steam App ID': {
+    };
+  }
+
+  if (syncProperties.steamAppId) {
+    properties['Steam App ID'] = {
       number: game.steamAppId || null,
-    },
-    'Playtime (hours)': {
+    };
+  }
+
+  if (syncProperties.playtime) {
+    properties['Playtime (hours)'] = {
       number: game.playtimeHours
         ? Math.round(game.playtimeHours * 10) / 10
         : null,
-    },
-    'Last Played': game.lastPlayedAt
+    };
+  }
+
+  if (syncProperties.lastPlayed) {
+    properties['Last Played'] = game.lastPlayedAt
       ? {
           date: { start: game.lastPlayedAt.toISOString().split('T')[0] },
         }
-      : { date: null },
-    'Proton Tier': game.proton
+      : { date: null };
+  }
+
+  if (syncProperties.protonTier) {
+    properties['Proton Tier'] = game.proton
       ? { select: { name: capitalizeFirst(game.proton.tier) } }
-      : { select: null },
-    'Steam Deck': game.proton
+      : { select: null };
+  }
+
+  if (syncProperties.steamDeck) {
+    properties['Steam Deck'] = game.proton
       ? { select: { name: capitalizeFirst(game.proton.steamDeck) } }
-      : { select: null },
-    'Cover Image': {
+      : { select: null };
+  }
+
+  if (syncProperties.coverImage) {
+    properties['Cover Image'] = {
       url: game.coverImageUrl || null,
-    },
-  };
+    };
+  }
+
+  return properties;
 };
 
 /**
@@ -138,11 +170,17 @@ const fetchAllPages = async (
 const createPage = async (
   client: Client,
   databaseId: string,
-  game: UnifiedGame
+  game: UnifiedGame,
+  titleProperty: string,
+  syncProperties: NotionSyncProperties
 ): Promise<void> => {
   await client.pages.create({
     parent: { database_id: databaseId },
-    properties: gameToNotionProperties(game) as any,
+    properties: gameToNotionProperties(
+      game,
+      titleProperty,
+      syncProperties
+    ) as any,
     cover: game.coverImageUrl
       ? { type: 'external', external: { url: game.coverImageUrl } }
       : undefined,
@@ -155,11 +193,17 @@ const createPage = async (
 const updatePage = async (
   client: Client,
   pageId: string,
-  game: UnifiedGame
+  game: UnifiedGame,
+  titleProperty: string,
+  syncProperties: NotionSyncProperties
 ): Promise<void> => {
   await client.pages.update({
     page_id: pageId,
-    properties: gameToNotionProperties(game) as any,
+    properties: gameToNotionProperties(
+      game,
+      titleProperty,
+      syncProperties
+    ) as any,
     cover: game.coverImageUrl
       ? { type: 'external', external: { url: game.coverImageUrl } }
       : undefined,
@@ -173,7 +217,9 @@ const updatePage = async (
 const syncGames = async (
   client: Client,
   databaseId: string,
-  games: UnifiedGame[]
+  games: UnifiedGame[],
+  titleProperty: string,
+  syncProperties: NotionSyncProperties
 ): Promise<void> => {
   console.log(`Syncing ${games.length} games to Notion...`);
 
@@ -195,11 +241,23 @@ const syncGames = async (
 
       if (existingPage) {
         // Update existing page
-        await updatePage(client, existingPage.id, game);
+        await updatePage(
+          client,
+          existingPage.id,
+          game,
+          titleProperty,
+          syncProperties
+        );
         updated++;
       } else {
         // Create new page
-        await createPage(client, databaseId, game);
+        await createPage(
+          client,
+          databaseId,
+          game,
+          titleProperty,
+          syncProperties
+        );
         created++;
       }
 
@@ -238,11 +296,17 @@ const verifyDatabase = async (
  * Create a Notion client instance
  * Uses factory pattern to maintain the Notion SDK client across calls
  */
-export const createNotionClient = (apiKey: string, databaseId: string) => {
+export const createNotionClient = (
+  apiKey: string,
+  databaseId: string,
+  titleProperty: string,
+  syncProperties: NotionSyncProperties
+) => {
   const client = new Client({ auth: apiKey });
 
   return {
-    syncGames: (games: UnifiedGame[]) => syncGames(client, databaseId, games),
+    syncGames: (games: UnifiedGame[]) =>
+      syncGames(client, databaseId, games, titleProperty, syncProperties),
     verifyDatabase: () => verifyDatabase(client, databaseId),
   };
 };
