@@ -6,35 +6,36 @@ import { RawGameData, Source } from '../types/game';
  */
 type PlayniteGame = {
   GameId: string;
+  Id: string;
   Name: string;
-  Source?: string; // e.g., "Epic", "GOG", "Xbox"
+  Source?: { Id: string; Name: string } | string; // Can be object or string
   SourceId?: string; // External ID from the source
   Playtime?: number; // in seconds
   LastActivity?: string; // ISO date string
   CoverImage?: string;
-  ReleaseDate?: string; // ISO date string
-  Genres?: Array<{ Name: string }>;
-  Categories?: Array<{ Name: string }>;
+  ReleaseDate?: { ReleaseDate: string } | string; // Can be object or string
+  Genres?: Array<{ Id: string; Name: string }>;
+  Categories?: Array<{ Id: string; Name: string }>;
+  Platforms?: Array<{ Id: string; Name: string; SpecificationId?: string }>;
 
-  // Additional fields that might be useful
+  // Additional fields
   IsInstalled?: boolean;
-  Platform?: string;
-  Platforms?: Array<{ Name: string }>;
 };
 
-type PlayniteExport = {
-  Games: PlayniteGame[];
-};
+// Support both wrapped and unwrapped formats
+type PlayniteExport = PlayniteGame[] | { Games: PlayniteGame[] };
 
 /**
  * Map Playnite source string to our Source type
  */
-const mapPlayniteSource = (playniteSource?: string): Source => {
-  if (!playniteSource) {
+const mapPlayniteSource = (source?: { Name: string } | string): Source => {
+  if (!source) {
     return 'manual';
   }
 
-  const normalized = playniteSource.toLowerCase();
+  // Handle both object and string formats
+  const sourceName = typeof source === 'string' ? source : source.Name;
+  const normalized = sourceName.toLowerCase();
 
   if (normalized.includes('steam')) return 'steam';
   if (normalized.includes('epic')) return 'epic';
@@ -60,7 +61,15 @@ const mapPlayniteGameToRaw = (
     ? new Date(game.LastActivity)
     : undefined;
 
-  const releaseDate = game.ReleaseDate ? new Date(game.ReleaseDate) : undefined;
+  // Handle both ReleaseDate formats
+  let releaseDate: Date | undefined;
+  if (game.ReleaseDate) {
+    if (typeof game.ReleaseDate === 'string') {
+      releaseDate = new Date(game.ReleaseDate);
+    } else if (game.ReleaseDate.ReleaseDate) {
+      releaseDate = new Date(game.ReleaseDate.ReleaseDate);
+    }
+  }
 
   const genres = game.Genres?.map(g => g.Name) || undefined;
 
@@ -76,7 +85,7 @@ const mapPlayniteGameToRaw = (
 
   return {
     source,
-    externalId: game.GameId,
+    externalId: game.Id || game.GameId,
     name: game.Name,
     steamAppId,
     playtimeHours:
@@ -111,16 +120,21 @@ const loadSnapshot = async (exportPath: string): Promise<RawGameData[]> => {
     const fileContent = await fs.readFile(exportPath, 'utf-8');
     const data: PlayniteExport = JSON.parse(fileContent);
 
-    if (!data.Games || !Array.isArray(data.Games)) {
-      throw new Error('Invalid Playnite export format: missing Games array');
+    // Support both array format and wrapped format
+    const games = Array.isArray(data) ? data : data.Games;
+
+    if (!games || !Array.isArray(games)) {
+      throw new Error(
+        'Invalid Playnite export format: expected array of games'
+      );
     }
 
-    console.log(`Found ${data.Games.length} games in Playnite export`);
+    console.log(`Found ${games.length} games in Playnite export`);
 
     // Filter and map games
     const rawGames: RawGameData[] = [];
 
-    for (const game of data.Games) {
+    for (const game of games) {
       const source = mapPlayniteSource(game.Source);
 
       // Skip Steam games (they come from Steam adapter)
@@ -160,7 +174,9 @@ const validateExport = async (exportPath: string): Promise<boolean> => {
     const content = await fs.readFile(exportPath, 'utf-8');
     const data = JSON.parse(content);
 
-    return data.Games && Array.isArray(data.Games);
+    // Support both array format and wrapped format
+    const games = Array.isArray(data) ? data : data.Games;
+    return games && Array.isArray(games);
   } catch {
     return false;
   }

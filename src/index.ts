@@ -68,7 +68,7 @@ const main = async () => {
     console.log('📦 Loading Playnite snapshot...');
     try {
       const playniteGames = await playniteAdapter.loadSnapshot(
-        './data/playnite-export.json'
+        './data/playnite.json'
       );
       rawGames.push(...playniteGames);
       console.log(`✅ Playnite: ${playniteGames.length} games\n`);
@@ -92,8 +92,12 @@ const main = async () => {
     // 6. Enrich PC games with ProtonDB data
     console.log('🐧 Enriching PC games with ProtonDB data...');
     let enrichedCount = 0;
+    const pcGames = unifiedGames.filter(g => g.steamAppId);
+    console.log(`Found ${pcGames.length} PC games to enrich`);
 
-    for (const game of unifiedGames) {
+    for (let i = 0; i < unifiedGames.length; i++) {
+      const game = unifiedGames[i];
+
       // Only enrich if game has a Steam AppID (PC games)
       if (game.steamAppId) {
         try {
@@ -103,6 +107,13 @@ const main = async () => {
           if (protonInfo) {
             game.proton = protonInfo;
             enrichedCount++;
+          }
+
+          // Progress indicator every 10 games
+          if ((i + 1) % 10 === 0) {
+            console.log(
+              `  Progress: ${i + 1}/${pcGames.length} PC games processed...`
+            );
           }
 
           // Rate limiting for ProtonDB
@@ -120,10 +131,10 @@ const main = async () => {
 
     console.log(`✅ Enriched ${enrichedCount} games with ProtonDB data\n`);
 
-    // 7. Clean expired ProtonDB cache
-    console.log('🧹 Cleaning expired ProtonDB cache...');
-    await protonDbAdapter.cleanCache();
-    console.log('✅ Cache cleaned\n');
+    // // 7. Clean expired ProtonDB cache
+    // console.log('🧹 Cleaning expired ProtonDB cache...');
+    // await protonDbAdapter.cleanCache();
+    // console.log('✅ Cache cleaned\n');
 
     // 8. Sync to Notion
     console.log('☁️  Syncing to Notion...');

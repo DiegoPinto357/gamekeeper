@@ -1,0 +1,6 @@
+Id: GameKeeperExport
+Name: GameKeeper Export
+Author: Diego Pinto
+Version: 1.0
+Module: export.psm1
+Type: Script
