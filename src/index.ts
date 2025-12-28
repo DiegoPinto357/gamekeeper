@@ -134,41 +134,41 @@ const main = async () => {
 
     // 6. Enrich PC games with ProtonDB data
     console.log('🐧 Enriching PC games with ProtonDB data...');
-    let enrichedCount = 0;
     const pcGames = unifiedGames.filter(g => g.steamAppId);
     console.log(`Found ${pcGames.length} PC games to enrich`);
 
-    for (let i = 0; i < unifiedGames.length; i++) {
-      const game = unifiedGames[i];
+    let enrichedCount = 0;
+    const BATCH_SIZE = 20; // Process 20 games at a time (safe for cache reads)
 
-      // Only enrich if game has a Steam AppID (PC games)
-      if (game.steamAppId) {
-        try {
-          const protonInfo = await protonDbAdapter.fetchCompatibility(
-            game.steamAppId
-          );
-          if (protonInfo) {
-            game.proton = protonInfo;
-            enrichedCount++;
-          }
+    for (let i = 0; i < pcGames.length; i += BATCH_SIZE) {
+      const batch = pcGames.slice(i, i + BATCH_SIZE);
 
-          // Progress indicator every 10 games
-          if ((i + 1) % 10 === 0) {
-            console.log(
-              `  Progress: ${i + 1}/${pcGames.length} PC games processed...`
+      // Process batch in parallel
+      await Promise.all(
+        batch.map(async game => {
+          try {
+            const protonInfo = await protonDbAdapter.fetchCompatibility(
+              game.steamAppId!
+            );
+            if (protonInfo) {
+              game.proton = protonInfo;
+              enrichedCount++;
+            }
+          } catch (error) {
+            console.warn(
+              `Failed to fetch ProtonDB data for "${game.name}":`,
+              error
             );
           }
+        })
+      );
 
-          // Rate limiting for ProtonDB
-          if (enrichedCount % 5 === 0) {
-            await sleep(1000);
-          }
-        } catch (error) {
-          console.warn(
-            `Failed to fetch ProtonDB data for "${game.name}":`,
-            error
-          );
-        }
+      // Progress indicator every batch
+      const processed = Math.min(i + BATCH_SIZE, pcGames.length);
+      if (processed % 20 === 0 || processed === pcGames.length) {
+        console.log(
+          `  Progress: ${processed}/${pcGames.length} PC games processed...`
+        );
       }
     }
 
