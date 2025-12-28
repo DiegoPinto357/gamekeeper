@@ -49,13 +49,28 @@ const sleep = (ms: number): Promise<void> => {
 
 /**
  * Extract canonical ID from a Notion page
+ * Falls back to the title property if Canonical ID is not available
  */
-const extractCanonicalId = (page: any): string | null => {
+const extractCanonicalId = (
+  page: any,
+  titleProperty: string
+): string | null => {
   try {
+    // First, try to get the Canonical ID property
     const canonicalIdProp = page.properties['Canonical ID'];
     if (canonicalIdProp?.rich_text?.[0]?.text?.content) {
       return canonicalIdProp.rich_text[0].text.content;
     }
+
+    // Fallback: use the title property as identifier
+    const titleProp = page.properties[titleProperty];
+    if (titleProp?.title?.[0]?.text?.content) {
+      // Generate a canonical ID from the title (same logic as in deduplicate.ts)
+      const name = titleProp.title[0].text.content;
+      const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+      return `manual:${slug}`;
+    }
+
     return null;
   } catch {
     return null;
@@ -225,19 +240,50 @@ const syncGames = async (
 
   // Fetch existing pages to avoid duplicates
   const existingPages = await fetchAllPages(client, databaseId);
-  const existingByCanonicalId = new Map(
-    existingPages.map(page => [extractCanonicalId(page), page])
-  );
+
+  // Build lookup maps based on what's available
+  const existingByCanonicalId = new Map<string, any>();
+  const existingByTitle = new Map<string, any>();
+
+  for (const page of existingPages) {
+    // Try to extract Canonical ID
+    const canonicalIdProp = page.properties['Canonical ID'];
+    if (canonicalIdProp?.rich_text?.[0]?.text?.content) {
+      const canonicalId = canonicalIdProp.rich_text[0].text.content;
+      existingByCanonicalId.set(canonicalId, page);
+    }
+
+    // Always extract title for fallback matching
+    const titleProp = page.properties[titleProperty];
+    if (titleProp?.title?.[0]?.text?.content) {
+      const title = titleProp.title[0].text.content.toLowerCase();
+      existingByTitle.set(title, page);
+    }
+  }
 
   console.log(`Found ${existingPages.length} existing pages in Notion`);
 
   let created = 0;
   let updated = 0;
   let errors = 0;
+  const total = games.length;
 
-  for (const game of games) {
+  for (let i = 0; i < games.length; i++) {
+    const game = games[i];
+
     try {
-      const existingPage = existingByCanonicalId.get(game.canonicalId);
+      // Try to find existing page:
+      // 1. First by Canonical ID (if it's being synced)
+      // 2. Fallback to title match
+      let existingPage = null;
+
+      if (syncProperties.canonicalId) {
+        existingPage = existingByCanonicalId.get(game.canonicalId);
+      }
+
+      if (!existingPage) {
+        existingPage = existingByTitle.get(game.name.toLowerCase());
+      }
 
       if (existingPage) {
         // Update existing page
@@ -259,6 +305,14 @@ const syncGames = async (
           syncProperties
         );
         created++;
+      }
+
+      // Progress indicator every 25 games
+      const processed = i + 1;
+      if (processed % 25 === 0 || processed === total) {
+        console.log(
+          `  Progress: ${processed}/${total} games (${created} created, ${updated} updated, ${errors} errors)`
+        );
       }
 
       // Rate limiting: Notion has a rate limit of 3 requests per second
