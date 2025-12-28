@@ -63,7 +63,7 @@ export const mergeGameGroup = (games: RawGameData[]): UnifiedGame => {
 
   // Primary source is the highest priority platform
   const primary = sorted[0];
-  const ownedSources = sorted.map(g => g.source);
+  const ownedSources = [...new Set(sorted.map(g => g.source))];
 
   // Generate canonical ID
   const canonicalId = primary.steamAppId
@@ -121,9 +121,12 @@ export const processRawGames = (rawGames: RawGameData[]): UnifiedGame[] => {
       const unified = mergeGameGroup(games);
       unifiedGames.push(unified);
 
-      if (games.length > 1) {
-        const sources = games.map(g => g.source).join(', ');
-        console.log(`Merged "${unified.name}" from sources: ${sources}`);
+      // Only log merge if there are multiple different sources
+      const uniqueSources = [...new Set(games.map(g => g.source))];
+      if (uniqueSources.length > 1) {
+        console.log(
+          `Merged "${unified.name}" from sources: ${uniqueSources.join(', ')}`
+        );
       }
     } catch (error) {
       console.warn(`Failed to merge game group ${key}:`, error);

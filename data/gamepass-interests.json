@@ -1,0 +1,16 @@
+{
+  "wantToPlay": [
+    "Starfield",
+    "Hollow Knight: Voidheart Edition",
+    "Hi-Fi RUSH",
+    "1000xRESIST"
+  ],
+  "_instructions": {
+    "description": "Add game titles you want to track from Xbox Game Pass",
+    "notes": [
+      "Game titles must match exactly as they appear in Playnite",
+      "Only games currently available on Game Pass will be synced to Notion",
+      "Games removed from Game Pass catalog will automatically stop syncing"
+    ]
+  }
+}

@@ -9,9 +9,10 @@ GameKeeper helps you avoid forgetting games you own or want to play by aggregati
 ### Key Features
 
 - ✅ Aggregates games from Steam, Epic, GOG, and Xbox
+- ✅ **Smart Xbox Game Pass filtering** - Owned games always synced, Game Pass games filtered by interest + availability
 - ✅ Intelligent deduplication with platform priority (Steam > Xbox > Epic > GOG)
 - ✅ ProtonDB integration for PC games (Steam Deck compatibility)
-- ✅ Disk-based caching for API responses
+- ✅ Disk-based caching for API responses (ProtonDB: 30 days, Game Pass: 7 days)
 - ✅ Idempotent Notion sync (safe to run multiple times)
 - ✅ Clean TypeScript architecture with Zod validation
 
@@ -21,8 +22,9 @@ GameKeeper helps you avoid forgetting games you own or want to play by aggregati
 
 1. **Steam** - Live API (primary metadata source for PC games)
 2. **Epic/GOG/Xbox** - Snapshot from Playnite export (no direct API calls)
-3. **ProtonDB** - Enrichment data for PC games only (cached locally)
-4. **Notion** - UI/visualization layer (never a source of truth)
+3. **Xbox Game Pass** - Live catalog API (cached for 7 days) + manual interest curation
+4. **ProtonDB** - Enrichment data for PC games only (cached locally)
+5. **Notion** - UI/visualization layer (never a source of truth)
 
 ### Platform Priority
 
@@ -123,15 +125,25 @@ npm run build
 npm start
 ```
 
+### View Game Pass Catalog
+
+```bash
+# List all games currently on Xbox Game Pass
+npm run view-gamepass
+```
+
+This helps you find exact game titles to add to `data/gamepass-interests.json`.
+
 ### First Run
 
 The first sync will:
 
 1. Fetch all games from Steam
 2. Load games from Playnite snapshot
-3. Deduplicate based on Steam AppID or name matching
-4. Enrich PC games with ProtonDB data (this may take time)
-5. Create all games in Notion
+3. Filter Xbox Game Pass games (owned games + curated interests)
+4. Deduplicate based on Steam AppID or name matching
+5. Enrich PC games with ProtonDB data (this may take time)
+6. Create all games in Notion
 
 ### Subsequent Runs
 
@@ -234,12 +246,16 @@ npm run build
 npm start
 ```
 
+## Additional Documentation
+
+- **[Xbox Game Pass Integration](docs/GAMEPASS.md)** - Learn how owned Xbox games and Game Pass subscriptions are handled
+
 ## Roadmap
 
-- [ ] Game Pass catalog integration
-- [ ] Xbox adapter (if API becomes available)
+- [x] Game Pass catalog integration
+- [x] Xbox Game Pass filtering with manual curation
 - [ ] Manual game entry support
-- [ ] Interest tracking ("want to play")
+- [ ] Interest tracking for non-Game Pass games
 - [ ] Backup/restore functionality
 - [ ] Web dashboard (optional)
 

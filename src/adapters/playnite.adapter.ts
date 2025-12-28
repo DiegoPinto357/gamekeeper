@@ -112,13 +112,22 @@ const getSourceBreakdown = (games: RawGameData[]): Record<string, number> => {
 
 /**
  * Load and parse Playnite export file
+ *
+ * @param exportPath Path to Playnite JSON export
+ * @param gamePassFilter Optional function to check if a Game Pass game should be included
  */
-const loadSnapshot = async (exportPath: string): Promise<RawGameData[]> => {
+const loadSnapshot = async (
+  exportPath: string,
+  gamePassFilter?: (gameTitle: string) => Promise<boolean>
+): Promise<RawGameData[]> => {
   try {
     console.log(`Loading Playnite snapshot from ${exportPath}...`);
 
+    // Read file and strip BOM (Byte Order Mark) if present
+    // PowerShell exports often include UTF-8 BOM which breaks JSON parsing
     const fileContent = await fs.readFile(exportPath, 'utf-8');
-    const data: PlayniteExport = JSON.parse(fileContent);
+    const cleanContent = fileContent.replace(/^\uFEFF/, ''); // Remove BOM
+    const data: PlayniteExport = JSON.parse(cleanContent);
 
     // Support both array format and wrapped format
     const games = Array.isArray(data) ? data : data.Games;
@@ -142,8 +151,29 @@ const loadSnapshot = async (exportPath: string): Promise<RawGameData[]> => {
         continue;
       }
 
-      // Only process Epic, GOG, and Xbox
-      if (source === 'epic' || source === 'gog' || source === 'xbox') {
+      // Handle Xbox/Game Pass games differently
+      if (source === 'xbox') {
+        // Check if this is an owned Xbox game or Game Pass game
+        const sourceName =
+          typeof game.Source === 'string'
+            ? game.Source
+            : game.Source?.Name || '';
+
+        const isGamePass = sourceName.toLowerCase().includes('game pass');
+
+        if (isGamePass && gamePassFilter) {
+          // For Game Pass games, check if we should include it
+          const shouldInclude = await gamePassFilter(game.Name);
+          if (!shouldInclude) {
+            continue; // Skip this Game Pass game
+          }
+        }
+
+        // Include owned Xbox games or filtered Game Pass games
+        const rawGame = mapPlayniteGameToRaw(game, source);
+        rawGames.push(rawGame);
+      } else if (source === 'epic' || source === 'gog') {
+        // Always include Epic and GOG games
         const rawGame = mapPlayniteGameToRaw(game, source);
         rawGames.push(rawGame);
       }

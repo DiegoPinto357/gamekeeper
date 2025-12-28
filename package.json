@@ -9,6 +9,7 @@
     "start": "node dist/index.js",
     "validate": "tsx src/validate-setup.ts",
     "cleanup-duplicates": "tsx src/scripts/cleanup-duplicates.ts",
+    "view-gamepass": "tsx src/scripts/view-gamepass-catalog.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Diego Pinto dos Santos",

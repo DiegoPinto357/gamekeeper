@@ -2,9 +2,11 @@ import { loadConfig } from './config';
 import { steamAdapter } from './adapters/steam.adapter';
 import { playniteAdapter } from './adapters/playnite.adapter';
 import { createProtonDBAdapter } from './adapters/protondb.adapter';
+import { createGamePassAdapter } from './adapters/gamepass.adapter';
 import { createNotionClient } from './notion/notion.client';
 import { processRawGames } from './core/deduplicate';
 import { RawGameData, UnifiedGame } from './types/game';
+import fs from 'fs/promises';
 
 /**
  * Main orchestration function
@@ -24,6 +26,10 @@ const main = async () => {
     const protonDbAdapter = createProtonDBAdapter(
       '.cache/protondb',
       config.protondb.cacheDays
+    );
+    const gamePassAdapter = createGamePassAdapter(
+      '.cache/gamepass',
+      7 // Cache for 7 days
     );
     const notionClient = createNotionClient(
       config.notion.apiKey,
@@ -67,8 +73,45 @@ const main = async () => {
     // Load Playnite snapshot
     console.log('📦 Loading Playnite snapshot...');
     try {
+      // Load Game Pass interests list
+      let gamePassInterests: string[] = [];
+      try {
+        const interestsContent = await fs.readFile(
+          './data/gamepass-interests.json',
+          'utf-8'
+        );
+        const interestsData = JSON.parse(interestsContent);
+        gamePassInterests = interestsData.wantToPlay || [];
+        console.log(
+          `📝 Loaded ${gamePassInterests.length} Game Pass interests`
+        );
+      } catch {
+        console.warn(
+          '⚠️  No Game Pass interests file found, will include all owned Xbox games only'
+        );
+      }
+
+      // Create Game Pass filter function
+      const gamePassFilter = async (gameTitle: string): Promise<boolean> => {
+        // Check if user wants to play this game
+        const isInterested = gamePassInterests.some(
+          interest =>
+            interest.toLowerCase().trim() === gameTitle.toLowerCase().trim()
+        );
+
+        if (!isInterested) {
+          return false; // Not interested, skip it
+        }
+
+        // Check if game is currently available on Game Pass
+        const isAvailable = await gamePassAdapter.isGameAvailable(gameTitle);
+
+        return isAvailable; // Only include if both interested AND available
+      };
+
       const playniteGames = await playniteAdapter.loadSnapshot(
-        './data/playnite.json'
+        './data/playnite.json',
+        gamePassFilter
       );
       rawGames.push(...playniteGames);
       console.log(`✅ Playnite: ${playniteGames.length} games\n`);

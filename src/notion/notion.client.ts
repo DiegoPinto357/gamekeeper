@@ -48,6 +48,88 @@ const sleep = (ms: number): Promise<void> => {
 };
 
 /**
+ * Check if page properties have changed
+ * Returns true if update is needed
+ */
+const hasPropertiesChanged = (
+  existingPage: any,
+  newProperties: any,
+  syncProperties: NotionSyncProperties
+): boolean => {
+  try {
+    const existing = existingPage.properties;
+
+    // Check each synced property for changes
+    if (syncProperties.primarySource) {
+      const existingSource = existing['Primary Source']?.select?.name;
+      const newSource = newProperties['Primary Source']?.select?.name;
+      if (existingSource !== newSource) return true;
+    }
+
+    if (syncProperties.ownedOn) {
+      const existingOwned = existing['Owned On']?.multi_select
+        ?.map((s: any) => s.name)
+        .sort()
+        .join(',');
+      const newOwned = newProperties['Owned On']?.multi_select
+        ?.map((s: any) => s.name)
+        .sort()
+        .join(',');
+      if (existingOwned !== newOwned) return true;
+    }
+
+    if (syncProperties.steamAppId) {
+      const existingSteam = existing['Steam App ID']?.number;
+      const newSteam = newProperties['Steam App ID']?.number;
+      if (existingSteam !== newSteam) return true;
+    }
+
+    if (syncProperties.playtime) {
+      const existingPlaytime = existing['Playtime (hours)']?.number;
+      const newPlaytime = newProperties['Playtime (hours)']?.number;
+      if (existingPlaytime !== newPlaytime) return true;
+    }
+
+    if (syncProperties.lastPlayed) {
+      const existingDate = existing['Last Played']?.date?.start;
+      const newDate = newProperties['Last Played']?.date?.start;
+      if (existingDate !== newDate) return true;
+    }
+
+    if (syncProperties.protonTier) {
+      const existingTier = existing['Proton Tier']?.select?.name;
+      const newTier = newProperties['Proton Tier']?.select?.name;
+      if (existingTier !== newTier) return true;
+    }
+
+    if (syncProperties.steamDeck) {
+      const existingDeck = existing['Steam Deck']?.select?.name;
+      const newDeck = newProperties['Steam Deck']?.select?.name;
+      if (existingDeck !== newDeck) return true;
+    }
+
+    if (syncProperties.coverImage) {
+      const existingCover = existing['Cover Image']?.url;
+      const newCover = newProperties['Cover Image']?.url;
+      if (existingCover !== newCover) return true;
+    }
+
+    if (syncProperties.canonicalId) {
+      const existingId =
+        existing['Canonical ID']?.rich_text?.[0]?.text?.content;
+      const newId =
+        newProperties['Canonical ID']?.rich_text?.[0]?.text?.content;
+      if (existingId !== newId) return true;
+    }
+
+    return false;
+  } catch (error) {
+    // If we can't determine, assume it changed
+    return true;
+  }
+};
+
+/**
  * Extract canonical ID from a Notion page
  * Falls back to the title property if Canonical ID is not available
  */
@@ -196,9 +278,6 @@ const createPage = async (
       titleProperty,
       syncProperties
     ) as any,
-    cover: game.coverImageUrl
-      ? { type: 'external', external: { url: game.coverImageUrl } }
-      : undefined,
   });
 };
 
@@ -219,9 +298,6 @@ const updatePage = async (
       titleProperty,
       syncProperties
     ) as any,
-    cover: game.coverImageUrl
-      ? { type: 'external', external: { url: game.coverImageUrl } }
-      : undefined,
   });
 };
 
@@ -265,68 +341,94 @@ const syncGames = async (
 
   let created = 0;
   let updated = 0;
+  let skipped = 0;
   let errors = 0;
   const total = games.length;
 
-  for (let i = 0; i < games.length; i++) {
-    const game = games[i];
+  // Process games in batches of 3 (Notion rate limit: 3 req/sec)
+  const BATCH_SIZE = 3;
 
-    try {
-      // Try to find existing page:
-      // 1. First by Canonical ID (if it's being synced)
-      // 2. Fallback to title match
-      let existingPage = null;
+  for (let i = 0; i < games.length; i += BATCH_SIZE) {
+    const batch = games.slice(i, i + BATCH_SIZE);
 
-      if (syncProperties.canonicalId) {
-        existingPage = existingByCanonicalId.get(game.canonicalId);
-      }
+    // Process batch in parallel
+    await Promise.all(
+      batch.map(async game => {
+        try {
+          // Try to find existing page:
+          // 1. First by Canonical ID (if it's being synced)
+          // 2. Fallback to title match
+          let existingPage = null;
 
-      if (!existingPage) {
-        existingPage = existingByTitle.get(game.name.toLowerCase());
-      }
+          if (syncProperties.canonicalId) {
+            existingPage = existingByCanonicalId.get(game.canonicalId);
+          }
 
-      if (existingPage) {
-        // Update existing page
-        await updatePage(
-          client,
-          existingPage.id,
-          game,
-          titleProperty,
-          syncProperties
-        );
-        updated++;
-      } else {
-        // Create new page
-        await createPage(
-          client,
-          databaseId,
-          game,
-          titleProperty,
-          syncProperties
-        );
-        created++;
-      }
+          if (!existingPage) {
+            existingPage = existingByTitle.get(game.name.toLowerCase());
+          }
 
-      // Progress indicator every 25 games
-      const processed = i + 1;
-      if (processed % 25 === 0 || processed === total) {
-        console.log(
-          `  Progress: ${processed}/${total} games (${created} created, ${updated} updated, ${errors} errors)`
-        );
-      }
+          if (existingPage) {
+            // Check if update is needed
+            const newProperties = gameToNotionProperties(
+              game,
+              titleProperty,
+              syncProperties
+            );
 
-      // Rate limiting: Notion has a rate limit of 3 requests per second
-      if ((created + updated) % 3 === 0) {
-        await sleep(1000);
-      }
-    } catch (error) {
-      console.error(`Failed to sync game "${game.name}":`, error);
-      errors++;
+            const needsUpdate = hasPropertiesChanged(
+              existingPage,
+              newProperties,
+              syncProperties
+            );
+
+            if (needsUpdate) {
+              // Update existing page
+              await updatePage(
+                client,
+                existingPage.id,
+                game,
+                titleProperty,
+                syncProperties
+              );
+              updated++;
+            } else {
+              skipped++;
+            }
+          } else {
+            // Create new page
+            await createPage(
+              client,
+              databaseId,
+              game,
+              titleProperty,
+              syncProperties
+            );
+            created++;
+          }
+        } catch (error) {
+          console.error(`Failed to sync game "${game.name}":`, error);
+          errors++;
+        }
+      })
+    );
+
+    // Progress indicator every batch or at completion
+    const processed = Math.min(i + BATCH_SIZE, total);
+    if (processed % 25 === 0 || processed === total) {
+      console.log(
+        `  Progress: ${processed}/${total} games (${created} created, ${updated} updated, ${skipped} skipped, ${errors} errors)`
+      );
+    }
+
+    // Rate limiting: Sleep 1 second between batches (not after the last batch)
+    if (i + BATCH_SIZE < games.length) {
+      await sleep(1000);
     }
   }
 
   console.log(
-    `Sync complete: ${created} created, ${updated} updated, ${errors} errors`
+    `✅ Sync complete: ${created} created, ${updated} updated, ${skipped} skipped, ${errors} errors`
   );
 };
 
