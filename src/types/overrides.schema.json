@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "GameKeeper Overrides",
+  "description": "Manual overrides for game deduplication and properties",
+  "type": "object",
+  "properties": {
+    "forceSeparate": {
+      "description": "Force these games to remain separate even if they would normally match",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "comment": { "type": "string" },
+          "games": {
+            "type": "array",
+            "items": { "type": "string" },
+            "minItems": 2
+          }
+        },
+        "required": ["games"]
+      }
+    },
+    "forceMerge": {
+      "description": "Force these games to merge even if they wouldn't normally match",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "comment": { "type": "string" },
+          "games": {
+            "type": "array",
+            "items": { "type": "string" },
+            "minItems": 2
+          },
+          "canonicalName": { "type": "string" }
+        },
+        "required": ["games"]
+      }
+    },
+    "propertyOverrides": {
+      "description": "Override properties for specific games",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "comment": { "type": "string" },
+          "match": { "type": "string" },
+          "properties": {
+            "type": "object"
+          }
+        },
+        "required": ["match", "properties"]
+      }
+    }
+  }
+}

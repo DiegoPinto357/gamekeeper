@@ -1,0 +1,31 @@
+{
+  "$schema": "../src/types/overrides.schema.json",
+  "forceMerge": [
+    {
+      "games": ["Disco Elysium", "Disco Elysium - The Final Cut"],
+      "canonicalName": "Disco Elysium"
+    },
+    {
+      "games": ["Kerbal Space Program", "Kerbal Space Program Enhanced Edition"],
+      "canonicalName": "Kerbal Space Program"
+    },
+    {
+      "games": ["Shadowrun Hong Kong", "Shadowrun Hong Kong - Extended Edition"],
+      "canonicalName": "Shadowrun Hong Kong"
+    },
+    {
+      "games": ["Mortal Shell", "Mortal Shell: Enhanced Edition", "Mortal Shell Tech Beta"],
+      "canonicalName": "Mortal Shell"
+    },
+    {
+      "games": ["Fallout: New Vegas", "Fallout: New Vegas Ultimate Edition"],
+      "canonicalName": "Fallout: New Vegas"
+    },
+    {
+      "games": ["Grand Theft Auto V", "Grand Theft Auto V Enhanced"],
+      "canonicalName": "Grand Theft Auto V"
+    }
+  ],
+  "propertyOverrides": []
+}
+

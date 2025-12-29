@@ -5,6 +5,8 @@ import { createProtonDBAdapter } from './adapters/protondb.adapter';
 import { createGamePassAdapter } from './adapters/gamepass.adapter';
 import { createNotionClient } from './notion/notion.client';
 import { processRawGames } from './core/deduplicate';
+import { loadOverrides } from './core/overrides';
+import { generateMergeSuggestions, saveMergeSuggestions } from './core/suggestions';
 import { RawGameData, UnifiedGame } from './types/game';
 import fs from 'fs/promises';
 
@@ -21,7 +23,10 @@ const main = async () => {
     const config = loadConfig();
     console.log('✅ Configuration loaded\n');
 
-    // 2. Initialize adapters
+    // 2. Load manual overrides
+    await loadOverrides('./data/overrides.json');
+
+    // 3. Initialize adapters
     console.log('🔧 Initializing adapters...');
     const protonDbAdapter = createProtonDBAdapter(
       '.cache/protondb',
@@ -132,7 +137,13 @@ const main = async () => {
     const unifiedGames = processRawGames(rawGames);
     console.log(`✅ Unified into ${unifiedGames.length} games\n`);
 
-    // 6. Enrich PC games with ProtonDB data
+    // 6. Generate merge suggestions
+    console.log('💡 Generating merge suggestions...');
+    const suggestions = generateMergeSuggestions(rawGames);
+    await saveMergeSuggestions(suggestions);
+    console.log();
+
+    // 7. Enrich PC games with ProtonDB data
     console.log('🐧 Enriching PC games with ProtonDB data...');
     const pcGames = unifiedGames.filter(g => g.steamAppId);
     console.log(`Found ${pcGames.length} PC games to enrich`);

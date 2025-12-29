@@ -1,3 +1,32 @@
+import { shouldForceMerge } from './overrides';
+
+/**
+ * Calculate similarity between two game names
+ * Returns a score from 0 to 1, where 1 is identical
+ */
+export const calculateNameSimilarity = (name1: string, name2: string): number => {
+  const normalized1 = normalizeGameName(name1);
+  const normalized2 = normalizeGameName(name2);
+
+  // Exact match
+  if (normalized1 === normalized2) {
+    return 1.0;
+  }
+
+  // Check substring match
+  const minSubstringLength = 10;
+  if (normalized1.length >= minSubstringLength && normalized2.length >= minSubstringLength) {
+    if (normalized1.includes(normalized2) || normalized2.includes(normalized1)) {
+      return 0.95; // High similarity for substring matches
+    }
+  }
+
+  // Calculate Levenshtein distance
+  const distance = levenshteinDistance(normalized1, normalized2);
+  const maxLength = Math.max(normalized1.length, normalized2.length);
+  return 1 - distance / maxLength;
+};
+
 /**
  * Normalize game name for matching
  * Removes special characters, extra whitespace, and common suffixes
@@ -10,7 +39,7 @@ export const normalizeGameName = (name: string): string => {
     .replace(/\s+/g, ' ') // Normalize whitespace
     .replace(/\b(the|a|an)\b/g, '') // Remove articles
     .replace(
-      /\b(goty|game of the year|edition|definitive|complete|enhanced|remastered|directors cut)\b/g,
+      /\b(goty|game of the year edition)\b/g,
       ''
     )
     .trim();
@@ -33,6 +62,12 @@ export const generateCanonicalId = (name: string): string => {
  * Uses fuzzy matching to account for minor variations
  */
 export const areNamesMatching = (name1: string, name2: string): boolean => {
+  // Check manual overrides first
+  const forcedMerge = shouldForceMerge(name1, name2);
+  if (forcedMerge) {
+    return true;
+  }
+
   const normalized1 = normalizeGameName(name1);
   const normalized2 = normalizeGameName(name2);
 
@@ -41,18 +76,8 @@ export const areNamesMatching = (name1: string, name2: string): boolean => {
     return true;
   }
 
-  // Check if one is a substring of the other (handles editions)
-  if (normalized1.includes(normalized2) || normalized2.includes(normalized1)) {
-    return true;
-  }
-
-  // Calculate Levenshtein distance for fuzzy matching
-  const distance = levenshteinDistance(normalized1, normalized2);
-  const maxLength = Math.max(normalized1.length, normalized2.length);
-  const similarity = 1 - distance / maxLength;
-
-  // Consider a match if 85% similar
-  return similarity >= 0.85;
+  // No fuzzy or substring matching - games must match exactly or via override
+  return false;
 };
 
 /**
