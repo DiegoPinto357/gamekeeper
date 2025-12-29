@@ -6,15 +6,25 @@
       "canonicalName": "Disco Elysium"
     },
     {
-      "games": ["Kerbal Space Program", "Kerbal Space Program Enhanced Edition"],
+      "games": [
+        "Kerbal Space Program",
+        "Kerbal Space Program Enhanced Edition"
+      ],
       "canonicalName": "Kerbal Space Program"
     },
     {
-      "games": ["Shadowrun Hong Kong", "Shadowrun Hong Kong - Extended Edition"],
+      "games": [
+        "Shadowrun Hong Kong",
+        "Shadowrun Hong Kong - Extended Edition"
+      ],
       "canonicalName": "Shadowrun Hong Kong"
     },
     {
-      "games": ["Mortal Shell", "Mortal Shell: Enhanced Edition", "Mortal Shell Tech Beta"],
+      "games": [
+        "Mortal Shell",
+        "Mortal Shell: Enhanced Edition",
+        "Mortal Shell Tech Beta"
+      ],
       "canonicalName": "Mortal Shell"
     },
     {
@@ -28,4 +38,3 @@
   ],
   "propertyOverrides": []
 }
-

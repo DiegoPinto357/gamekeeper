@@ -37,11 +37,15 @@ export const shouldForceMerge = (
 
   for (const rule of overrides.forceMerge) {
     const normalizedGames = rule.games.map(g => normalizeGameName(g));
-    
+
     // Check if both games are in the same merge rule
-    const has1 = normalizedGames.some(g => g === norm1 || norm1.includes(g) || g.includes(norm1));
-    const has2 = normalizedGames.some(g => g === norm2 || norm2.includes(g) || g.includes(norm2));
-    
+    const has1 = normalizedGames.some(
+      g => g === norm1 || norm1.includes(g) || g.includes(norm1)
+    );
+    const has2 = normalizedGames.some(
+      g => g === norm2 || norm2.includes(g) || g.includes(norm2)
+    );
+
     if (has1 && has2) {
       const canonical = rule.canonicalName || rule.games[0];
       return canonical;
@@ -61,10 +65,12 @@ export const applyPropertyOverrides = (game: any): any => {
 
   for (const override of overrides.propertyOverrides) {
     const matchNormalized = normalizeGameName(override.match);
-    
-    if (normalizedName === matchNormalized || 
-        normalizedName.includes(matchNormalized) || 
-        matchNormalized.includes(normalizedName)) {
+
+    if (
+      normalizedName === matchNormalized ||
+      normalizedName.includes(matchNormalized) ||
+      matchNormalized.includes(normalizedName)
+    ) {
       return { ...game, ...override.properties };
     }
   }

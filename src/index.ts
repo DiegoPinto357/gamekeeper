@@ -6,7 +6,10 @@ import { createGamePassAdapter } from './adapters/gamepass.adapter';
 import { createNotionClient } from './notion/notion.client';
 import { processRawGames } from './core/deduplicate';
 import { loadOverrides } from './core/overrides';
-import { generateMergeSuggestions, saveMergeSuggestions } from './core/suggestions';
+import {
+  generateMergeSuggestions,
+  saveMergeSuggestions,
+} from './core/suggestions';
 import { RawGameData, UnifiedGame } from './types/game';
 import fs from 'fs/promises';
 
