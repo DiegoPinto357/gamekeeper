@@ -8,6 +8,7 @@ export const SourceSchema = z.enum([
   'xbox',
   'epic',
   'gog',
+  'amazon',
   'gamepass',
   'manual',
 ]);
@@ -22,8 +23,9 @@ export const PLATFORM_PRIORITY: Record<Source, number> = {
   xbox: 2,
   epic: 3,
   gog: 4,
-  gamepass: 5,
-  manual: 6,
+  amazon: 5,
+  gamepass: 6,
+  manual: 7,
 };
 
 /**
@@ -125,6 +127,7 @@ export const NotionSyncPropertiesSchema = z.object({
   protonTier: z.boolean().default(true),
   steamDeck: z.boolean().default(true),
   coverImage: z.boolean().default(true),
+  libraryStatus: z.boolean().default(true),
 });
 
 export type NotionSyncProperties = z.infer<typeof NotionSyncPropertiesSchema>;
@@ -146,6 +149,7 @@ export const ConfigSchema = z.object({
   protondb: z.object({
     cacheDays: z.number().default(30),
   }),
+  logLevel: z.enum(['debug', 'info']).default('info'),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;

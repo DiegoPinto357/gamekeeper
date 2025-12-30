@@ -22,6 +22,7 @@ Your Notion database needs the following properties (columns). Create them exact
   - Xbox
   - Epic Games
   - GOG
+  - Amazon
   - Game Pass
   - Manual
 
@@ -33,6 +34,7 @@ Your Notion database needs the following properties (columns). Create them exact
   - Xbox
   - Epic Games
   - GOG
+  - Amazon
   - Game Pass
   - Manual
 
@@ -73,6 +75,13 @@ Your Notion database needs the following properties (columns). Create them exact
 ### 10. **Cover Image** (URL)
 
 - Type: `URL`
+
+### 11. **Library Status** (Select)
+
+- Type: `Select`
+- Options to add:
+  - ⚠️ Removed
+- Note: This field is automatically managed. Games currently in your library will have this empty (clean card appearance). Games no longer in your library will show "⚠️ Removed" so you can manually review/delete them.
 
 ## Quick Setup Steps
 

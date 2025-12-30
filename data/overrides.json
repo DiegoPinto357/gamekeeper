@@ -34,6 +34,80 @@
     {
       "games": ["Grand Theft Auto V", "Grand Theft Auto V Enhanced"],
       "canonicalName": "Grand Theft Auto V"
+    },
+    {
+      "games": ["ACE COMBAT™7: SKIES UNKNOWN", "ACE COMBAT 7: SKIES UNKNOWN"],
+      "canonicalName": "ACE COMBAT 7: SKIES UNKNOWN"
+    },
+    {
+      "games": ["Wings of Prey", "Wings of Prey: Special Edition"],
+      "canonicalName": "Wings of Prey"
+    },
+    {
+      "games": [
+        "Tomb Raider",
+        "Tomb Raider: Definitive Edition",
+        "Tomb Raider GAME OF THE YEAR EDITION"
+      ],
+      "canonicalName": "Tomb Raider"
+    },
+    {
+      "games": [
+        "Shadow of the Tomb Raider",
+        "Shadow of the Tomb Raider: Definitive Edition"
+      ],
+      "canonicalName": "Shadow of the Tomb Raider"
+    },
+    {
+      "games": [
+        "Rise of the Tomb Raider",
+        "Rise of the Tomb Raider: 20 Year Celebration"
+      ],
+      "canonicalName": "Rise of the Tomb Raider"
+    },
+    {
+      "games": [
+        "Sonic & All-Stars Racing Transformed",
+        "Sonic & All-Stars Racing Transformed Collection"
+      ],
+      "canonicalName": "Sonic & All-Stars Racing Transformed"
+    },
+    {
+      "games": [
+        "Resident Evil Revelations 2",
+        "Resident Evil Revelations 2 (Episode One)"
+      ],
+      "canonicalName": "Resident Evil Revelations 2"
+    },
+    {
+      "games": [
+        "Pillars of Eternity",
+        "Pillars of Eternity - Definitive Edition"
+      ],
+      "canonicalName": "Pillars of Eternity"
+    },
+    {
+      "games": ["Hollow Knight", "Hollow Knight: Voidheart Edition"],
+      "canonicalName": "Hollow Knight"
+    },
+    {
+      "games": ["The Stanley Parable", "The Stanley Parable: Ultra Deluxe"],
+      "canonicalName": "The Stanley Parable: Ultra Deluxe"
+    },
+    {
+      "games": [
+        "The Outer Worlds",
+        "The Outer Worlds: Spacer's Choice Edition"
+      ],
+      "canonicalName": "The Outer Worlds"
+    },
+    {
+      "games": ["Watch Dogs 2", "Watch Dogs2"],
+      "canonicalName": "Watch Dogs 2"
+    },
+    {
+      "games": ["Watch Dogs", "WATCH_DOGS"],
+      "canonicalName": "Watch Dogs"
     }
   ],
   "propertyOverrides": []

@@ -8,9 +8,9 @@ GameKeeper helps you avoid forgetting games you own or want to play by aggregati
 
 ### Key Features
 
-- ✅ Aggregates games from Steam, Epic, GOG, and Xbox
+- ✅ Aggregates games from Steam, Epic, GOG, Amazon, and Xbox
 - ✅ **Smart Xbox Game Pass filtering** - Owned games always synced, Game Pass games filtered by interest + availability
-- ✅ Intelligent deduplication with platform priority (Steam > Xbox > Epic > GOG)
+- ✅ Intelligent deduplication with platform priority (Steam > Xbox > Epic > GOG > Amazon)
 - ✅ ProtonDB integration for PC games (Steam Deck compatibility)
 - ✅ Disk-based caching for API responses (ProtonDB: 30 days, Game Pass: 7 days)
 - ✅ Idempotent Notion sync (safe to run multiple times)
@@ -21,7 +21,7 @@ GameKeeper helps you avoid forgetting games you own or want to play by aggregati
 ### Data Sources
 
 1. **Steam** - Live API (primary metadata source for PC games)
-2. **Epic/GOG/Xbox** - Snapshot from Playnite export (no direct API calls)
+2. **Epic/GOG/Amazon/Xbox** - Snapshot from Playnite export (no direct API calls)
 3. **Xbox Game Pass** - Live catalog API (cached for 7 days) + manual interest curation
 4. **ProtonDB** - Enrichment data for PC games only (cached locally)
 5. **Notion** - UI/visualization layer (never a source of truth)
@@ -34,8 +34,9 @@ When a game exists on multiple platforms, metadata comes from the highest priori
 2. Xbox
 3. Epic Games
 4. GOG
-5. Game Pass
-6. Manual
+5. Amazon
+6. Game Pass
+7. Manual
 
 The highest priority platform becomes the **primary source**, but all ownership is preserved.
 
@@ -232,6 +233,24 @@ interface UnifiedGame {
 - This is normal on first run (one API call per Steam game)
 - Subsequent runs use the cache
 - You can adjust `PROTONDB_CACHE_DAYS` if needed
+
+### Debugging sync issues
+
+To enable detailed debug logging:
+
+```bash
+# Add to .env
+LOG_LEVEL=debug
+
+# Then run sync
+npm start
+```
+
+Debug mode shows:
+
+- Game lookup attempts by canonical ID and title
+- Canonical name application during deduplication
+- Title indexing in Notion pages
 
 ## Development
 

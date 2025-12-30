@@ -23,6 +23,7 @@ NOTION_SYNC_LAST_PLAYED=false       # Disable syncing Last Played date
 NOTION_SYNC_PROTON_TIER=false       # Disable syncing ProtonDB tier
 NOTION_SYNC_STEAM_DECK=false        # Disable syncing Steam Deck status
 NOTION_SYNC_COVER_IMAGE=false       # Disable syncing Cover Image URL
+NOTION_SYNC_LIBRARY_STATUS=false    # Disable syncing Library Status (removed games flag)
 ```
 
 ## What Each Property Does
@@ -39,6 +40,7 @@ NOTION_SYNC_COVER_IMAGE=false       # Disable syncing Cover Image URL
 | **Proton Tier**      | ProtonDB compatibility tier       | Select       | Configurable  |
 | **Steam Deck**       | Steam Deck verification status    | Select       | Configurable  |
 | **Cover Image**      | Game cover image URL              | URL          | Configurable  |
+| **Library Status**   | Flags games removed from library  | Select       | Configurable  |
 
 **Note:** The `Name` property is always synced as it's the primary identifier in Notion.
 

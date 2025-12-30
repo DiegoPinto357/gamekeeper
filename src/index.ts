@@ -18,7 +18,11 @@ import fs from 'fs/promises';
  * Coordinates the entire sync process
  */
 const main = async () => {
+  const config = await loadConfig();
   console.log('🎮 GameKeeper - Starting sync...\n');
+  if (config.logLevel === 'debug') {
+    console.log('[DEBUG] Debug logging enabled\n');
+  }
 
   try {
     // 1. Load configuration
@@ -148,7 +152,10 @@ const main = async () => {
 
     // 7. Enrich PC games with ProtonDB data
     console.log('🐧 Enriching PC games with ProtonDB data...');
-    const pcGames = unifiedGames.filter(g => g.steamAppId);
+    // PC platforms: Steam (has steamAppId), Epic, GOG, Amazon
+    const pcGames = unifiedGames.filter(
+      g => g.steamAppId || ['epic', 'gog', 'amazon'].includes(g.primarySource)
+    );
     console.log(`Found ${pcGames.length} PC games to enrich`);
 
     let enrichedCount = 0;
@@ -161,8 +168,13 @@ const main = async () => {
       await Promise.all(
         batch.map(async game => {
           try {
+            // Only fetch ProtonDB data for games with Steam App ID
+            if (!game.steamAppId) {
+              return;
+            }
+
             const protonInfo = await protonDbAdapter.fetchCompatibility(
-              game.steamAppId!
+              game.steamAppId
             );
             if (protonInfo) {
               game.proton = protonInfo;
@@ -195,6 +207,7 @@ const main = async () => {
 
     // 8. Sync to Notion
     console.log('☁️  Syncing to Notion...');
+
     await notionClient.syncGames(unifiedGames);
     console.log('✅ Sync to Notion complete\n');
 

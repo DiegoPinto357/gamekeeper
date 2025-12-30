@@ -26,12 +26,25 @@ export const loadConfig = (): Config => {
         protonTier: process.env.NOTION_SYNC_PROTON_TIER !== 'false',
         steamDeck: process.env.NOTION_SYNC_STEAM_DECK !== 'false',
         coverImage: process.env.NOTION_SYNC_COVER_IMAGE !== 'false',
+        libraryStatus: process.env.NOTION_SYNC_LIBRARY_STATUS !== 'false',
       },
     },
     protondb: {
       cacheDays: parseInt(process.env.PROTONDB_CACHE_DAYS || '30', 10),
     },
+    logLevel: (process.env.LOG_LEVEL || 'info').toLowerCase() as
+      | 'debug'
+      | 'info',
   };
 
   return ConfigSchema.parse(config);
+};
+
+// Export a singleton config instance for convenience
+let configInstance: Config | null = null;
+export const getConfig = (): Config => {
+  if (!configInstance) {
+    configInstance = loadConfig();
+  }
+  return configInstance;
 };

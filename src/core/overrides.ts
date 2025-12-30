@@ -38,13 +38,10 @@ export const shouldForceMerge = (
   for (const rule of overrides.forceMerge) {
     const normalizedGames = rule.games.map(g => normalizeGameName(g));
 
-    // Check if both games are in the same merge rule
-    const has1 = normalizedGames.some(
-      g => g === norm1 || norm1.includes(g) || g.includes(norm1)
-    );
-    const has2 = normalizedGames.some(
-      g => g === norm2 || norm2.includes(g) || g.includes(norm2)
-    );
+    // Use exact matching only (no substring matching to avoid false positives like
+    // "Hollow Knight: Silksong" incorrectly matching "Hollow Knight")
+    const has1 = normalizedGames.some(g => g === norm1);
+    const has2 = normalizedGames.some(g => g === norm2);
 
     if (has1 && has2) {
       const canonical = rule.canonicalName || rule.games[0];
@@ -76,6 +73,29 @@ export const applyPropertyOverrides = (game: any): any => {
   }
 
   return game;
+};
+
+/**
+ * Check if a game title matches any variant in a merge rule
+ * Returns the canonical name if found, null otherwise
+ */
+export const getCanonicalNameFromVariant = (title: string): string | null => {
+  if (!overrides?.forceMerge) return null;
+
+  const normalized = normalizeGameName(title);
+
+  for (const rule of overrides.forceMerge) {
+    const normalizedGames = rule.games.map(g => normalizeGameName(g));
+
+    // Check for exact match only (no substring matching)
+    const matches = normalizedGames.some(g => g === normalized);
+
+    if (matches) {
+      return rule.canonicalName || rule.games[0];
+    }
+  }
+
+  return null;
 };
 
 export const getOverrides = (): GameOverrides | null => overrides;

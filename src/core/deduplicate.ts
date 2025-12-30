@@ -4,6 +4,14 @@ import {
   generateCanonicalId,
   areNamesMatching,
 } from './normalize';
+import { shouldForceMerge } from './overrides';
+import { getConfig } from '../config';
+
+const debug = (message: string, ...args: any[]) => {
+  if (getConfig().logLevel === 'debug') {
+    console.log(`[DEBUG] ${message}`, ...args);
+  }
+};
 
 /**
  * Deduplicate raw games from multiple sources
@@ -87,9 +95,22 @@ export const mergeGameGroup = (games: RawGameData[]): UnifiedGame => {
 
   const now = new Date();
 
+  // Check if any games in this group should use a canonical name from overrides
+  let gameName = primary.name;
+  if (games.length > 1) {
+    // Check if there's a forced merge with a canonical name
+    const canonicalName = shouldForceMerge(games[0].name, games[1].name);
+    if (canonicalName && canonicalName !== primary.name) {
+      debug(
+        `Applying canonical name: "${canonicalName}" (was "${primary.name}")`
+      );
+      gameName = canonicalName;
+    }
+  }
+
   const unified: UnifiedGame = {
     canonicalId,
-    name: primary.name,
+    name: gameName,
     primarySource: primary.source,
     ownedSources,
     steamAppId: primary.steamAppId,
@@ -130,6 +151,13 @@ export const processRawGames = (rawGames: RawGameData[]): UnifiedGame[] => {
       }
     } catch (error) {
       console.warn(`Failed to merge game group ${key}:`, error);
+      // Debug: Check if this is Silksong
+      if (games.some(g => g.name === 'Hollow Knight: Silksong')) {
+        console.error(
+          `[ERROR] Failed to merge Silksong! Games in group:`,
+          games.map(g => g.name)
+        );
+      }
     }
   }
 

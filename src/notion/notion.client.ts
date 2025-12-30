@@ -1,5 +1,13 @@
 import { Client } from '@notionhq/client';
 import { UnifiedGame, NotionSyncProperties } from '../types/game';
+import { getCanonicalNameFromVariant } from '../core/overrides';
+import { getConfig } from '../config';
+
+const debug = (message: string, ...args: any[]) => {
+  if (getConfig().logLevel === 'debug') {
+    console.log(`[DEBUG] ${message}`, ...args);
+  }
+};
 
 /**
  * Notion database properties schema
@@ -16,6 +24,7 @@ type NotionGameProperties = {
   'Steam Deck': { select: { name: string } | null };
   'Cover Image': { url: string | null };
   'Canonical ID': { rich_text: Array<{ text: { content: string } }> };
+  'Library Status': { select: { name: string } | null };
 };
 
 /**
@@ -27,6 +36,7 @@ const capitalizeSource = (source: string): string => {
     xbox: 'Xbox',
     epic: 'Epic Games',
     gog: 'GOG',
+    amazon: 'Amazon',
     gamepass: 'Game Pass',
     manual: 'Manual',
   };
@@ -122,6 +132,12 @@ const hasPropertiesChanged = (
       if (existingId !== newId) return true;
     }
 
+    if (syncProperties.libraryStatus) {
+      const existingStatus = existing['Library Status']?.select?.name;
+      const newStatus = newProperties['Library Status']?.select?.name;
+      if (existingStatus !== newStatus) return true;
+    }
+
     return false;
   } catch (error) {
     // If we can't determine, assume it changed
@@ -144,13 +160,21 @@ const extractCanonicalId = (
       return canonicalIdProp.rich_text[0].text.content;
     }
 
-    // Fallback: use the title property as identifier
+    // Fallback: generate from title (matching generateCanonicalId logic)
     const titleProp = page.properties[titleProperty];
     if (titleProp?.title?.[0]?.text?.content) {
-      // Generate a canonical ID from the title (same logic as in deduplicate.ts)
       const name = titleProp.title[0].text.content;
-      const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-      return `manual:${slug}`;
+      // Remove GOTY/Game of the Year Edition (same normalization as generateCanonicalId)
+      const normalized = name
+        .toLowerCase()
+        .replace(/\s+(goty|game of the year edition)\s*$/i, '')
+        .trim();
+
+      // Generate slug (same as generateCanonicalId)
+      return normalized
+        .replace(/[^a-z0-9]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
     }
 
     return null;
@@ -234,6 +258,13 @@ const gameToNotionProperties = (
     };
   }
 
+  if (syncProperties.libraryStatus) {
+    // Active games have no status (empty = clean card in Notion)
+    properties['Library Status'] = {
+      select: null,
+    };
+  }
+
   return properties;
 };
 
@@ -302,6 +333,194 @@ const updatePage = async (
 };
 
 /**
+ * Build lookup maps from existing pages
+ */
+const buildLookupMaps = (
+  existingPages: Array<{ id: string; properties: any }>,
+  titleProperty: string
+) => {
+  const existingById = new Map<string, any>();
+  const existingByCanonicalId = new Map<string, any>();
+  const existingByTitle = new Map<string, any>();
+
+  for (const page of existingPages) {
+    existingById.set(page.id, page);
+
+    const canonicalIdProp = page.properties['Canonical ID'];
+    if (canonicalIdProp?.rich_text?.[0]?.text?.content) {
+      const canonicalId = canonicalIdProp.rich_text[0].text.content;
+      existingByCanonicalId.set(canonicalId, page);
+    }
+
+    const titleProp = page.properties[titleProperty];
+    if (titleProp?.title?.[0]?.text?.content) {
+      const title = titleProp.title[0].text.content;
+      existingByTitle.set(title.toLowerCase(), page);
+      debug(`Indexed page by title: "${title}"`);
+
+      // Also check if this title matches a merge rule variant
+      const canonicalName = getCanonicalNameFromVariant(title);
+      if (canonicalName) {
+        // Index by the canonical name as well
+        existingByTitle.set(canonicalName.toLowerCase(), page);
+        debug(`  Also indexed by canonical name: "${canonicalName}"`);
+      }
+    }
+  }
+  return { existingById, existingByCanonicalId, existingByTitle };
+};
+
+/**
+ * Sync a single game to Notion
+ * Returns sync result: 'created', 'updated', 'skipped', or 'error'
+ * Also marks the page as processed in the tracker
+ */
+const syncSingleGame = async (
+  client: Client,
+  databaseId: string,
+  game: UnifiedGame,
+  titleProperty: string,
+  syncProperties: NotionSyncProperties,
+  existingByCanonicalId: Map<string, any>,
+  existingByTitle: Map<string, any>,
+  processedPages: Set<string>
+): Promise<'created' | 'updated' | 'skipped' | 'error'> => {
+  try {
+    let existingPage = null;
+
+    debug(`Looking up game: "${game.name}" (ID: ${game.canonicalId})`);
+
+    if (syncProperties.canonicalId) {
+      existingPage = existingByCanonicalId.get(game.canonicalId);
+      if (existingPage) {
+        debug(`  ✓ Found by canonical ID: ${game.canonicalId}`);
+      }
+    }
+
+    if (!existingPage) {
+      const lookupKey = game.name.toLowerCase();
+      existingPage = existingByTitle.get(lookupKey);
+      if (existingPage) {
+        debug(`  ✓ Found by title: "${lookupKey}"`);
+      } else {
+        debug(`  ✗ Not found by title: "${lookupKey}"`);
+      }
+    }
+
+    if (existingPage) {
+      // Mark this page as processed (still in library)
+      processedPages.add(existingPage.id);
+
+      const newProperties = gameToNotionProperties(
+        game,
+        titleProperty,
+        syncProperties
+      );
+
+      const needsUpdate = hasPropertiesChanged(
+        existingPage,
+        newProperties,
+        syncProperties
+      );
+
+      // Also check if we need to clear the "removed" status
+      const currentStatus =
+        existingPage.properties['Library Status']?.select?.name;
+      const needsStatusClear =
+        syncProperties.libraryStatus && currentStatus === '⚠️ Removed';
+
+      if (needsUpdate || needsStatusClear) {
+        await updatePage(
+          client,
+          existingPage.id,
+          game,
+          titleProperty,
+          syncProperties
+        );
+        return 'updated';
+      } else {
+        return 'skipped';
+      }
+    } else {
+      await createPage(client, databaseId, game, titleProperty, syncProperties);
+      return 'created';
+    }
+  } catch (error) {
+    console.error(`Failed to sync game "${game.name}":`, error);
+    return 'error';
+  }
+};
+
+/**
+ * Mark games not in current library as removed
+ * Only processes pages that weren't synced (not in processedPages)
+ */
+const markRemovedGames = async (
+  client: Client,
+  existingById: Map<string, any>,
+  processedPages: Set<string>,
+  titleProperty: string
+): Promise<{ marked: number }> => {
+  console.log('\n🔍 Checking for removed games...');
+
+  const unprocessedPages = Array.from(existingById.entries()).filter(
+    ([pageId]) => !processedPages.has(pageId)
+  );
+
+  console.log(`  Games not in current library: ${unprocessedPages.length}`);
+
+  if (unprocessedPages.length === 0) {
+    console.log(`  ✅ No removed games detected`);
+    return { marked: 0 };
+  }
+
+  let marked = 0;
+  const BATCH_SIZE = 3;
+
+  for (let i = 0; i < unprocessedPages.length; i += BATCH_SIZE) {
+    const batch = unprocessedPages.slice(i, i + BATCH_SIZE);
+
+    await Promise.all(
+      batch.map(async ([pageId, existingPage]) => {
+        try {
+          const titleProp = existingPage.properties[titleProperty];
+          const gameTitle = titleProp?.title?.[0]?.text?.content || 'Unknown';
+          const currentStatus =
+            existingPage.properties['Library Status']?.select?.name;
+
+          if (currentStatus !== '⚠️ Removed') {
+            const canonicalId = extractCanonicalId(existingPage, titleProperty);
+            console.log(
+              `  ⚠️  Marking as removed: "${gameTitle}"${
+                canonicalId ? ` (ID: ${canonicalId})` : ''
+              }`
+            );
+
+            await client.pages.update({
+              page_id: pageId,
+              properties: {
+                'Library Status': { select: { name: '⚠️ Removed' } },
+              },
+            });
+            marked++;
+          }
+        } catch (error) {
+          console.error(`Failed to mark page ${pageId} as removed:`, error);
+        }
+      })
+    );
+
+    // Rate limiting between batches
+    if (i + BATCH_SIZE < unprocessedPages.length) {
+      await sleep(1000);
+    }
+  }
+
+  console.log(`  ✅ Marked ${marked} games as removed`);
+  return { marked };
+};
+
+/**
  * Sync unified games to Notion database
  * Creates new pages and updates existing ones
  */
@@ -314,28 +533,9 @@ const syncGames = async (
 ): Promise<void> => {
   console.log(`Syncing ${games.length} games to Notion...`);
 
-  // Fetch existing pages to avoid duplicates
   const existingPages = await fetchAllPages(client, databaseId);
-
-  // Build lookup maps based on what's available
-  const existingByCanonicalId = new Map<string, any>();
-  const existingByTitle = new Map<string, any>();
-
-  for (const page of existingPages) {
-    // Try to extract Canonical ID
-    const canonicalIdProp = page.properties['Canonical ID'];
-    if (canonicalIdProp?.rich_text?.[0]?.text?.content) {
-      const canonicalId = canonicalIdProp.rich_text[0].text.content;
-      existingByCanonicalId.set(canonicalId, page);
-    }
-
-    // Always extract title for fallback matching
-    const titleProp = page.properties[titleProperty];
-    if (titleProp?.title?.[0]?.text?.content) {
-      const title = titleProp.title[0].text.content.toLowerCase();
-      existingByTitle.set(title, page);
-    }
-  }
+  const { existingById, existingByCanonicalId, existingByTitle } =
+    buildLookupMaps(existingPages, titleProperty);
 
   console.log(`Found ${existingPages.length} existing pages in Notion`);
 
@@ -344,76 +544,36 @@ const syncGames = async (
   let skipped = 0;
   let errors = 0;
   const total = games.length;
-
-  // Process games in batches of 3 (Notion rate limit: 3 req/sec)
   const BATCH_SIZE = 3;
+
+  // Track which pages we've processed (still in library)
+  const processedPages = new Set<string>();
 
   for (let i = 0; i < games.length; i += BATCH_SIZE) {
     const batch = games.slice(i, i + BATCH_SIZE);
 
-    // Process batch in parallel
-    await Promise.all(
-      batch.map(async game => {
-        try {
-          // Try to find existing page:
-          // 1. First by Canonical ID (if it's being synced)
-          // 2. Fallback to title match
-          let existingPage = null;
-
-          if (syncProperties.canonicalId) {
-            existingPage = existingByCanonicalId.get(game.canonicalId);
-          }
-
-          if (!existingPage) {
-            existingPage = existingByTitle.get(game.name.toLowerCase());
-          }
-
-          if (existingPage) {
-            // Check if update is needed
-            const newProperties = gameToNotionProperties(
-              game,
-              titleProperty,
-              syncProperties
-            );
-
-            const needsUpdate = hasPropertiesChanged(
-              existingPage,
-              newProperties,
-              syncProperties
-            );
-
-            if (needsUpdate) {
-              // Update existing page
-              await updatePage(
-                client,
-                existingPage.id,
-                game,
-                titleProperty,
-                syncProperties
-              );
-              updated++;
-            } else {
-              skipped++;
-            }
-          } else {
-            // Create new page
-            await createPage(
-              client,
-              databaseId,
-              game,
-              titleProperty,
-              syncProperties
-            );
-            created++;
-          }
-        } catch (error) {
-          console.error(`Failed to sync game "${game.name}":`, error);
-          errors++;
-        }
-      })
+    const results = await Promise.all(
+      batch.map(game =>
+        syncSingleGame(
+          client,
+          databaseId,
+          game,
+          titleProperty,
+          syncProperties,
+          existingByCanonicalId,
+          existingByTitle,
+          processedPages
+        )
+      )
     );
 
-    // Progress indicator every batch or at completion
+    for (const result of results) {
+      if (result === 'created') created++;
+      else if (result === 'updated') updated++;
+      else if (result === 'skipped') skipped++;
+      else if (result === 'error') errors++;
+    }
+
     const processed = Math.min(i + BATCH_SIZE, total);
     if (processed % 25 === 0 || processed === total) {
       console.log(
@@ -421,10 +581,13 @@ const syncGames = async (
       );
     }
 
-    // Rate limiting: Sleep 1 second between batches (not after the last batch)
     if (i + BATCH_SIZE < games.length) {
       await sleep(1000);
     }
+  }
+
+  if (syncProperties.libraryStatus) {
+    await markRemovedGames(client, existingById, processedPages, titleProperty);
   }
 
   console.log(

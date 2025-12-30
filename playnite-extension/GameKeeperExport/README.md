@@ -1,10 +1,10 @@
 # GameKeeper Playnite Extension
 
-Export your Epic, GOG, and Xbox games from Playnite to a lightweight JSON file for use with GameKeeper.
+Export your Epic, GOG, Amazon, and Xbox games from Playnite to a lightweight JSON file for use with GameKeeper.
 
 ## Features
 
-- ✅ Exports only Epic, GOG, and Xbox games (excludes Steam)
+- ✅ Exports only Epic, GOG, Amazon, and Xbox games (excludes Steam)
 - ✅ Minimal file size (~100-500 KB vs 10+ MB full export)
 - ✅ Only includes essential fields (Name, Source, Playtime, Last Activity, etc.)
 - ✅ Accessible from Playnite's Extensions menu
@@ -26,6 +26,7 @@ Export your Epic, GOG, and Xbox games from Playnite to a lightweight JSON file f
 3. Paste into the Playnite Extensions folder
 
 **Final structure should be:**
+
 ```
 %AppData%\Playnite\Extensions\
 └── GameKeeperExport\
@@ -72,7 +73,7 @@ Update the path in your GameKeeper sync to point to the exported file:
 ```typescript
 // In src/index.ts
 const playniteGames = await playniteAdapter.loadSnapshot(
-  './data/gamekeeper-export.json'  // or wherever you saved it
+  './data/gamekeeper-export.json' // or wherever you saved it
 );
 ```
 
@@ -93,7 +94,7 @@ const playniteGames = await playniteAdapter.loadSnapshot(
 
 ### Empty export file
 
-- Verify you have Epic, GOG, or Xbox games in your Playnite library
+- Verify you have Epic, GOG, Amazon, or Xbox games in your Playnite library
 - Steam games are intentionally excluded (they come from Steam API)
 
 ## Updating the Extension
@@ -145,11 +146,11 @@ The exported JSON is an array of game objects:
 - **Playnite SDK**: Script Extension API
 - **File Size**: Typically 100-500 KB (vs 10+ MB for full export)
 - **Export Time**: < 1 second for most libraries
-- **Supported Sources**: Epic Games, GOG, Xbox, Microsoft Store
+- **Supported Sources**: Epic Games, GOG, Amazon, Xbox, Microsoft Store
 
 ## Version History
 
 - **1.0** (2025-12-28): Initial release
   - Menu-based export
-  - Filters Epic, GOG, Xbox games
+  - Filters Epic, GOG, Amazon, Xbox games
   - Minimal JSON output

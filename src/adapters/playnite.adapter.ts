@@ -40,6 +40,7 @@ const mapPlayniteSource = (source?: { Name: string } | string): Source => {
   if (normalized.includes('steam')) return 'steam';
   if (normalized.includes('epic')) return 'epic';
   if (normalized.includes('gog')) return 'gog';
+  if (normalized.includes('amazon')) return 'amazon';
   if (normalized.includes('xbox') || normalized.includes('microsoft'))
     return 'xbox';
   if (normalized.includes('gamepass') || normalized.includes('game pass'))
@@ -172,15 +173,15 @@ const loadSnapshot = async (
         // Include owned Xbox games or filtered Game Pass games
         const rawGame = mapPlayniteGameToRaw(game, source);
         rawGames.push(rawGame);
-      } else if (source === 'epic' || source === 'gog') {
-        // Always include Epic and GOG games
+      } else if (source === 'epic' || source === 'gog' || source === 'amazon') {
+        // Always include Epic, GOG, and Amazon games
         const rawGame = mapPlayniteGameToRaw(game, source);
         rawGames.push(rawGame);
       }
     }
 
     console.log(
-      `Processed ${rawGames.length} games from Playnite (Epic, GOG, Xbox)`
+      `Processed ${rawGames.length} games from Playnite (Epic, GOG, Amazon, Xbox)`
     );
 
     const breakdown = getSourceBreakdown(rawGames);
