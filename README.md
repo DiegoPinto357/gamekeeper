@@ -76,9 +76,36 @@ STEAM_USER_ID=your_steam_id_here  # 64-bit Steam ID
 NOTION_API_KEY=your_notion_api_key_here
 NOTION_DATABASE_ID=your_database_id_here
 
+# Optional: IGDB API Credentials (for matching non-Steam games to Steam App IDs)
+# This enables ProtonDB enrichment for Epic/GOG/Amazon games
+# Register app at: https://dev.twitch.tv/console/apps (Category: Other)
+IGDB_CLIENT_ID=your_twitch_client_id_here
+IGDB_CLIENT_SECRET=your_twitch_client_secret_here
+
 # Optional: ProtonDB cache duration (days)
 PROTONDB_CACHE_DAYS=30
 ```
+
+### Getting IGDB API Credentials (Optional)
+
+IGDB integration allows GameKeeper to find Steam App IDs for non-Steam games (Epic, GOG, Amazon), enabling ProtonDB enrichment for these platforms.
+
+1. Go to [Twitch Developers Console](https://dev.twitch.tv/console/apps)
+2. Click **Register Your Application**
+3. Fill in:
+   - **Name**: GameKeeper (or any name)
+   - **OAuth Redirect URLs**: `http://localhost` (required but not used)
+   - **Category**: Other
+4. Click **Create**
+5. Copy the **Client ID** → `IGDB_CLIENT_ID`
+6. Click **New Secret** → Copy the secret → `IGDB_CLIENT_SECRET`
+
+**Rate Limits**: Free tier provides 4 requests/second (sufficient for most personal libraries)
+
+**What happens without IGDB?**
+
+- Steam games: ✅ Full ProtonDB enrichment (unchanged)
+- Epic/GOG/Amazon: ❌ No ProtonDB enrichment (unless game has known Steam App ID)
 
 ### Finding Your Steam ID
 

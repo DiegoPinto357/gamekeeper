@@ -3,6 +3,7 @@ import { steamAdapter } from './adapters/steam.adapter';
 import { playniteAdapter } from './adapters/playnite.adapter';
 import { createProtonDBAdapter } from './adapters/protondb.adapter';
 import { createGamePassAdapter } from './adapters/gamepass.adapter';
+import { igdbAdapter } from './adapters/igdb.adapter';
 import { createNotionClient } from './notion/notion.client';
 import { processRawGames } from './core/deduplicate';
 import { loadOverrides } from './core/overrides';
@@ -10,7 +11,7 @@ import {
   generateMergeSuggestions,
   saveMergeSuggestions,
 } from './core/suggestions';
-import { RawGameData, UnifiedGame } from './types/game';
+import { RawGameData, UnifiedGame, Source } from './types/game';
 import fs from 'fs/promises';
 
 /**
@@ -51,6 +52,7 @@ const main = async () => {
     );
 
     await protonDbAdapter.init();
+    await igdbAdapter.initialize();
     console.log('✅ Adapters initialized\n');
 
     // 3. Verify Notion database access
@@ -153,22 +155,93 @@ const main = async () => {
     // 7. Enrich PC games with ProtonDB data
     console.log('🐧 Enriching PC games with ProtonDB data...');
     // PC platforms: Steam (has steamAppId), Epic, GOG, Amazon
-    const pcGames = unifiedGames.filter(
-      g => g.steamAppId || ['epic', 'gog', 'amazon'].includes(g.primarySource)
-    );
+    // Include if owned on ANY PC platform, even if also owned on Xbox/Game Pass
+    const pcGames = unifiedGames.filter(g => {
+      // Has Steam App ID
+      if (g.steamAppId) return true;
+
+      // Owned on any PC platform (Epic, GOG, Amazon)
+      const pcPlatforms: Source[] = ['epic', 'gog', 'amazon'];
+      return g.ownedSources.some(source => pcPlatforms.includes(source));
+    });
     console.log(`Found ${pcGames.length} PC games to enrich`);
 
+    // Step 1: Find Steam App IDs for non-Steam games using IGDB
+    console.log('🔍 Looking up Steam App IDs for non-Steam games...');
+    const nonSteamPcGames = pcGames.filter(g => !g.steamAppId);
+    let igdbMatchCount = 0;
+
+    if (nonSteamPcGames.length > 0) {
+      const IGDB_BATCH_SIZE = 2; // Each game makes 2 API calls (search + external_games), so 2 games = 4 req/sec
+      const IGDB_DELAY = 1000; // 1 second delay between batches
+
+      for (let i = 0; i < nonSteamPcGames.length; i += IGDB_BATCH_SIZE) {
+        const batch = nonSteamPcGames.slice(i, i + IGDB_BATCH_SIZE);
+
+        // Process batch in parallel
+        await Promise.all(
+          batch.map(async game => {
+            try {
+              const steamAppId = await igdbAdapter.findSteamAppId(game.name);
+              if (steamAppId) {
+                game.steamAppId = steamAppId;
+                igdbMatchCount++;
+                if (config.logLevel === 'debug') {
+                  console.log(
+                    `[DEBUG] IGDB matched "${game.name}" → Steam App ID ${steamAppId}`
+                  );
+                }
+              }
+            } catch (error) {
+              // Silently continue - lookup is best-effort
+            }
+          })
+        );
+
+        // Progress indicator and rate limiting
+        const processed = Math.min(i + IGDB_BATCH_SIZE, nonSteamPcGames.length);
+        if (processed % 20 === 0 || processed === nonSteamPcGames.length) {
+          console.log(
+            `  Progress: ${processed}/${nonSteamPcGames.length} non-Steam games checked...`
+          );
+        }
+
+        // Rate limiting: wait between batches (except for the last one)
+        if (i + IGDB_BATCH_SIZE < nonSteamPcGames.length) {
+          await new Promise(resolve => setTimeout(resolve, IGDB_DELAY));
+        }
+      }
+
+      console.log(
+        `✅ Found Steam App IDs for ${igdbMatchCount}/${nonSteamPcGames.length} non-Steam games\n`
+      );
+
+      // Show cache stats
+      const cacheStats = igdbAdapter.getCacheStats();
+      console.log(
+        `📊 IGDB Cache: ${cacheStats.totalEntries} entries (${cacheStats.foundEntries} matches, ${cacheStats.notFoundEntries} not found)`
+      );
+      if (cacheStats.retriableEntries > 0) {
+        console.log(
+          `   ⏰ ${cacheStats.retriableEntries} old failures were retried this run`
+        );
+      }
+      console.log();
+    }
+
+    // Step 2: Enrich games with ProtonDB data
+    console.log('🐧 Fetching ProtonDB compatibility data...');
+    const gamesWithSteamId = pcGames.filter(g => g.steamAppId);
     let enrichedCount = 0;
     const BATCH_SIZE = 20; // Process 20 games at a time (safe for cache reads)
 
-    for (let i = 0; i < pcGames.length; i += BATCH_SIZE) {
-      const batch = pcGames.slice(i, i + BATCH_SIZE);
+    for (let i = 0; i < gamesWithSteamId.length; i += BATCH_SIZE) {
+      const batch = gamesWithSteamId.slice(i, i + BATCH_SIZE);
 
       // Process batch in parallel
       await Promise.all(
         batch.map(async game => {
           try {
-            // Only fetch ProtonDB data for games with Steam App ID
             if (!game.steamAppId) {
               return;
             }
@@ -190,10 +263,10 @@ const main = async () => {
       );
 
       // Progress indicator every batch
-      const processed = Math.min(i + BATCH_SIZE, pcGames.length);
-      if (processed % 20 === 0 || processed === pcGames.length) {
+      const processed = Math.min(i + BATCH_SIZE, gamesWithSteamId.length);
+      if (processed % 20 === 0 || processed === gamesWithSteamId.length) {
         console.log(
-          `  Progress: ${processed}/${pcGames.length} PC games processed...`
+          `  Progress: ${processed}/${gamesWithSteamId.length} games enriched...`
         );
       }
     }
@@ -214,6 +287,9 @@ const main = async () => {
     // 9. Summary
     console.log('📈 Summary:');
     console.log(`   • Total unique games: ${unifiedGames.length}`);
+    console.log(
+      `   • IGDB matches: ${igdbMatchCount}/${nonSteamPcGames.length} non-Steam games`
+    );
     console.log(`   • Games with ProtonDB data: ${enrichedCount}`);
 
     const sourceBreakdown = getSourceBreakdown(unifiedGames);
