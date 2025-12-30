@@ -10,7 +10,7 @@
     "validate": "tsx src/validate-setup.ts",
     "cleanup-duplicates": "tsx src/scripts/cleanup-duplicates.ts",
     "view-gamepass": "tsx src/scripts/view-gamepass-catalog.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest"
   },
   "author": "Diego Pinto dos Santos",
   "license": "ISC",
@@ -24,6 +24,7 @@
   "devDependencies": {
     "@types/node": "^20.10.8",
     "tsx": "^4.7.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vitest": "^4.0.16"
   }
 }
