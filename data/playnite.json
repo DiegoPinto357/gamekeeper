@@ -1911,6 +1911,37 @@
                        "Id":  "8f58a421-f548-45bb-9cb5-c9cd70b52637",
                        "Name":  "Epic"
                    },
+        "Name":  "Trine 3: The Artifacts of Power",
+        "Id":  "b88ca514-524f-4b1f-a0b1-f28f1df2942a",
+        "ReleaseDate":  {
+                            "ReleaseDate":  "2015-08-20"
+                        },
+        "Playtime":  0,
+        "CoverImage":  "b88ca514-524f-4b1f-a0b1-f28f1df2942a\\ed945ab1-ba77-4e2c-826a-3f2d0d202c8d.jpg",
+        "Genres":  [
+                       {
+                           "Id":  "cb677054-f296-4d73-8743-0a8c6761e710",
+                           "Name":  "Adventure"
+                       },
+                       {
+                           "Id":  "8209bbb0-e966-4c54-af57-09c72713c64d",
+                           "Name":  "Indie"
+                       },
+                       {
+                           "Id":  "e6a9ea24-c5a4-4ec5-a4a5-98260fe44acf",
+                           "Name":  "Platform"
+                       },
+                       {
+                           "Id":  "359a1f8c-5423-4694-b1a6-3251c6075b06",
+                           "Name":  "Puzzle"
+                       }
+                   ]
+    },
+    {
+        "Source":  {
+                       "Id":  "8f58a421-f548-45bb-9cb5-c9cd70b52637",
+                       "Name":  "Epic"
+                   },
         "Name":  "Shadow of the Tomb Raider: Definitive Edition",
         "Id":  "0c6fb1f2-4f34-439d-85f8-0d19c15fb4c9",
         "Playtime":  0
@@ -2775,6 +2806,15 @@
                            "Name":  "Shooter"
                        }
                    ]
+    },
+    {
+        "Source":  {
+                       "Id":  "8f58a421-f548-45bb-9cb5-c9cd70b52637",
+                       "Name":  "Epic"
+                   },
+        "Name":  "Trine 2: Complete Story",
+        "Id":  "1f7305fc-c279-4ab2-9f3b-b88815b7130f",
+        "Playtime":  0
     },
     {
         "Source":  {
@@ -4017,6 +4057,38 @@
                        "Id":  "54ed74fa-7591-4afa-9d76-e3dcfbbb0462",
                        "Name":  "Xbox"
                    },
+        "Name":  "Crypt Custodian",
+        "Id":  "08c4a58f-3552-4722-b1e0-97ed5c8fa12f",
+        "CoverImage":  "08c4a58f-3552-4722-b1e0-97ed5c8fa12f\\dc68b8b5-bb1f-4f26-a80f-519267d4407c.jpg",
+        "ReleaseDate":  {
+                            "ReleaseDate":  "2024-08-27"
+                        },
+        "Playtime":  1980,
+        "LastActivity":  "2025-12-29T01:09:15.3508754Z",
+        "Genres":  [
+                       {
+                           "Id":  "cb677054-f296-4d73-8743-0a8c6761e710",
+                           "Name":  "Adventure"
+                       },
+                       {
+                           "Id":  "8209bbb0-e966-4c54-af57-09c72713c64d",
+                           "Name":  "Indie"
+                       },
+                       {
+                           "Id":  "e6a9ea24-c5a4-4ec5-a4a5-98260fe44acf",
+                           "Name":  "Platform"
+                       },
+                       {
+                           "Id":  "60015d01-3d69-4668-abfe-879c6aac830e",
+                           "Name":  "Role-playing (RPG)"
+                       }
+                   ]
+    },
+    {
+        "Source":  {
+                       "Id":  "54ed74fa-7591-4afa-9d76-e3dcfbbb0462",
+                       "Name":  "Xbox"
+                   },
         "Name":  "STAR WARS Jedi: Fallen Order",
         "Id":  "81f5e4ad-4fef-4a39-9bfb-b1e8e7eaca6a",
         "CoverImage":  "81f5e4ad-4fef-4a39-9bfb-b1e8e7eaca6a\\a09e7a30-9f41-4413-b72d-9a6fe20e9e6f.jpg",
@@ -4142,6 +4214,41 @@
                        {
                            "Id":  "60015d01-3d69-4668-abfe-879c6aac830e",
                            "Name":  "Role-playing (RPG)"
+                       }
+                   ]
+    },
+    {
+        "Source":  {
+                       "Id":  "0ef1ed6d-83a7-421b-bae3-e8cb4e68aa75",
+                       "Name":  "GOG"
+                   },
+        "Name":  "Ashworld",
+        "Id":  "85fd3787-a6be-49b6-a21e-d8c01da99a44",
+        "ReleaseDate":  {
+                            "ReleaseDate":  "2017-09-19"
+                        },
+        "Playtime":  0,
+        "CoverImage":  "85fd3787-a6be-49b6-a21e-d8c01da99a44\\66b134d7-1581-42dc-8d6c-1548daafa1e4.jpg",
+        "Genres":  [
+                       {
+                           "Id":  "cb677054-f296-4d73-8743-0a8c6761e710",
+                           "Name":  "Adventure"
+                       },
+                       {
+                           "Id":  "e6a9ea24-c5a4-4ec5-a4a5-98260fe44acf",
+                           "Name":  "Platform"
+                       },
+                       {
+                           "Id":  "f97d712a-f54e-4aad-b3b7-2f7d61fc4ef6",
+                           "Name":  "Racing"
+                       },
+                       {
+                           "Id":  "60015d01-3d69-4668-abfe-879c6aac830e",
+                           "Name":  "Role-playing (RPG)"
+                       },
+                       {
+                           "Id":  "70c57195-4a3e-4918-a831-30ac0578a05c",
+                           "Name":  "Shooter"
                        }
                    ]
     },
@@ -7213,6 +7320,41 @@
     },
     {
         "Source":  {
+                       "Id":  "8f58a421-f548-45bb-9cb5-c9cd70b52637",
+                       "Name":  "Epic"
+                   },
+        "Name":  "Wildgate",
+        "Id":  "6c5f5b64-6131-4eb5-a973-66143bb6409f",
+        "ReleaseDate":  {
+                            "ReleaseDate":  "2025-07-22"
+                        },
+        "Playtime":  0,
+        "CoverImage":  "6c5f5b64-6131-4eb5-a973-66143bb6409f\\4e37c509-c5ea-404c-ad7a-b0efbbdbf426.jpg",
+        "Genres":  [
+                       {
+                           "Id":  "cb677054-f296-4d73-8743-0a8c6761e710",
+                           "Name":  "Adventure"
+                       },
+                       {
+                           "Id":  "f97d712a-f54e-4aad-b3b7-2f7d61fc4ef6",
+                           "Name":  "Racing"
+                       },
+                       {
+                           "Id":  "60015d01-3d69-4668-abfe-879c6aac830e",
+                           "Name":  "Role-playing (RPG)"
+                       },
+                       {
+                           "Id":  "70c57195-4a3e-4918-a831-30ac0578a05c",
+                           "Name":  "Shooter"
+                       },
+                       {
+                           "Id":  "06361436-015b-4194-97ad-ddc40ec6c9b7",
+                           "Name":  "Strategy"
+                       }
+                   ]
+    },
+    {
+        "Source":  {
                        "Id":  "54ed74fa-7591-4afa-9d76-e3dcfbbb0462",
                        "Name":  "Xbox"
                    },
@@ -7774,6 +7916,25 @@
                        {
                            "Id":  "359a1f8c-5423-4694-b1a6-3251c6075b06",
                            "Name":  "Puzzle"
+                       }
+                   ]
+    },
+    {
+        "Source":  {
+                       "Id":  "0ef1ed6d-83a7-421b-bae3-e8cb4e68aa75",
+                       "Name":  "GOG"
+                   },
+        "Name":  "Fallout",
+        "Id":  "816bec85-b2c0-43b5-aa63-19ab59e9e401",
+        "ReleaseDate":  {
+                            "ReleaseDate":  "1997-10-10"
+                        },
+        "Playtime":  0,
+        "CoverImage":  "816bec85-b2c0-43b5-aa63-19ab59e9e401\\9fb18818-6e19-4b7c-b5fc-eb8b212e49d6.jpg",
+        "Genres":  [
+                       {
+                           "Id":  "60015d01-3d69-4668-abfe-879c6aac830e",
+                           "Name":  "Role-playing (RPG)"
                        }
                    ]
     },
@@ -8734,6 +8895,15 @@
                        "Id":  "8f58a421-f548-45bb-9cb5-c9cd70b52637",
                        "Name":  "Epic"
                    },
+        "Name":  "Trine 4: Definitive Edition",
+        "Id":  "e9f4021b-da57-41bc-976b-26196ad9c624",
+        "Playtime":  0
+    },
+    {
+        "Source":  {
+                       "Id":  "8f58a421-f548-45bb-9cb5-c9cd70b52637",
+                       "Name":  "Epic"
+                   },
         "Name":  "Dishonored - Definitive Edition",
         "Id":  "cf38bb20-348b-43d3-9366-dac5f8bf1712",
         "ReleaseDate":  {
@@ -9465,6 +9635,37 @@
                        {
                            "Id":  "e6a9ea24-c5a4-4ec5-a4a5-98260fe44acf",
                            "Name":  "Platform"
+                       }
+                   ]
+    },
+    {
+        "Source":  {
+                       "Id":  "8f58a421-f548-45bb-9cb5-c9cd70b52637",
+                       "Name":  "Epic"
+                   },
+        "Name":  "Chivalry 2",
+        "Id":  "b3cdd256-fbcc-41f6-b22e-2d75e0ea202c",
+        "ReleaseDate":  {
+                            "ReleaseDate":  "2021-06-08"
+                        },
+        "Playtime":  0,
+        "CoverImage":  "b3cdd256-fbcc-41f6-b22e-2d75e0ea202c\\51a2b2aa-1e10-4b42-b44d-6c63f3aec88f.jpg",
+        "Genres":  [
+                       {
+                           "Id":  "7884147b-ff3b-488c-ba47-4f26db663f42",
+                           "Name":  "Fighting"
+                       },
+                       {
+                           "Id":  "42cf9dce-763b-4a12-ac0a-a70dd2ec5e1a",
+                           "Name":  "Hack and slash/Beat \u0027em up"
+                       },
+                       {
+                           "Id":  "8209bbb0-e966-4c54-af57-09c72713c64d",
+                           "Name":  "Indie"
+                       },
+                       {
+                           "Id":  "bc2d0db8-a0bf-4fd4-afe2-f6924e36ac86",
+                           "Name":  "Tactical"
                        }
                    ]
     },
@@ -10354,6 +10555,37 @@
     },
     {
         "Source":  {
+                       "Id":  "8f58a421-f548-45bb-9cb5-c9cd70b52637",
+                       "Name":  "Epic"
+                   },
+        "Name":  "Viewfinder",
+        "Id":  "3ae6c65c-d5ec-4fa8-904b-ca17233af490",
+        "ReleaseDate":  {
+                            "ReleaseDate":  "2023-07-18"
+                        },
+        "Playtime":  0,
+        "CoverImage":  "3ae6c65c-d5ec-4fa8-904b-ca17233af490\\88bdd4d5-e37d-4f8e-9031-44e0a75a52b9.jpg",
+        "Genres":  [
+                       {
+                           "Id":  "cb677054-f296-4d73-8743-0a8c6761e710",
+                           "Name":  "Adventure"
+                       },
+                       {
+                           "Id":  "8209bbb0-e966-4c54-af57-09c72713c64d",
+                           "Name":  "Indie"
+                       },
+                       {
+                           "Id":  "e6a9ea24-c5a4-4ec5-a4a5-98260fe44acf",
+                           "Name":  "Platform"
+                       },
+                       {
+                           "Id":  "359a1f8c-5423-4694-b1a6-3251c6075b06",
+                           "Name":  "Puzzle"
+                       }
+                   ]
+    },
+    {
+        "Source":  {
                        "Id":  "54ed74fa-7591-4afa-9d76-e3dcfbbb0462",
                        "Name":  "Xbox"
                    },
@@ -11232,6 +11464,33 @@
     },
     {
         "Source":  {
+                       "Id":  "8f58a421-f548-45bb-9cb5-c9cd70b52637",
+                       "Name":  "Epic"
+                   },
+        "Name":  "Total War: THREE KINGDOMS",
+        "Id":  "3c8e70be-b639-4977-991e-15ffdd2d10e1",
+        "ReleaseDate":  {
+                            "ReleaseDate":  "2019-05-23"
+                        },
+        "Playtime":  0,
+        "CoverImage":  "3c8e70be-b639-4977-991e-15ffdd2d10e1\\748b2de5-fef2-4beb-9822-57f2a811a336.jpg",
+        "Genres":  [
+                       {
+                           "Id":  "192a8548-2d50-48a4-9261-072a7f571ae1",
+                           "Name":  "Real Time Strategy (RTS)"
+                       },
+                       {
+                           "Id":  "06361436-015b-4194-97ad-ddc40ec6c9b7",
+                           "Name":  "Strategy"
+                       },
+                       {
+                           "Id":  "9c966772-c8c9-4003-a4ff-f0ba9df259e4",
+                           "Name":  "Turn-based strategy (TBS)"
+                       }
+                   ]
+    },
+    {
+        "Source":  {
                        "Id":  "54ed74fa-7591-4afa-9d76-e3dcfbbb0462",
                        "Name":  "Xbox"
                    },
@@ -11884,6 +12143,29 @@
                        {
                            "Id":  "70c57195-4a3e-4918-a831-30ac0578a05c",
                            "Name":  "Shooter"
+                       }
+                   ]
+    },
+    {
+        "Source":  {
+                       "Id":  "0ef1ed6d-83a7-421b-bae3-e8cb4e68aa75",
+                       "Name":  "GOG"
+                   },
+        "Name":  "Bō: Path of the Teal Lotus",
+        "Id":  "0c72480f-eab9-413f-9962-f0cced7f051d",
+        "ReleaseDate":  {
+                            "ReleaseDate":  "2024-07-17"
+                        },
+        "Playtime":  0,
+        "CoverImage":  "0c72480f-eab9-413f-9962-f0cced7f051d\\f990f79f-d795-44a9-8b3a-fd4d3a62c585.jpg",
+        "Genres":  [
+                       {
+                           "Id":  "cb677054-f296-4d73-8743-0a8c6761e710",
+                           "Name":  "Adventure"
+                       },
+                       {
+                           "Id":  "e6a9ea24-c5a4-4ec5-a4a5-98260fe44acf",
+                           "Name":  "Platform"
                        }
                    ]
     },
@@ -12593,6 +12875,41 @@
                        {
                            "Id":  "70c57195-4a3e-4918-a831-30ac0578a05c",
                            "Name":  "Shooter"
+                       }
+                   ]
+    },
+    {
+        "Source":  {
+                       "Id":  "8f58a421-f548-45bb-9cb5-c9cd70b52637",
+                       "Name":  "Epic"
+                   },
+        "Name":  "Trine Enchanted Edition",
+        "Id":  "0eb93f41-0d9f-42dc-afb7-2d4f9c924721",
+        "ReleaseDate":  {
+                            "ReleaseDate":  "2014-07-24"
+                        },
+        "Playtime":  0,
+        "CoverImage":  "0eb93f41-0d9f-42dc-afb7-2d4f9c924721\\3c9e9634-eaf7-4268-a1e3-c4f3ba49a277.jpg",
+        "Genres":  [
+                       {
+                           "Id":  "cb677054-f296-4d73-8743-0a8c6761e710",
+                           "Name":  "Adventure"
+                       },
+                       {
+                           "Id":  "8209bbb0-e966-4c54-af57-09c72713c64d",
+                           "Name":  "Indie"
+                       },
+                       {
+                           "Id":  "e6a9ea24-c5a4-4ec5-a4a5-98260fe44acf",
+                           "Name":  "Platform"
+                       },
+                       {
+                           "Id":  "359a1f8c-5423-4694-b1a6-3251c6075b06",
+                           "Name":  "Puzzle"
+                       },
+                       {
+                           "Id":  "60015d01-3d69-4668-abfe-879c6aac830e",
+                           "Name":  "Role-playing (RPG)"
                        }
                    ]
     },
@@ -13663,6 +13980,29 @@
     },
     {
         "Source":  {
+                       "Id":  "0ef1ed6d-83a7-421b-bae3-e8cb4e68aa75",
+                       "Name":  "GOG"
+                   },
+        "Name":  "Fallout 2",
+        "Id":  "e7e64f2b-6897-4983-9bcb-8ee139c53a83",
+        "ReleaseDate":  {
+                            "ReleaseDate":  "1998-10-29"
+                        },
+        "Playtime":  0,
+        "CoverImage":  "e7e64f2b-6897-4983-9bcb-8ee139c53a83\\9c039d5f-bc21-4d2e-9a24-d6901664aedc.jpg",
+        "Genres":  [
+                       {
+                           "Id":  "359a1f8c-5423-4694-b1a6-3251c6075b06",
+                           "Name":  "Puzzle"
+                       },
+                       {
+                           "Id":  "60015d01-3d69-4668-abfe-879c6aac830e",
+                           "Name":  "Role-playing (RPG)"
+                       }
+                   ]
+    },
+    {
+        "Source":  {
                        "Id":  "54ed74fa-7591-4afa-9d76-e3dcfbbb0462",
                        "Name":  "Xbox"
                    },
@@ -13764,6 +14104,15 @@
                            "Name":  "Strategy"
                        }
                    ]
+    },
+    {
+        "Source":  {
+                       "Id":  "8f58a421-f548-45bb-9cb5-c9cd70b52637",
+                       "Name":  "Epic"
+                   },
+        "Name":  "Chivalry 2 - Public Testing",
+        "Id":  "1cad1e93-72f7-4a0e-9e40-afdb28e32bf1",
+        "Playtime":  0
     },
     {
         "Source":  {
