@@ -108,6 +108,26 @@
     {
       "games": ["Watch Dogs", "WATCH_DOGS"],
       "canonicalName": "Watch Dogs"
+    },
+    {
+      "games": ["Cuphead & The Delicious Last Course", "Cuphead"],
+      "canonicalName": "Cuphead"
+    },
+    {
+      "games": [
+        "Control Ultimate Edition - Xbox Series X|S",
+        "Control",
+        "Control Ultimate Edition"
+      ],
+      "canonicalName": "Control"
+    },
+    {
+      "games": ["Sniper Elite 4 Digital Deluxe Edition", "Sniper Elite 4"],
+      "canonicalName": "Sniper Elite 4"
+    },
+    {
+      "games": ["Alan Wake 2 Deluxe Edition", "Alan Wake 2"],
+      "canonicalName": "Alan Wake 2"
     }
   ],
   "propertyOverrides": []

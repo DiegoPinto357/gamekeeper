@@ -118,6 +118,32 @@ describe('deduplicate', () => {
       expect(unified.ownedSources).toContain('gog');
     });
 
+    it('excludes gamepass from ownedSources when xbox is present', () => {
+      const games: RawGameData[] = [
+        createGame('Halo Infinite', 'xbox'),
+        createGame('Halo Infinite', 'gamepass'),
+      ];
+
+      const unified = mergeGameGroup(games);
+
+      expect(unified.ownedSources).toHaveLength(1);
+      expect(unified.ownedSources).toContain('xbox');
+      expect(unified.ownedSources).not.toContain('gamepass');
+    });
+
+    it('includes gamepass when xbox is not present', () => {
+      const games: RawGameData[] = [
+        createGame('Starfield', 'steam'),
+        createGame('Starfield', 'gamepass'),
+      ];
+
+      const unified = mergeGameGroup(games);
+
+      expect(unified.ownedSources).toHaveLength(2);
+      expect(unified.ownedSources).toContain('steam');
+      expect(unified.ownedSources).toContain('gamepass');
+    });
+
     it('sums playtime across all sources', () => {
       const games: RawGameData[] = [
         createGame('Game', 'steam', { playtimeHours: 10 }),

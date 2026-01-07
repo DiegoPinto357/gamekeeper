@@ -71,7 +71,14 @@ export const mergeGameGroup = (games: RawGameData[]): UnifiedGame => {
 
   // Primary source is the highest priority platform
   const primary = sorted[0];
-  const ownedSources = [...new Set(sorted.map(g => g.source))];
+
+  // Get unique sources, but apply Xbox/Game Pass exclusion rule:
+  // If Xbox is present, exclude Game Pass from ownedSources
+  const allSources = [...new Set(sorted.map(g => g.source))];
+  const hasXbox = allSources.includes('xbox');
+  const ownedSources = hasXbox
+    ? allSources.filter(s => s !== 'gamepass')
+    : allSources;
 
   // Generate canonical ID
   const canonicalId = primary.steamAppId

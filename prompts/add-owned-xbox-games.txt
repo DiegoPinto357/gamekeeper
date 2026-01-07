@@ -1,0 +1,5 @@
+This file is a list of my own xbox games. The text down below is my list of purchases on microsoft. Parse this text and add the game into the list.
+- Exclude non games purchases
+- Prevent duplications
+- Exclude DLCs
+- Don't remove any game that was in the list before

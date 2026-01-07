@@ -21,11 +21,11 @@ export type Source = z.infer<typeof SourceSchema>;
 export const PLATFORM_PRIORITY: Record<Source, number> = {
   steam: 1,
   xbox: 2,
+  gamepass: 2,
   epic: 3,
   gog: 4,
   amazon: 5,
-  gamepass: 6,
-  manual: 7,
+  manual: 6,
 };
 
 /**

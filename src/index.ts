@@ -11,6 +11,14 @@ import {
   generateMergeSuggestions,
   saveMergeSuggestions,
 } from './core/suggestions';
+import {
+  loadOwnedXboxGames,
+  processGamePassAvailability,
+  saveUnavailableGames,
+  getInterestGamesToSync,
+  shouldSyncToNotion,
+  resolveXboxSource,
+} from './core/xbox-gamepass';
 import { RawGameData, UnifiedGame, Source } from './types/game';
 import fs from 'fs/promises';
 
@@ -86,8 +94,16 @@ const main = async () => {
 
     // Load Playnite snapshot
     console.log('📦 Loading Playnite snapshot...');
+    let gamePassData:
+      | { playniteGames: RawGameData[]; gamePassCatalog: any[] }
+      | undefined;
     try {
-      // Load Game Pass interests list
+      // Load Game Pass catalog for filtering
+      console.log('🎮 Loading Game Pass catalog...');
+      const gamePassCatalog = await gamePassAdapter.getCatalog();
+      console.log(`✅ Game Pass: ${gamePassCatalog.length} games available`);
+
+      // Load Game Pass interests
       let gamePassInterests: string[] = [];
       try {
         const interestsContent = await fs.readFile(
@@ -100,10 +116,12 @@ const main = async () => {
           `📝 Loaded ${gamePassInterests.length} Game Pass interests`
         );
       } catch {
-        console.warn(
-          '⚠️  No Game Pass interests file found, will include all owned Xbox games only'
-        );
+        console.warn('⚠️  No Game Pass interests file found');
       }
+
+      // Load owned Xbox games
+      const ownedXboxGames = await loadOwnedXboxGames();
+      console.log(`🎯 Loaded ${ownedXboxGames.size} owned Xbox games`);
 
       // Create Game Pass filter function
       const gamePassFilter = async (gameTitle: string): Promise<boolean> => {
@@ -127,8 +145,73 @@ const main = async () => {
         './data/playnite.json',
         gamePassFilter
       );
-      rawGames.push(...playniteGames);
-      console.log(`✅ Playnite: ${playniteGames.length} games\n`);
+
+      // Resolve Xbox source tags and filter games
+      const filteredPlayniteGames: RawGameData[] = [];
+      for (const game of playniteGames) {
+        // Resolve Xbox/Game Pass source tag
+        if (game.source === 'xbox') {
+          const resolvedSource = await resolveXboxSource(
+            game.name,
+            gamePassCatalog
+          );
+          game.source = resolvedSource;
+        }
+
+        // Check if game should sync
+        const shouldSync = await shouldSyncToNotion(game, gamePassCatalog);
+        if (shouldSync) {
+          filteredPlayniteGames.push(game);
+        }
+      }
+
+      rawGames.push(...filteredPlayniteGames);
+      console.log(
+        `✅ Playnite: ${filteredPlayniteGames.length} games (${
+          playniteGames.length - filteredPlayniteGames.length
+        } filtered out)\n`
+      );
+
+      // Add owned Xbox games that aren't in Playnite (0 playtime)
+      const ownedXboxFile = await fs.readFile(
+        './data/owned-xbox-games.json',
+        'utf-8'
+      );
+      const ownedXboxData = JSON.parse(ownedXboxFile);
+      const ownedGamesNames: string[] = ownedXboxData.ownedGames || [];
+
+      const playniteGameNames = new Set(
+        playniteGames.map(g => g.name.toLowerCase().trim())
+      );
+
+      for (const gameName of ownedGamesNames) {
+        if (!playniteGameNames.has(gameName.toLowerCase().trim())) {
+          // Game is owned but not played yet
+          rawGames.push({
+            name: gameName,
+            source: 'xbox',
+            externalId: `xbox-owned-${gameName
+              .toLowerCase()
+              .replace(/\s+/g, '-')}`,
+            playtimeHours: 0,
+          });
+        }
+      }
+
+      // Add interest games from Game Pass
+      const interestGames = await getInterestGamesToSync(
+        gamePassCatalog,
+        playniteGames
+      );
+      if (interestGames.length > 0) {
+        console.log(
+          `➕ Adding ${interestGames.length} Game Pass interest games`
+        );
+        rawGames.push(...interestGames);
+      }
+
+      // Store Game Pass data for later report generation
+      gamePassData = { playniteGames, gamePassCatalog };
     } catch (error) {
       console.error('❌ Failed to load Playnite snapshot:', error);
       console.log('Continuing without Playnite data...\n');
@@ -284,8 +367,34 @@ const main = async () => {
     await notionClient.syncGames(unifiedGames);
     console.log('✅ Sync to Notion complete\n');
 
-    // 9. Summary
-    console.log('📈 Summary:');
+    // 9. Generate Game Pass availability report
+    if (gamePassData) {
+      console.log('📊 Processing Game Pass availability...');
+      const { unavailable, returned } = await processGamePassAvailability(
+        gamePassData.playniteGames,
+        gamePassData.gamePassCatalog
+      );
+
+      if (returned.length > 0) {
+        console.log(
+          `🎉 ${returned.length} games returned to Game Pass: ${returned.join(
+            ', '
+          )}`
+        );
+      }
+
+      if (unavailable.length > 0) {
+        await saveUnavailableGames(unavailable);
+        console.log(
+          `⚠️  ${unavailable.length} games no longer available on Game Pass (see gamepass-unavailable.json)`
+        );
+      } else {
+        console.log(`✅ All played/interest games are available`);
+      }
+    }
+
+    // 10. Summary
+    console.log('\n📈 Summary:');
     console.log(`   • Total unique games: ${unifiedGames.length}`);
     console.log(
       `   • IGDB matches: ${igdbMatchCount}/${nonSteamPcGames.length} non-Steam games`
