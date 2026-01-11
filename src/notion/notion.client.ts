@@ -342,6 +342,7 @@ const buildLookupMaps = (
   const existingById = new Map<string, any>();
   const existingByCanonicalId = new Map<string, any>();
   const existingByTitle = new Map<string, any>();
+  const variantPages = new Map<string, any[]>(); // Map canonical name -> array of variant pages
 
   for (const page of existingPages) {
     existingById.set(page.id, page);
@@ -355,19 +356,38 @@ const buildLookupMaps = (
     const titleProp = page.properties[titleProperty];
     if (titleProp?.title?.[0]?.text?.content) {
       const title = titleProp.title[0].text.content;
-      existingByTitle.set(title.toLowerCase(), page);
+      const titleKey = title.toLowerCase();
+      existingByTitle.set(titleKey, page);
       debug(`Indexed page by title: "${title}"`);
 
       // Also check if this title matches a merge rule variant
       const canonicalName = getCanonicalNameFromVariant(title);
       if (canonicalName) {
-        // Index by the canonical name as well
-        existingByTitle.set(canonicalName.toLowerCase(), page);
-        debug(`  Also indexed by canonical name: "${canonicalName}"`);
+        const canonicalKey = canonicalName.toLowerCase();
+
+        // Track variant pages for later marking as removed
+        if (title !== canonicalName) {
+          if (!variantPages.has(canonicalKey)) {
+            variantPages.set(canonicalKey, []);
+          }
+          variantPages.get(canonicalKey)!.push(page);
+          debug(`  Tracked as variant of "${canonicalName}"`);
+        }
+
+        // Only index by canonical name if we don't already have an exact match
+        // This ensures "Sniper Elite 4" is preferred over "Sniper Elite 4 Digital Deluxe Edition"
+        if (!existingByTitle.has(canonicalKey) || titleKey === canonicalKey) {
+          existingByTitle.set(canonicalKey, page);
+          debug(`  Also indexed by canonical name: "${canonicalName}"`);
+        } else {
+          debug(
+            `  Not indexing by canonical name (exact match already exists)`
+          );
+        }
       }
     }
   }
-  return { existingById, existingByCanonicalId, existingByTitle };
+  return { existingById, existingByCanonicalId, existingByTitle, variantPages };
 };
 
 /**
@@ -383,6 +403,7 @@ const syncSingleGame = async (
   syncProperties: NotionSyncProperties,
   existingByCanonicalId: Map<string, any>,
   existingByTitle: Map<string, any>,
+  variantPages: Map<string, any[]>,
   processedPages: Set<string>
 ): Promise<'created' | 'updated' | 'skipped' | 'error'> => {
   try {
@@ -404,6 +425,38 @@ const syncSingleGame = async (
         debug(`  ✓ Found by title: "${lookupKey}"`);
       } else {
         debug(`  ✗ Not found by title: "${lookupKey}"`);
+      }
+    }
+
+    // Mark any variant pages as removed
+    const variants = variantPages.get(game.name.toLowerCase());
+    if (variants && variants.length > 0) {
+      for (const variantPage of variants) {
+        // Skip if this is the page we're about to update
+        if (existingPage && variantPage.id === existingPage.id) {
+          continue;
+        }
+
+        // Mark variant as removed and track it as processed
+        processedPages.add(variantPage.id);
+        const variantTitle =
+          variantPage.properties[titleProperty]?.title?.[0]?.text?.content ||
+          'Unknown';
+        debug(`  Marking variant "${variantTitle}" as removed`);
+
+        try {
+          await client.pages.update({
+            page_id: variantPage.id,
+            properties: {
+              'Library Status': { select: { name: '⚠️ Removed' } },
+            },
+          });
+        } catch (error) {
+          console.error(
+            `Failed to mark variant page ${variantTitle} as removed:`,
+            error
+          );
+        }
       }
     }
 
@@ -534,7 +587,7 @@ const syncGames = async (
   console.log(`Syncing ${games.length} games to Notion...`);
 
   const existingPages = await fetchAllPages(client, databaseId);
-  const { existingById, existingByCanonicalId, existingByTitle } =
+  const { existingById, existingByCanonicalId, existingByTitle, variantPages } =
     buildLookupMaps(existingPages, titleProperty);
 
   console.log(`Found ${existingPages.length} existing pages in Notion`);
@@ -562,6 +615,7 @@ const syncGames = async (
           syncProperties,
           existingByCanonicalId,
           existingByTitle,
+          variantPages,
           processedPages
         )
       )

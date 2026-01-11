@@ -4,7 +4,7 @@ import {
   generateCanonicalId,
   areNamesMatching,
 } from './normalize';
-import { shouldForceMerge } from './overrides';
+import { shouldForceMerge, getCanonicalNameFromVariant } from './overrides';
 import { getConfig } from '../config';
 
 const debug = (message: string, ...args: any[]) => {
@@ -38,7 +38,11 @@ export const deduplicateGames = (
     for (const [existingKey, existingGames] of gameGroups.entries()) {
       const existingGame = existingGames[0];
 
-      if (areNamesMatching(game.name, existingGame.name)) {
+      // Check both normal name matching and forced merge overrides
+      if (
+        areNamesMatching(game.name, existingGame.name) ||
+        shouldForceMerge(game.name, existingGame.name)
+      ) {
         gameGroups.get(existingKey)!.push(game);
         matched = true;
         break;
@@ -72,6 +76,26 @@ export const mergeGameGroup = (games: RawGameData[]): UnifiedGame => {
   // Primary source is the highest priority platform
   const primary = sorted[0];
 
+  // Determine the canonical name FIRST (before generating canonical ID)
+  // This ensures the ID is based on the correct name
+  let gameName = primary.name;
+  const canonicalNameOverride = getCanonicalNameFromVariant(primary.name);
+  if (canonicalNameOverride && canonicalNameOverride !== primary.name) {
+    debug(
+      `Applying canonical name: "${canonicalNameOverride}" (was "${primary.name}")`
+    );
+    gameName = canonicalNameOverride;
+  } else if (games.length > 1) {
+    // Also check if there's a forced merge with a canonical name between games
+    const mergeCanonical = shouldForceMerge(games[0].name, games[1].name);
+    if (mergeCanonical && mergeCanonical !== primary.name) {
+      debug(
+        `Applying canonical name from merge: "${mergeCanonical}" (was "${primary.name}")`
+      );
+      gameName = mergeCanonical;
+    }
+  }
+
   // Get unique sources, but apply Xbox/Game Pass exclusion rule:
   // If Xbox is present, exclude Game Pass from ownedSources
   const allSources = [...new Set(sorted.map(g => g.source))];
@@ -80,10 +104,10 @@ export const mergeGameGroup = (games: RawGameData[]): UnifiedGame => {
     ? allSources.filter(s => s !== 'gamepass')
     : allSources;
 
-  // Generate canonical ID
+  // Generate canonical ID using the canonical name (not the original name)
   const canonicalId = primary.steamAppId
     ? `steam:${primary.steamAppId}`
-    : generateCanonicalId(primary.name);
+    : generateCanonicalId(gameName);
 
   // Merge playtime (sum across all sources)
   const totalPlaytime = games.reduce((sum, game) => {
@@ -102,18 +126,7 @@ export const mergeGameGroup = (games: RawGameData[]): UnifiedGame => {
 
   const now = new Date();
 
-  // Check if any games in this group should use a canonical name from overrides
-  let gameName = primary.name;
-  if (games.length > 1) {
-    // Check if there's a forced merge with a canonical name
-    const canonicalName = shouldForceMerge(games[0].name, games[1].name);
-    if (canonicalName && canonicalName !== primary.name) {
-      debug(
-        `Applying canonical name: "${canonicalName}" (was "${primary.name}")`
-      );
-      gameName = canonicalName;
-    }
-  }
+  // gameName was already determined above (before generating canonical ID)
 
   const unified: UnifiedGame = {
     canonicalId,

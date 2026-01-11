@@ -12,6 +12,7 @@ vi.mock('../config', () => ({
 
 vi.mock('./overrides', () => ({
   shouldForceMerge: () => false,
+  getCanonicalNameFromVariant: () => null,
 }));
 
 const createGame = (
