@@ -5,3 +5,4 @@ dist/
 .DS_Store
 .cache/
 data/merge-suggestions.json
+data/gamepass-unavailable.json
