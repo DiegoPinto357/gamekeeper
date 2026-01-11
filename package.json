@@ -10,7 +10,8 @@
     "validate": "tsx src/validate-setup.ts",
     "cleanup-duplicates": "tsx src/scripts/cleanup-duplicates.ts",
     "view-gamepass": "tsx src/scripts/view-gamepass-catalog.ts",
-    "test": "vitest"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "author": "Diego Pinto dos Santos",
   "license": "ISC",
