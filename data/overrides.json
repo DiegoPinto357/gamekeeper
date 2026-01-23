@@ -128,6 +128,13 @@
     {
       "games": ["Alan Wake 2 Deluxe Edition", "Alan Wake 2"],
       "canonicalName": "Alan Wake 2"
+    },
+    {
+      "games": [
+        "Sid Meier's Civilization VI",
+        "Sid Meier's Civilization IV: The Complete Edition"
+      ],
+      "canonicalName": "Sid Meier's Civilization VI"
     }
   ],
   "propertyOverrides": []
