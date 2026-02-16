@@ -47,6 +47,18 @@ describe('normalize', () => {
         'witcher 3 wild hunt'
       );
     });
+
+    it('removes Windows platform suffixes', () => {
+      expect(normalizeGameName('A Plague Tale: Requiem - Windows')).toBe(
+        'plague tale requiem'
+      );
+      expect(normalizeGameName('Aliens: Dark Descent (Windows)')).toBe(
+        'aliens dark descent'
+      );
+      expect(normalizeGameName('Control Ultimate Edition (Windows)')).toBe(
+        'control ultimate edition'
+      );
+    });
   });
 
   describe('generateCanonicalId', () => {

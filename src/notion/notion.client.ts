@@ -51,6 +51,17 @@ const capitalizeFirst = (str: string): string => {
 };
 
 /**
+ * Clean game name for display in Notion
+ * Removes platform-specific suffixes like " - Windows" and "(Windows)"
+ */
+const cleanDisplayName = (name: string): string => {
+  return name
+    .replace(/\s*\(Windows\)\s*$/i, '') // Remove (Windows) suffix
+    .replace(/\s*-\s+Windows\s*$/i, '') // Remove " - Windows" suffix
+    .trim();
+};
+
+/**
  * Sleep helper for rate limiting
  */
 const sleep = (ms: number): Promise<void> => {
@@ -194,7 +205,7 @@ const gameToNotionProperties = (
 ): Partial<NotionGameProperties> => {
   const properties: Partial<NotionGameProperties> = {
     [titleProperty]: {
-      title: [{ text: { content: game.name } }],
+      title: [{ text: { content: cleanDisplayName(game.name) } }],
     },
   };
 

@@ -48,6 +48,8 @@ export const normalizeGameName = (name: string): string => {
     .replace(/\s+/g, ' ') // Normalize whitespace
     .replace(/\b(the|a|an)\b/g, '') // Remove articles
     .replace(/\b(goty|game of the year edition)\b/g, '')
+    .replace(/\s*\(windows\)\s*$/i, '') // Remove (Windows) suffix
+    .replace(/\s*\s+windows\s*$/i, '') // Remove " - Windows" suffix
     .trim();
 };
 
