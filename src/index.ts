@@ -27,18 +27,16 @@ import fs from 'fs/promises';
  * Coordinates the entire sync process
  */
 const main = async () => {
-  const config = await loadConfig();
+  // 1. Load configuration
+  const config = loadConfig();
+  console.log('📋 Configuration loaded');
+
   console.log('🎮 GameKeeper - Starting sync...\n');
   if (config.logLevel === 'debug') {
     console.log('[DEBUG] Debug logging enabled\n');
   }
 
   try {
-    // 1. Load configuration
-    console.log('📋 Loading configuration...');
-    const config = loadConfig();
-    console.log('✅ Configuration loaded\n');
-
     // 2. Load manual overrides
     await loadOverrides('./data/overrides.json');
 
@@ -46,17 +44,17 @@ const main = async () => {
     console.log('🔧 Initializing adapters...');
     const protonDbAdapter = createProtonDBAdapter(
       '.cache/protondb',
-      config.protondb.cacheDays
+      config.protondb.cacheDays,
     );
     const gamePassAdapter = createGamePassAdapter(
       '.cache/gamepass',
-      7 // Cache for 7 days
+      7, // Cache for 7 days
     );
     const notionClient = createNotionClient(
       config.notion.apiKey,
       config.notion.databaseId,
       config.notion.titleProperty,
-      config.notion.syncProperties
+      config.notion.syncProperties,
     );
 
     await protonDbAdapter.init();
@@ -68,7 +66,7 @@ const main = async () => {
     const notionAccessible = await notionClient.verifyDatabase();
     if (!notionAccessible) {
       throw new Error(
-        'Cannot access Notion database. Check your API key and database ID.'
+        'Cannot access Notion database. Check your API key and database ID.',
       );
     }
     console.log('✅ Notion database verified\n');
@@ -83,7 +81,7 @@ const main = async () => {
     try {
       const steamGames = await steamAdapter.fetchOwnedGames(
         config.steam.apiKey,
-        config.steam.userId
+        config.steam.userId,
       );
       rawGames.push(...steamGames);
       console.log(`✅ Steam: ${steamGames.length} games\n`);
@@ -108,12 +106,12 @@ const main = async () => {
       try {
         const interestsContent = await fs.readFile(
           './data/gamepass-interests.json',
-          'utf-8'
+          'utf-8',
         );
         const interestsData = JSON.parse(interestsContent);
         gamePassInterests = interestsData.wantToPlay || [];
         console.log(
-          `📝 Loaded ${gamePassInterests.length} Game Pass interests`
+          `📝 Loaded ${gamePassInterests.length} Game Pass interests`,
         );
       } catch {
         console.warn('⚠️  No Game Pass interests file found');
@@ -128,7 +126,7 @@ const main = async () => {
         // Check if user wants to play this game
         const isInterested = gamePassInterests.some(
           interest =>
-            interest.toLowerCase().trim() === gameTitle.toLowerCase().trim()
+            interest.toLowerCase().trim() === gameTitle.toLowerCase().trim(),
         );
 
         if (!isInterested) {
@@ -143,7 +141,7 @@ const main = async () => {
 
       const playniteGames = await playniteAdapter.loadSnapshot(
         './data/playnite.json',
-        gamePassFilter
+        gamePassFilter,
       );
 
       // Resolve Xbox source tags and filter games
@@ -153,7 +151,7 @@ const main = async () => {
         if (game.source === 'xbox') {
           const resolvedSource = await resolveXboxSource(
             game.name,
-            gamePassCatalog
+            gamePassCatalog,
           );
           game.source = resolvedSource;
         }
@@ -169,19 +167,19 @@ const main = async () => {
       console.log(
         `✅ Playnite: ${filteredPlayniteGames.length} games (${
           playniteGames.length - filteredPlayniteGames.length
-        } filtered out)\n`
+        } filtered out)\n`,
       );
 
       // Add owned Xbox games that aren't in Playnite (0 playtime)
       const ownedXboxFile = await fs.readFile(
         './data/owned-xbox-games.json',
-        'utf-8'
+        'utf-8',
       );
       const ownedXboxData = JSON.parse(ownedXboxFile);
       const ownedGamesNames: string[] = ownedXboxData.ownedGames || [];
 
       const playniteGameNames = new Set(
-        playniteGames.map(g => g.name.toLowerCase().trim())
+        playniteGames.map(g => g.name.toLowerCase().trim()),
       );
 
       for (const gameName of ownedGamesNames) {
@@ -201,11 +199,11 @@ const main = async () => {
       // Add interest games from Game Pass
       const interestGames = await getInterestGamesToSync(
         gamePassCatalog,
-        playniteGames
+        playniteGames,
       );
       if (interestGames.length > 0) {
         console.log(
-          `➕ Adding ${interestGames.length} Game Pass interest games`
+          `➕ Adding ${interestGames.length} Game Pass interest games`,
         );
         rawGames.push(...interestGames);
       }
@@ -271,21 +269,21 @@ const main = async () => {
                 igdbMatchCount++;
                 if (config.logLevel === 'debug') {
                   console.log(
-                    `[DEBUG] IGDB matched "${game.name}" → Steam App ID ${steamAppId}`
+                    `[DEBUG] IGDB matched "${game.name}" → Steam App ID ${steamAppId}`,
                   );
                 }
               }
             } catch (error) {
               // Silently continue - lookup is best-effort
             }
-          })
+          }),
         );
 
         // Progress indicator and rate limiting
         const processed = Math.min(i + IGDB_BATCH_SIZE, nonSteamPcGames.length);
         if (processed % 20 === 0 || processed === nonSteamPcGames.length) {
           console.log(
-            `  Progress: ${processed}/${nonSteamPcGames.length} non-Steam games checked...`
+            `  Progress: ${processed}/${nonSteamPcGames.length} non-Steam games checked...`,
           );
         }
 
@@ -296,17 +294,17 @@ const main = async () => {
       }
 
       console.log(
-        `✅ Found Steam App IDs for ${igdbMatchCount}/${nonSteamPcGames.length} non-Steam games\n`
+        `✅ Found Steam App IDs for ${igdbMatchCount}/${nonSteamPcGames.length} non-Steam games\n`,
       );
 
       // Show cache stats
       const cacheStats = igdbAdapter.getCacheStats();
       console.log(
-        `📊 IGDB Cache: ${cacheStats.totalEntries} entries (${cacheStats.foundEntries} matches, ${cacheStats.notFoundEntries} not found)`
+        `📊 IGDB Cache: ${cacheStats.totalEntries} entries (${cacheStats.foundEntries} matches, ${cacheStats.notFoundEntries} not found)`,
       );
       if (cacheStats.retriableEntries > 0) {
         console.log(
-          `   ⏰ ${cacheStats.retriableEntries} old failures were retried this run`
+          `   ⏰ ${cacheStats.retriableEntries} old failures were retried this run`,
         );
       }
       console.log();
@@ -330,7 +328,7 @@ const main = async () => {
             }
 
             const protonInfo = await protonDbAdapter.fetchCompatibility(
-              game.steamAppId
+              game.steamAppId,
             );
             if (protonInfo) {
               game.proton = protonInfo;
@@ -339,17 +337,17 @@ const main = async () => {
           } catch (error) {
             console.warn(
               `Failed to fetch ProtonDB data for "${game.name}":`,
-              error
+              error,
             );
           }
-        })
+        }),
       );
 
       // Progress indicator every batch
       const processed = Math.min(i + BATCH_SIZE, gamesWithSteamId.length);
       if (processed % 20 === 0 || processed === gamesWithSteamId.length) {
         console.log(
-          `  Progress: ${processed}/${gamesWithSteamId.length} games enriched...`
+          `  Progress: ${processed}/${gamesWithSteamId.length} games enriched...`,
         );
       }
     }
@@ -372,21 +370,21 @@ const main = async () => {
       console.log('📊 Processing Game Pass availability...');
       const { unavailable, returned } = await processGamePassAvailability(
         gamePassData.playniteGames,
-        gamePassData.gamePassCatalog
+        gamePassData.gamePassCatalog,
       );
 
       if (returned.length > 0) {
         console.log(
           `🎉 ${returned.length} games returned to Game Pass: ${returned.join(
-            ', '
-          )}`
+            ', ',
+          )}`,
         );
       }
 
       if (unavailable.length > 0) {
         await saveUnavailableGames(unavailable);
         console.log(
-          `⚠️  ${unavailable.length} games no longer available on Game Pass (see gamepass-unavailable.json)`
+          `⚠️  ${unavailable.length} games no longer available on Game Pass (see gamepass-unavailable.json)`,
         );
       } else {
         console.log(`✅ All played/interest games are available`);
@@ -397,7 +395,7 @@ const main = async () => {
     console.log('\n📈 Summary:');
     console.log(`   • Total unique games: ${unifiedGames.length}`);
     console.log(
-      `   • IGDB matches: ${igdbMatchCount}/${nonSteamPcGames.length} non-Steam games`
+      `   • IGDB matches: ${igdbMatchCount}/${nonSteamPcGames.length} non-Steam games`,
     );
     console.log(`   • Games with ProtonDB data: ${enrichedCount}`);
 
