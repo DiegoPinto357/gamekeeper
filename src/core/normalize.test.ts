@@ -12,7 +12,7 @@ describe('normalize', () => {
       expect(normalizeGameName('Half-Life™')).toBe('half life');
       expect(normalizeGameName('Portal®')).toBe('portal');
       expect(normalizeGameName('Batman™: Arkham Knight')).toBe(
-        'batman arkham knight'
+        'batman arkham knight',
       );
     });
 
@@ -25,14 +25,14 @@ describe('normalize', () => {
     it('removes articles (the, a, an)', () => {
       expect(normalizeGameName('The Witcher 3')).toBe('witcher 3');
       expect(normalizeGameName('A Story About My Uncle')).toBe(
-        'story about my uncle'
+        'story about my uncle',
       );
       expect(normalizeGameName('The Long Dark')).toBe('long dark');
     });
 
     it('normalizes whitespace', () => {
       expect(normalizeGameName('Game    With     Spaces')).toBe(
-        'game with spaces'
+        'game with spaces',
       );
     });
 
@@ -44,19 +44,19 @@ describe('normalize', () => {
       // Note: "the" gets removed before "game of the year edition" pattern matching
       // so "Game of the Year Edition" becomes "game of year edition" (not fully removed)
       expect(normalizeGameName('The Witcher 3: Wild Hunt')).toBe(
-        'witcher 3 wild hunt'
+        'witcher 3 wild hunt',
       );
     });
 
     it('removes Windows platform suffixes', () => {
       expect(normalizeGameName('A Plague Tale: Requiem - Windows')).toBe(
-        'plague tale requiem'
+        'plague tale requiem',
       );
       expect(normalizeGameName('Aliens: Dark Descent (Windows)')).toBe(
-        'aliens dark descent'
+        'aliens dark descent',
       );
       expect(normalizeGameName('Control Ultimate Edition (Windows)')).toBe(
-        'control ultimate edition'
+        'control ultimate edition',
       );
     });
   });
@@ -71,7 +71,7 @@ describe('normalize', () => {
     it('handles special characters', () => {
       expect(generateCanonicalId("Assassin's Creed")).toBe('assassin-s-creed');
       expect(generateCanonicalId('Batman™: Arkham Knight')).toBe(
-        'batman-arkham-knight'
+        'batman-arkham-knight',
       );
     });
 
@@ -94,7 +94,7 @@ describe('normalize', () => {
     it('returns high similarity for substring matches', () => {
       const similarity = calculateNameSimilarity(
         'Metro: Last Light Complete Edition',
-        'Metro: Last Light'
+        'Metro: Last Light',
       );
       expect(similarity).toBe(0.95);
     });
@@ -119,7 +119,7 @@ describe('normalize', () => {
     it('matches with different punctuation', () => {
       expect(areNamesMatching('Half-Life 2', 'Half Life 2')).toBe(true);
       expect(areNamesMatching("Assassin's Creed", 'Assassin s Creed')).toBe(
-        true
+        true,
       );
     });
 
@@ -135,7 +135,7 @@ describe('normalize', () => {
 
     it('does not match similar but different editions', () => {
       expect(
-        areNamesMatching('Metro: Last Light', 'Metro: Last Light Redux')
+        areNamesMatching('Metro: Last Light', 'Metro: Last Light Redux'),
       ).toBe(false);
     });
   });

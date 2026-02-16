@@ -75,7 +75,7 @@ const sleep = (ms: number): Promise<void> => {
 const hasPropertiesChanged = (
   existingPage: any,
   newProperties: any,
-  syncProperties: NotionSyncProperties
+  syncProperties: NotionSyncProperties,
 ): boolean => {
   try {
     const existing = existingPage.properties;
@@ -162,7 +162,7 @@ const hasPropertiesChanged = (
  */
 const extractCanonicalId = (
   page: any,
-  titleProperty: string
+  titleProperty: string,
 ): string | null => {
   try {
     // First, try to get the Canonical ID property
@@ -201,7 +201,7 @@ const extractCanonicalId = (
 const gameToNotionProperties = (
   game: UnifiedGame,
   titleProperty: string,
-  syncProperties: NotionSyncProperties
+  syncProperties: NotionSyncProperties,
 ): Partial<NotionGameProperties> => {
   const properties: Partial<NotionGameProperties> = {
     [titleProperty]: {
@@ -284,7 +284,7 @@ const gameToNotionProperties = (
  */
 const fetchAllPages = async (
   client: Client,
-  databaseId: string
+  databaseId: string,
 ): Promise<Array<{ id: string; properties: any }>> => {
   const pages: Array<{ id: string; properties: any }> = [];
   let cursor: string | undefined;
@@ -311,14 +311,14 @@ const createPage = async (
   databaseId: string,
   game: UnifiedGame,
   titleProperty: string,
-  syncProperties: NotionSyncProperties
+  syncProperties: NotionSyncProperties,
 ): Promise<void> => {
   await client.pages.create({
     parent: { database_id: databaseId },
     properties: gameToNotionProperties(
       game,
       titleProperty,
-      syncProperties
+      syncProperties,
     ) as any,
   });
 };
@@ -331,14 +331,14 @@ const updatePage = async (
   pageId: string,
   game: UnifiedGame,
   titleProperty: string,
-  syncProperties: NotionSyncProperties
+  syncProperties: NotionSyncProperties,
 ): Promise<void> => {
   await client.pages.update({
     page_id: pageId,
     properties: gameToNotionProperties(
       game,
       titleProperty,
-      syncProperties
+      syncProperties,
     ) as any,
   });
 };
@@ -348,7 +348,7 @@ const updatePage = async (
  */
 const buildLookupMaps = (
   existingPages: Array<{ id: string; properties: any }>,
-  titleProperty: string
+  titleProperty: string,
 ) => {
   const existingById = new Map<string, any>();
   const existingByCanonicalId = new Map<string, any>();
@@ -392,7 +392,7 @@ const buildLookupMaps = (
           debug(`  Also indexed by canonical name: "${canonicalName}"`);
         } else {
           debug(
-            `  Not indexing by canonical name (exact match already exists)`
+            `  Not indexing by canonical name (exact match already exists)`,
           );
         }
       }
@@ -415,7 +415,7 @@ const syncSingleGame = async (
   existingByCanonicalId: Map<string, any>,
   existingByTitle: Map<string, any>,
   variantPages: Map<string, any[]>,
-  processedPages: Set<string>
+  processedPages: Set<string>,
 ): Promise<'created' | 'updated' | 'skipped' | 'error'> => {
   try {
     let existingPage = null;
@@ -465,7 +465,7 @@ const syncSingleGame = async (
         } catch (error) {
           console.error(
             `Failed to mark variant page ${variantTitle} as removed:`,
-            error
+            error,
           );
         }
       }
@@ -478,13 +478,13 @@ const syncSingleGame = async (
       const newProperties = gameToNotionProperties(
         game,
         titleProperty,
-        syncProperties
+        syncProperties,
       );
 
       const needsUpdate = hasPropertiesChanged(
         existingPage,
         newProperties,
-        syncProperties
+        syncProperties,
       );
 
       // Also check if we need to clear the "removed" status
@@ -499,7 +499,7 @@ const syncSingleGame = async (
           existingPage.id,
           game,
           titleProperty,
-          syncProperties
+          syncProperties,
         );
         return 'updated';
       } else {
@@ -523,12 +523,12 @@ const markRemovedGames = async (
   client: Client,
   existingById: Map<string, any>,
   processedPages: Set<string>,
-  titleProperty: string
+  titleProperty: string,
 ): Promise<{ marked: number }> => {
   console.log('\n🔍 Checking for removed games...');
 
   const unprocessedPages = Array.from(existingById.entries()).filter(
-    ([pageId]) => !processedPages.has(pageId)
+    ([pageId]) => !processedPages.has(pageId),
   );
 
   console.log(`  Games not in current library: ${unprocessedPages.length}`);
@@ -557,7 +557,7 @@ const markRemovedGames = async (
             console.log(
               `  ⚠️  Marking as removed: "${gameTitle}"${
                 canonicalId ? ` (ID: ${canonicalId})` : ''
-              }`
+              }`,
             );
 
             await client.pages.update({
@@ -571,7 +571,7 @@ const markRemovedGames = async (
         } catch (error) {
           console.error(`Failed to mark page ${pageId} as removed:`, error);
         }
-      })
+      }),
     );
 
     // Rate limiting between batches
@@ -593,7 +593,7 @@ const syncGames = async (
   databaseId: string,
   games: UnifiedGame[],
   titleProperty: string,
-  syncProperties: NotionSyncProperties
+  syncProperties: NotionSyncProperties,
 ): Promise<void> => {
   console.log(`Syncing ${games.length} games to Notion...`);
 
@@ -627,9 +627,9 @@ const syncGames = async (
           existingByCanonicalId,
           existingByTitle,
           variantPages,
-          processedPages
-        )
-      )
+          processedPages,
+        ),
+      ),
     );
 
     for (const result of results) {
@@ -642,7 +642,7 @@ const syncGames = async (
     const processed = Math.min(i + BATCH_SIZE, total);
     if (processed % 25 === 0 || processed === total) {
       console.log(
-        `  Progress: ${processed}/${total} games (${created} created, ${updated} updated, ${skipped} skipped, ${errors} errors)`
+        `  Progress: ${processed}/${total} games (${created} created, ${updated} updated, ${skipped} skipped, ${errors} errors)`,
       );
     }
 
@@ -656,7 +656,7 @@ const syncGames = async (
   }
 
   console.log(
-    `✅ Sync complete: ${created} created, ${updated} updated, ${skipped} skipped, ${errors} errors`
+    `✅ Sync complete: ${created} created, ${updated} updated, ${skipped} skipped, ${errors} errors`,
   );
 };
 
@@ -665,7 +665,7 @@ const syncGames = async (
  */
 const verifyDatabase = async (
   client: Client,
-  databaseId: string
+  databaseId: string,
 ): Promise<boolean> => {
   try {
     await client.databases.retrieve({ database_id: databaseId });
@@ -684,7 +684,7 @@ export const createNotionClient = (
   apiKey: string,
   databaseId: string,
   titleProperty: string,
-  syncProperties: NotionSyncProperties
+  syncProperties: NotionSyncProperties,
 ) => {
   const client = new Client({ auth: apiKey });
 
