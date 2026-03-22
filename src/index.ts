@@ -61,7 +61,7 @@ const main = async () => {
     await igdbAdapter.initialize();
     console.log('✅ Adapters initialized\n');
 
-    // 3. Verify Notion database access
+    // 4. Verify Notion database access
     console.log('🔍 Verifying Notion database...');
     const notionAccessible = await notionClient.verifyDatabase();
     if (!notionAccessible) {
@@ -71,7 +71,7 @@ const main = async () => {
     }
     console.log('✅ Notion database verified\n');
 
-    // 4. Fetch games from all sources
+    // 5. Fetch games from all sources
     console.log('📥 Fetching games from sources...\n');
 
     const rawGames: RawGameData[] = [];
@@ -222,19 +222,19 @@ const main = async () => {
 
     console.log(`📊 Total raw games: ${rawGames.length}\n`);
 
-    // 5. Deduplicate and merge games
+    // 6. Deduplicate and merge games
     console.log('🔄 Deduplicating and merging games...');
     const unifiedGames = processRawGames(rawGames);
     console.log(`✅ Unified into ${unifiedGames.length} games\n`);
 
-    // 6. Generate merge suggestions
+    // 7. Generate merge suggestions
     console.log('💡 Generating merge suggestions...');
     const suggestions = generateMergeSuggestions(rawGames);
     await saveMergeSuggestions(suggestions);
     console.log();
 
-    // 7. Enrich PC games with ProtonDB data
-    console.log('🐧 Enriching PC games with ProtonDB data...');
+    // 8. Enrich PC games with IGDB and ProtonDB data
+    console.log('🔍 Enriching PC games...');
     // PC platforms: Steam (has steamAppId), Epic, GOG, Amazon
     // Include if owned on ANY PC platform, even if also owned on Xbox/Game Pass
     const pcGames = unifiedGames.filter(g => {
@@ -354,18 +354,18 @@ const main = async () => {
 
     console.log(`✅ Enriched ${enrichedCount} games with ProtonDB data\n`);
 
-    // // 7. Clean expired ProtonDB cache
+    // // 9. Clean expired ProtonDB cache
     // console.log('🧹 Cleaning expired ProtonDB cache...');
     // await protonDbAdapter.cleanCache();
     // console.log('✅ Cache cleaned\n');
 
-    // 8. Sync to Notion
+    // 10. Sync to Notion
     console.log('☁️  Syncing to Notion...');
 
     await notionClient.syncGames(unifiedGames);
     console.log('✅ Sync to Notion complete\n');
 
-    // 9. Generate Game Pass availability report
+    // 11. Generate Game Pass availability report
     if (gamePassData) {
       console.log('📊 Processing Game Pass availability...');
       const { unavailable, returned } = await processGamePassAvailability(
@@ -391,7 +391,7 @@ const main = async () => {
       }
     }
 
-    // 10. Summary
+    // 12. Summary
     console.log('\n📈 Summary:');
     console.log(`   • Total unique games: ${unifiedGames.length}`);
     console.log(

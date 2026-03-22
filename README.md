@@ -84,6 +84,9 @@ IGDB_CLIENT_SECRET=your_twitch_client_secret_here
 
 # Optional: ProtonDB cache duration (days)
 PROTONDB_CACHE_DAYS=30
+
+# Optional: Log level (info or debug)
+LOG_LEVEL=info
 ```
 
 ### Getting IGDB API Credentials (Optional)
@@ -176,6 +179,43 @@ The first sync will:
 ### Subsequent Runs
 
 Updates are idempotent - existing games are updated, new games are created.
+
+### Sync Logs
+
+Every sync operation generates a simple JSON log file in the `logs/` directory with lists of:
+
+- **Added games**: New games created in Notion
+- **Updated games**: Existing games with property changes  
+- **Removed games**: Games no longer in your library (marked with ⚠️ Removed status)
+- **Skipped count**: Games with no changes
+- **Error count**: Any failures during sync
+
+**Example log** (`logs/sync-2026-03-22T15-30-45.json`):
+```json
+{
+  "timestamp": "2026-03-22T15:30:45.123Z",
+  "duration": 12500,
+  "added": ["Cyberpunk 2077", "Baldur's Gate 3"],
+  "updated": ["The Witcher 3", "Elden Ring"],
+  "removed": ["Old Game Title"],
+  "skipped": 131,
+  "errors": 0
+}
+```
+
+**Console output:**
+```
+📊 Sync Summary:
+   Duration: 12.50s
+   Total: 150 games
+   ✅ Added: 5
+   🔄 Updated: 12
+   ⚠️  Removed: 2
+   ⏭️  Skipped: 131
+📝 Log saved to: logs/sync-2026-03-22T15-30-45.json
+```
+
+See [logs/README.md](logs/README.md) for detailed documentation and analysis examples.
 
 ## Project Structure
 

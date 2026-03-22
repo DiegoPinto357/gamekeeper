@@ -2,6 +2,17 @@ import { Client } from '@notionhq/client';
 import { UnifiedGame, NotionSyncProperties } from '../types/game';
 import { getCanonicalNameFromVariant } from '../core/overrides';
 import { getConfig } from '../config';
+import {
+  createSyncTracker,
+  trackAdded,
+  trackUpdated,
+  trackRemoved,
+  trackSkipped,
+  trackError,
+  saveSyncLog,
+  printSyncSummary,
+  SyncOperations,
+} from './sync-logger';
 
 const debug = (message: string, ...args: any[]) => {
   if (getConfig().logLevel === 'debug') {
@@ -416,6 +427,7 @@ const syncSingleGame = async (
   existingByTitle: Map<string, any>,
   variantPages: Map<string, any[]>,
   processedPages: Set<string>,
+  tracker?: SyncOperations,
 ): Promise<'created' | 'updated' | 'skipped' | 'error'> => {
   try {
     let existingPage = null;
@@ -501,16 +513,20 @@ const syncSingleGame = async (
           titleProperty,
           syncProperties,
         );
+        if (tracker) trackUpdated(tracker, game);
         return 'updated';
       } else {
+        if (tracker) trackSkipped(tracker);
         return 'skipped';
       }
     } else {
       await createPage(client, databaseId, game, titleProperty, syncProperties);
+      if (tracker) trackAdded(tracker, game);
       return 'created';
     }
   } catch (error) {
     console.error(`Failed to sync game "${game.name}":`, error);
+    if (tracker) trackError(tracker);
     return 'error';
   }
 };
@@ -524,6 +540,7 @@ const markRemovedGames = async (
   existingById: Map<string, any>,
   processedPages: Set<string>,
   titleProperty: string,
+  tracker?: SyncOperations,
 ): Promise<{ marked: number }> => {
   console.log('\n🔍 Checking for removed games...');
 
@@ -566,6 +583,7 @@ const markRemovedGames = async (
                 'Library Status': { select: { name: '⚠️ Removed' } },
               },
             });
+            if (tracker) trackRemoved(tracker, gameTitle);
             marked++;
           }
         } catch (error) {
@@ -596,6 +614,9 @@ const syncGames = async (
   syncProperties: NotionSyncProperties,
 ): Promise<void> => {
   console.log(`Syncing ${games.length} games to Notion...`);
+
+  // Initialize sync tracker
+  const { operations, startTime } = createSyncTracker();
 
   const existingPages = await fetchAllPages(client, databaseId);
   const { existingById, existingByCanonicalId, existingByTitle, variantPages } =
@@ -628,6 +649,7 @@ const syncGames = async (
           existingByTitle,
           variantPages,
           processedPages,
+          operations,
         ),
       ),
     );
@@ -652,12 +674,23 @@ const syncGames = async (
   }
 
   if (syncProperties.libraryStatus) {
-    await markRemovedGames(client, existingById, processedPages, titleProperty);
+    await markRemovedGames(
+      client,
+      existingById,
+      processedPages,
+      titleProperty,
+      operations,
+    );
   }
 
   console.log(
     `✅ Sync complete: ${created} created, ${updated} updated, ${skipped} skipped, ${errors} errors`,
   );
+
+  // Save and print log summary
+  printSyncSummary(operations, startTime);
+  const logPath = await saveSyncLog(operations, startTime);
+  console.log(`📝 Log saved to: ${logPath}`);
 };
 
 /**

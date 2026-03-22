@@ -6,3 +6,4 @@ dist/
 .cache/
 data/merge-suggestions.json
 data/gamepass-unavailable.json
+logs/sync-*.json
