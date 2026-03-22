@@ -185,12 +185,13 @@ Updates are idempotent - existing games are updated, new games are created.
 Every sync operation generates a simple JSON log file in the `logs/` directory with lists of:
 
 - **Added games**: New games created in Notion
-- **Updated games**: Existing games with property changes  
+- **Updated games**: Existing games with property changes
 - **Removed games**: Games no longer in your library (marked with ⚠️ Removed status)
 - **Skipped count**: Games with no changes
 - **Error count**: Any failures during sync
 
 **Example log** (`logs/sync-2026-03-22T15-30-45.json`):
+
 ```json
 {
   "timestamp": "2026-03-22T15:30:45.123Z",
@@ -204,6 +205,7 @@ Every sync operation generates a simple JSON log file in the `logs/` directory w
 ```
 
 **Console output:**
+
 ```
 📊 Sync Summary:
    Duration: 12.50s

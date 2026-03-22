@@ -2,17 +2,7 @@ import { Client } from '@notionhq/client';
 import { UnifiedGame, NotionSyncProperties } from '../types/game';
 import { getCanonicalNameFromVariant } from '../core/overrides';
 import { getConfig } from '../config';
-import {
-  createSyncTracker,
-  trackAdded,
-  trackUpdated,
-  trackRemoved,
-  trackSkipped,
-  trackError,
-  saveSyncLog,
-  printSyncSummary,
-  SyncOperations,
-} from './sync-logger';
+import syncLogger, { SyncOperations } from './sync-logger';
 
 const debug = (message: string, ...args: any[]) => {
   if (getConfig().logLevel === 'debug') {
@@ -513,20 +503,20 @@ const syncSingleGame = async (
           titleProperty,
           syncProperties,
         );
-        if (tracker) trackUpdated(tracker, game);
+        if (tracker) syncLogger.trackUpdated(tracker, game);
         return 'updated';
       } else {
-        if (tracker) trackSkipped(tracker);
+        if (tracker) syncLogger.trackSkipped(tracker);
         return 'skipped';
       }
     } else {
       await createPage(client, databaseId, game, titleProperty, syncProperties);
-      if (tracker) trackAdded(tracker, game);
+      if (tracker) syncLogger.trackAdded(tracker, game);
       return 'created';
     }
   } catch (error) {
     console.error(`Failed to sync game "${game.name}":`, error);
-    if (tracker) trackError(tracker);
+    if (tracker) syncLogger.trackError(tracker);
     return 'error';
   }
 };
@@ -583,7 +573,7 @@ const markRemovedGames = async (
                 'Library Status': { select: { name: '⚠️ Removed' } },
               },
             });
-            if (tracker) trackRemoved(tracker, gameTitle);
+            if (tracker) syncLogger.trackRemoved(tracker, gameTitle);
             marked++;
           }
         } catch (error) {
@@ -616,7 +606,7 @@ const syncGames = async (
   console.log(`Syncing ${games.length} games to Notion...`);
 
   // Initialize sync tracker
-  const { operations, startTime } = createSyncTracker();
+  const { operations, startTime } = syncLogger.createSyncTracker();
 
   const existingPages = await fetchAllPages(client, databaseId);
   const { existingById, existingByCanonicalId, existingByTitle, variantPages } =
@@ -688,8 +678,8 @@ const syncGames = async (
   );
 
   // Save and print log summary
-  printSyncSummary(operations, startTime);
-  const logPath = await saveSyncLog(operations, startTime);
+  syncLogger.printSyncSummary(operations, startTime);
+  const logPath = await syncLogger.saveSyncLog(operations, startTime);
   console.log(`📝 Log saved to: ${logPath}`);
 };
 

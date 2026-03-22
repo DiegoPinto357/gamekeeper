@@ -29,7 +29,7 @@ export type SyncLog = {
 /**
  * Create a new sync operations tracker
  */
-export const createSyncTracker = (
+const createSyncTracker = (
   startTime: number = Date.now(),
 ): {
   operations: SyncOperations;
@@ -48,51 +48,42 @@ export const createSyncTracker = (
 /**
  * Track a game being added
  */
-export const trackAdded = (
-  tracker: SyncOperations,
-  game: UnifiedGame,
-): void => {
+const trackAdded = (tracker: SyncOperations, game: UnifiedGame): void => {
   tracker.added.push(game.name);
 };
 
 /**
  * Track a game being updated
  */
-export const trackUpdated = (
-  tracker: SyncOperations,
-  game: UnifiedGame,
-): void => {
+const trackUpdated = (tracker: SyncOperations, game: UnifiedGame): void => {
   tracker.updated.push(game.name);
 };
 
 /**
  * Track a game being removed
  */
-export const trackRemoved = (
-  tracker: SyncOperations,
-  gameName: string,
-): void => {
+const trackRemoved = (tracker: SyncOperations, gameName: string): void => {
   tracker.removed.push(gameName);
 };
 
 /**
  * Track a game being skipped
  */
-export const trackSkipped = (tracker: SyncOperations): void => {
+const trackSkipped = (tracker: SyncOperations): void => {
   tracker.skippedCount++;
 };
 
 /**
  * Track an error
  */
-export const trackError = (tracker: SyncOperations): void => {
+const trackError = (tracker: SyncOperations): void => {
   tracker.errorCount++;
 };
 
 /**
  * Save sync log to file
  */
-export const saveSyncLog = async (
+const saveSyncLog = async (
   operations: SyncOperations,
   startTime: number,
   logDir: string = './logs',
@@ -122,7 +113,7 @@ export const saveSyncLog = async (
 /**
  * Print sync summary to console
  */
-export const printSyncSummary = (
+const printSyncSummary = (
   operations: SyncOperations,
   startTime: number,
 ): void => {
@@ -144,4 +135,18 @@ export const printSyncSummary = (
   if (operations.errorCount > 0) {
     console.log(`   ❌ Errors: ${operations.errorCount}`);
   }
+};
+
+/**
+ * Sync logger module - default export
+ */
+export default {
+  createSyncTracker,
+  trackAdded,
+  trackUpdated,
+  trackRemoved,
+  trackSkipped,
+  trackError,
+  saveSyncLog,
+  printSyncSummary,
 };
