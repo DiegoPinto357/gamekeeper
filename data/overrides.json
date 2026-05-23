@@ -135,6 +135,13 @@
         "Sid Meier's Civilization IV: The Complete Edition"
       ],
       "canonicalName": "Sid Meier's Civilization VI"
+    },
+    {
+      "games": [
+        "Tom Clancy's Ghost Recon® Wildlands",
+        "Tom Clancy’s Ghost Recon Wildlands - Standard Edition"
+      ],
+      "canonicalName": "Tom Clancy's Ghost Recon Wildlands"
     }
   ],
   "propertyOverrides": []
