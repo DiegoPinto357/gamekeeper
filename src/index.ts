@@ -7,6 +7,7 @@ import { igdbAdapter } from './adapters/igdb.adapter';
 import { createNotionClient } from './notion/notion.client';
 import { processRawGames } from './core/deduplicate';
 import { loadOverrides } from './core/overrides';
+import { normalizeGameName } from './core/normalize';
 import {
   generateMergeSuggestions,
   saveMergeSuggestions,
@@ -95,11 +96,19 @@ const main = async () => {
     let gamePassData:
       | { playniteGames: RawGameData[]; gamePassCatalog: any[] }
       | undefined;
+    let gamePassCatalogTitles: Set<string> | undefined;
     try {
       // Load Game Pass catalog for filtering
       console.log('🎮 Loading Game Pass catalog...');
       const gamePassCatalog = await gamePassAdapter.getCatalog();
       console.log(`✅ Game Pass: ${gamePassCatalog.length} games available`);
+
+      // Build normalized set of catalog titles for removal detection
+      gamePassCatalogTitles = new Set(
+        gamePassCatalog
+          .filter((g: any) => g.available)
+          .map((g: any) => normalizeGameName(g.title)),
+      );
 
       // Load Game Pass interests
       let gamePassInterests: string[] = [];
@@ -362,7 +371,7 @@ const main = async () => {
     // 10. Sync to Notion
     console.log('☁️  Syncing to Notion...');
 
-    await notionClient.syncGames(unifiedGames);
+    await notionClient.syncGames(unifiedGames, gamePassCatalogTitles);
     console.log('✅ Sync to Notion complete\n');
 
     // 11. Generate Game Pass availability report

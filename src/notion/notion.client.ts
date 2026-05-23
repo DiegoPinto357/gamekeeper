@@ -1,6 +1,7 @@
 import { Client } from '@notionhq/client';
 import { UnifiedGame, NotionSyncProperties } from '../types/game';
 import { getCanonicalNameFromVariant } from '../core/overrides';
+import { normalizeGameName } from '../core/normalize';
 import { getConfig } from '../config';
 import syncLogger, { SyncOperations } from './sync-logger';
 
@@ -522,14 +523,21 @@ const syncSingleGame = async (
 };
 
 /**
- * Mark games not in current library as removed
- * Only processes pages that weren't synced (not in processedPages)
+ * Mark games not in current library as removed.
+ * Only processes pages that weren't synced (not in processedPages).
+ *
+ * When gamePassCatalogTitles is provided:
+ * - Pages whose normalized title is still in the Game Pass catalog are NOT
+ *   marked removed (the game is still available; the user just removed interest).
+ * - Pages that were previously marked removed but whose title is now back in
+ *   the catalog have their removed status cleared.
  */
 const markRemovedGames = async (
   client: Client,
   existingById: Map<string, any>,
   processedPages: Set<string>,
   titleProperty: string,
+  gamePassCatalogTitles?: Set<string>,
   tracker?: SyncOperations,
 ): Promise<{ marked: number }> => {
   console.log('\n🔍 Checking for removed games...');
@@ -558,6 +566,27 @@ const markRemovedGames = async (
           const gameTitle = titleProp?.title?.[0]?.text?.content || 'Unknown';
           const currentStatus =
             existingPage.properties['Library Status']?.select?.name;
+
+          const stillInGamePass =
+            gamePassCatalogTitles !== undefined &&
+            gamePassCatalogTitles.has(normalizeGameName(gameTitle));
+
+          if (stillInGamePass) {
+            // Game is still available on Game Pass — user just removed it from
+            // interests. Don't mark it removed.
+            if (currentStatus === '⚠️ Removed') {
+              // Game returned to the catalog after a previous removal. Restore
+              // its status to active.
+              debug(
+                `  ✅ Restoring status for "${gameTitle}" (back in Game Pass catalog)`,
+              );
+              await client.pages.update({
+                page_id: pageId,
+                properties: { 'Library Status': { select: null } },
+              });
+            }
+            return;
+          }
 
           if (currentStatus !== '⚠️ Removed') {
             const canonicalId = extractCanonicalId(existingPage, titleProperty);
@@ -602,6 +631,7 @@ const syncGames = async (
   games: UnifiedGame[],
   titleProperty: string,
   syncProperties: NotionSyncProperties,
+  gamePassCatalogTitles?: Set<string>,
 ): Promise<void> => {
   console.log(`Syncing ${games.length} games to Notion...`);
 
@@ -669,6 +699,7 @@ const syncGames = async (
       existingById,
       processedPages,
       titleProperty,
+      gamePassCatalogTitles,
       operations,
     );
   }
@@ -712,8 +743,15 @@ export const createNotionClient = (
   const client = new Client({ auth: apiKey });
 
   return {
-    syncGames: (games: UnifiedGame[]) =>
-      syncGames(client, databaseId, games, titleProperty, syncProperties),
+    syncGames: (games: UnifiedGame[], gamePassCatalogTitles?: Set<string>) =>
+      syncGames(
+        client,
+        databaseId,
+        games,
+        titleProperty,
+        syncProperties,
+        gamePassCatalogTitles,
+      ),
     verifyDatabase: () => verifyDatabase(client, databaseId),
   };
 };
