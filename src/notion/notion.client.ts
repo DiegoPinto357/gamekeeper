@@ -71,22 +71,22 @@ const sleep = (ms: number): Promise<void> => {
 };
 
 /**
- * Check if page properties have changed
- * Returns true if update is needed
+ * Get list of property names that have changed between existing and new values.
+ * Returns an empty array when nothing changed.
  */
-const hasPropertiesChanged = (
+const getChangedProperties = (
   existingPage: any,
   newProperties: any,
   syncProperties: NotionSyncProperties,
-): boolean => {
+): string[] => {
   try {
     const existing = existingPage.properties;
+    const changed: string[] = [];
 
-    // Check each synced property for changes
     if (syncProperties.primarySource) {
       const existingSource = existing['Primary Source']?.select?.name;
       const newSource = newProperties['Primary Source']?.select?.name;
-      if (existingSource !== newSource) return true;
+      if (existingSource !== newSource) changed.push('Primary Source');
     }
 
     if (syncProperties.ownedOn) {
@@ -98,43 +98,43 @@ const hasPropertiesChanged = (
         ?.map((s: any) => s.name)
         .sort()
         .join(',');
-      if (existingOwned !== newOwned) return true;
+      if (existingOwned !== newOwned) changed.push('Owned On');
     }
 
     if (syncProperties.steamAppId) {
       const existingSteam = existing['Steam App ID']?.number;
       const newSteam = newProperties['Steam App ID']?.number;
-      if (existingSteam !== newSteam) return true;
+      if (existingSteam !== newSteam) changed.push('Steam App ID');
     }
 
     if (syncProperties.playtime) {
       const existingPlaytime = existing['Playtime (hours)']?.number;
       const newPlaytime = newProperties['Playtime (hours)']?.number;
-      if (existingPlaytime !== newPlaytime) return true;
+      if (existingPlaytime !== newPlaytime) changed.push('Playtime (hours)');
     }
 
     if (syncProperties.lastPlayed) {
       const existingDate = existing['Last Played']?.date?.start;
       const newDate = newProperties['Last Played']?.date?.start;
-      if (existingDate !== newDate) return true;
+      if (existingDate !== newDate) changed.push('Last Played');
     }
 
     if (syncProperties.protonTier) {
       const existingTier = existing['Proton Tier']?.select?.name;
       const newTier = newProperties['Proton Tier']?.select?.name;
-      if (existingTier !== newTier) return true;
+      if (existingTier !== newTier) changed.push('Proton Tier');
     }
 
     if (syncProperties.steamDeck) {
       const existingDeck = existing['Steam Deck']?.select?.name;
       const newDeck = newProperties['Steam Deck']?.select?.name;
-      if (existingDeck !== newDeck) return true;
+      if (existingDeck !== newDeck) changed.push('Steam Deck');
     }
 
     if (syncProperties.coverImage) {
       const existingCover = existing['Cover Image']?.url;
       const newCover = newProperties['Cover Image']?.url;
-      if (existingCover !== newCover) return true;
+      if (existingCover !== newCover) changed.push('Cover Image');
     }
 
     if (syncProperties.canonicalId) {
@@ -142,21 +142,32 @@ const hasPropertiesChanged = (
         existing['Canonical ID']?.rich_text?.[0]?.text?.content;
       const newId =
         newProperties['Canonical ID']?.rich_text?.[0]?.text?.content;
-      if (existingId !== newId) return true;
+      if (existingId !== newId) changed.push('Canonical ID');
     }
 
     if (syncProperties.libraryStatus) {
       const existingStatus = existing['Library Status']?.select?.name;
       const newStatus = newProperties['Library Status']?.select?.name;
-      if (existingStatus !== newStatus) return true;
+      if (existingStatus !== newStatus) changed.push('Library Status');
     }
 
-    return false;
+    return changed;
   } catch (error) {
-    // If we can't determine, assume it changed
-    return true;
+    // If we can't determine, assume everything changed
+    return ['(unknown)'];
   }
 };
+
+/**
+ * Check if page properties have changed
+ * Returns true if update is needed
+ */
+const hasPropertiesChanged = (
+  existingPage: any,
+  newProperties: any,
+  syncProperties: NotionSyncProperties,
+): boolean =>
+  getChangedProperties(existingPage, newProperties, syncProperties).length > 0;
 
 /**
  * Extract canonical ID from a Notion page
@@ -418,6 +429,7 @@ const syncSingleGame = async (
   existingByTitle: Map<string, any>,
   variantPages: Map<string, any[]>,
   processedPages: Set<string>,
+  dryRun: boolean,
   tracker?: SyncOperations,
 ): Promise<'created' | 'updated' | 'skipped' | 'error'> => {
   try {
@@ -459,12 +471,18 @@ const syncSingleGame = async (
         debug(`  Marking variant "${variantTitle}" as removed`);
 
         try {
-          await client.pages.update({
-            page_id: variantPage.id,
-            properties: {
-              'Library Status': { select: { name: '⚠️ Removed' } },
-            },
-          });
+          if (dryRun) {
+            console.log(
+              `  [DRY RUN] Would mark variant "${variantTitle}" as removed`,
+            );
+          } else {
+            await client.pages.update({
+              page_id: variantPage.id,
+              properties: {
+                'Library Status': { select: { name: '⚠️ Removed' } },
+              },
+            });
+          }
         } catch (error) {
           console.error(
             `Failed to mark variant page ${variantTitle} as removed:`,
@@ -484,7 +502,7 @@ const syncSingleGame = async (
         syncProperties,
       );
 
-      const needsUpdate = hasPropertiesChanged(
+      const changedFields = getChangedProperties(
         existingPage,
         newProperties,
         syncProperties,
@@ -496,14 +514,21 @@ const syncSingleGame = async (
       const needsStatusClear =
         syncProperties.libraryStatus && currentStatus === '⚠️ Removed';
 
-      if (needsUpdate || needsStatusClear) {
-        await updatePage(
-          client,
-          existingPage.id,
-          game,
-          titleProperty,
-          syncProperties,
-        );
+      if (changedFields.length > 0 || needsStatusClear) {
+        if (dryRun) {
+          const fieldList = needsStatusClear
+            ? [...changedFields, 'Library Status (restore)']
+            : changedFields;
+          console.log(`  [UPDATE] ${game.name} → ${fieldList.join(', ')}`);
+        } else {
+          await updatePage(
+            client,
+            existingPage.id,
+            game,
+            titleProperty,
+            syncProperties,
+          );
+        }
         if (tracker) syncLogger.trackUpdated(tracker, game);
         return 'updated';
       } else {
@@ -511,7 +536,17 @@ const syncSingleGame = async (
         return 'skipped';
       }
     } else {
-      await createPage(client, databaseId, game, titleProperty, syncProperties);
+      if (dryRun) {
+        console.log(`  [CREATE] ${game.name}`);
+      } else {
+        await createPage(
+          client,
+          databaseId,
+          game,
+          titleProperty,
+          syncProperties,
+        );
+      }
       if (tracker) syncLogger.trackAdded(tracker, game);
       return 'created';
     }
@@ -537,6 +572,7 @@ const markRemovedGames = async (
   existingById: Map<string, any>,
   processedPages: Set<string>,
   titleProperty: string,
+  dryRun: boolean,
   gamePassCatalogTitles?: Set<string>,
   tracker?: SyncOperations,
 ): Promise<{ marked: number }> => {
@@ -580,28 +616,35 @@ const markRemovedGames = async (
               debug(
                 `  ✅ Restoring status for "${gameTitle}" (back in Game Pass catalog)`,
               );
-              await client.pages.update({
-                page_id: pageId,
-                properties: { 'Library Status': { select: null } },
-              });
+              if (!dryRun) {
+                await client.pages.update({
+                  page_id: pageId,
+                  properties: { 'Library Status': { select: null } },
+                });
+              }
             }
             return;
           }
 
           if (currentStatus !== '⚠️ Removed') {
             const canonicalId = extractCanonicalId(existingPage, titleProperty);
-            console.log(
-              `  ⚠️  Marking as removed: "${gameTitle}"${
-                canonicalId ? ` (ID: ${canonicalId})` : ''
-              }`,
-            );
-
-            await client.pages.update({
-              page_id: pageId,
-              properties: {
-                'Library Status': { select: { name: '⚠️ Removed' } },
-              },
-            });
+            if (dryRun) {
+              console.log(
+                `  [REMOVE] "${gameTitle}"${canonicalId ? ` (ID: ${canonicalId})` : ''}`,
+              );
+            } else {
+              console.log(
+                `  ⚠️  Marking as removed: "${gameTitle}"${
+                  canonicalId ? ` (ID: ${canonicalId})` : ''
+                }`,
+              );
+              await client.pages.update({
+                page_id: pageId,
+                properties: {
+                  'Library Status': { select: { name: '⚠️ Removed' } },
+                },
+              });
+            }
             if (tracker) syncLogger.trackRemoved(tracker, gameTitle);
             marked++;
           }
@@ -631,8 +674,12 @@ const syncGames = async (
   games: UnifiedGame[],
   titleProperty: string,
   syncProperties: NotionSyncProperties,
+  dryRun: boolean,
   gamePassCatalogTitles?: Set<string>,
 ): Promise<void> => {
+  if (dryRun) {
+    console.log('🏃 DRY RUN — no changes will be written to Notion\n');
+  }
   console.log(`Syncing ${games.length} games to Notion...`);
 
   // Initialize sync tracker
@@ -669,6 +716,7 @@ const syncGames = async (
           existingByTitle,
           variantPages,
           processedPages,
+          dryRun,
           operations,
         ),
       ),
@@ -688,7 +736,7 @@ const syncGames = async (
       );
     }
 
-    if (i + BATCH_SIZE < games.length) {
+    if (!dryRun && i + BATCH_SIZE < games.length) {
       await sleep(1000);
     }
   }
@@ -699,19 +747,25 @@ const syncGames = async (
       existingById,
       processedPages,
       titleProperty,
+      dryRun,
       gamePassCatalogTitles,
       operations,
     );
   }
 
+  const verb = dryRun ? 'Would' : '';
   console.log(
-    `✅ Sync complete: ${created} created, ${updated} updated, ${skipped} skipped, ${errors} errors`,
+    dryRun
+      ? `\n📊 Dry run summary: ${created} would be created, ${updated} would be updated, ${skipped} unchanged, ${errors} errors`
+      : `✅ Sync complete: ${created} created, ${updated} updated, ${skipped} skipped, ${errors} errors`,
   );
 
-  // Save and print log summary
-  syncLogger.printSyncSummary(operations, startTime);
-  const logPath = await syncLogger.saveSyncLog(operations, startTime);
-  console.log(`📝 Log saved to: ${logPath}`);
+  if (!dryRun) {
+    // Save and print log summary
+    syncLogger.printSyncSummary(operations, startTime);
+    const logPath = await syncLogger.saveSyncLog(operations, startTime);
+    console.log(`📝 Log saved to: ${logPath}`);
+  }
 };
 
 /**
@@ -739,6 +793,7 @@ export const createNotionClient = (
   databaseId: string,
   titleProperty: string,
   syncProperties: NotionSyncProperties,
+  dryRun: boolean = false,
 ) => {
   const client = new Client({ auth: apiKey });
 
@@ -750,6 +805,7 @@ export const createNotionClient = (
         games,
         titleProperty,
         syncProperties,
+        dryRun,
         gamePassCatalogTitles,
       ),
     verifyDatabase: () => verifyDatabase(client, databaseId),

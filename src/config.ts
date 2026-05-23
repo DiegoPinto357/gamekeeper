@@ -35,6 +35,7 @@ export const loadConfig = (): Config => {
     logLevel: (process.env.LOG_LEVEL || 'info').toLowerCase() as
       | 'debug'
       | 'info',
+    dryRun: process.argv.includes('--dry-run'),
   };
 
   return ConfigSchema.parse(config);

@@ -33,6 +33,9 @@ const main = async () => {
   console.log('📋 Configuration loaded');
 
   console.log('🎮 GameKeeper - Starting sync...\n');
+  if (config.dryRun) {
+    console.log('🏃 DRY RUN MODE — Notion will not be modified\n');
+  }
   if (config.logLevel === 'debug') {
     console.log('[DEBUG] Debug logging enabled\n');
   }
@@ -56,6 +59,7 @@ const main = async () => {
       config.notion.databaseId,
       config.notion.titleProperty,
       config.notion.syncProperties,
+      config.dryRun,
     );
 
     await protonDbAdapter.init();

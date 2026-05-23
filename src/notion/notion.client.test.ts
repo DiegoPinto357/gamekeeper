@@ -99,6 +99,23 @@ const syncProperties = {
 const makeClient = () =>
   createNotionClient('fake-key', 'fake-db', 'Name', syncProperties);
 
+const makeDryRunClient = () =>
+  createNotionClient('fake-key', 'fake-db', 'Name', syncProperties, true);
+
+const makeUnifiedGame = (
+  name: string,
+  overrides: Partial<ReturnType<typeof Object.assign>> = {},
+) => ({
+  canonicalId: name.toLowerCase().replace(/[^a-z0-9]/g, '-'),
+  name,
+  primarySource: 'steam' as const,
+  ownedSources: ['steam' as const],
+  playtimeHours: 10,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+  ...overrides,
+});
+
 // ── Tests ──────────────────────────────────────────────────────────────────────
 
 describe('notion.client - markRemovedGames', () => {
@@ -170,5 +187,88 @@ describe('notion.client - markRemovedGames', () => {
         args[0]?.properties?.['Library Status']?.select?.name === '⚠️ Removed',
     );
     expect(removedCalls).toHaveLength(0);
+  });
+});
+
+// ── Dry-run tests ──────────────────────────────────────────────────────────────
+
+describe('notion.client - dry-run mode', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('does not create a page for a new game', async () => {
+    mockQueryResponse([]); // Notion is empty
+
+    await makeDryRunClient().syncGames([makeUnifiedGame('Starfield')]);
+
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it('does not update a page when a game has changed properties', async () => {
+    const page = {
+      ...makeNotionPage('Starfield'),
+      properties: {
+        ...makeNotionPage('Starfield').properties,
+        'Playtime (hours)': { number: 5 }, // old playtime
+      },
+    };
+    mockQueryResponse([page]);
+
+    // Same game but with updated playtime — would trigger an update in normal mode
+    await makeDryRunClient().syncGames([
+      makeUnifiedGame('Starfield', { playtimeHours: 20 }),
+    ]);
+
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it('does not mark a removed game as removed', async () => {
+    mockQueryResponse([makeNotionPage('Starfield')]); // exists in Notion
+
+    // Sync with empty list — Starfield is no longer in the library
+    await makeDryRunClient().syncGames([], new Set());
+
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it('does not restore the status of a Game Pass game that returned to the catalog', async () => {
+    mockQueryResponse([makeNotionPage('Starfield', '⚠️ Removed')]);
+
+    const catalogTitles = new Set(['starfield']); // back in catalog
+    await makeDryRunClient().syncGames([], catalogTitles);
+
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it('makes no write calls at all across a mixed batch', async () => {
+    // One existing game with no changes, one with changes, one brand new
+    const existingUnchanged = {
+      ...makeNotionPage('Elden Ring'),
+      properties: {
+        ...makeNotionPage('Elden Ring').properties,
+        'Primary Source': { select: { name: 'Steam' } },
+        'Owned On': { multi_select: [{ name: 'Steam' }] },
+        'Playtime (hours)': { number: 10 },
+      },
+    };
+    const existingChanged = {
+      ...makeNotionPage('The Witcher 3'),
+      properties: {
+        ...makeNotionPage('The Witcher 3').properties,
+        'Playtime (hours)': { number: 1 }, // outdated
+      },
+    };
+    mockQueryResponse([existingUnchanged, existingChanged]);
+
+    await makeDryRunClient().syncGames([
+      makeUnifiedGame('Elden Ring'), // unchanged → skipped
+      makeUnifiedGame('The Witcher 3', { playtimeHours: 50 }), // changed → would update
+      makeUnifiedGame('Cyberpunk 2077'), // new → would create
+      // 'Starfield' not included → would be removed
+    ]);
+
+    expect(mockCreate).not.toHaveBeenCalled();
+    expect(mockUpdate).not.toHaveBeenCalled();
   });
 });

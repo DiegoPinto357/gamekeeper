@@ -150,6 +150,7 @@ export const ConfigSchema = z.object({
     cacheDays: z.number().default(30),
   }),
   logLevel: z.enum(['debug', 'info']).default('info'),
+  dryRun: z.boolean().default(false),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;
