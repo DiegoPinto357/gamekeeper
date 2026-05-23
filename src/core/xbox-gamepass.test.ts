@@ -19,7 +19,7 @@ vi.mock('fs/promises');
 const createGame = (
   name: string,
   source: Source,
-  options: Partial<RawGameData> = {}
+  options: Partial<RawGameData> = {},
 ): RawGameData => ({
   name,
   source,
@@ -29,7 +29,7 @@ const createGame = (
 
 const createGamePassGame = (
   title: string,
-  available: boolean = true
+  available: boolean = true,
 ): GamePassGame => ({
   id: title.toLowerCase().replace(/\s+/g, '-'),
   title,
@@ -46,7 +46,7 @@ describe('xbox-gamepass', () => {
       vi.mocked(fs.readFile).mockResolvedValue(
         JSON.stringify({
           ownedGames: ['Halo Infinite', 'Forza Horizon 5'],
-        })
+        }),
       );
 
       const owned = await loadOwnedXboxGames();
@@ -69,7 +69,7 @@ describe('xbox-gamepass', () => {
       vi.mocked(fs.readFile).mockResolvedValue(
         JSON.stringify({
           wantToPlay: ['Starfield', 'Hi-Fi RUSH'],
-        })
+        }),
       );
 
       const interests = await loadGamePassInterests();
@@ -92,7 +92,7 @@ describe('xbox-gamepass', () => {
       vi.mocked(fs.readFile).mockResolvedValue(
         JSON.stringify({
           ownedGames: ['Halo Infinite'],
-        })
+        }),
       );
 
       expect(await isOwnedOnXbox('Halo Infinite')).toBe(true);
@@ -102,7 +102,7 @@ describe('xbox-gamepass', () => {
       vi.mocked(fs.readFile).mockResolvedValue(
         JSON.stringify({
           ownedGames: ['Halo Infinite'],
-        })
+        }),
       );
 
       expect(await isOwnedOnXbox('Starfield')).toBe(false);
@@ -132,7 +132,7 @@ describe('xbox-gamepass', () => {
       vi.mocked(fs.readFile).mockResolvedValue(
         JSON.stringify({
           ownedGames: ['Halo Infinite'],
-        })
+        }),
       );
 
       const catalog = [createGamePassGame('Halo Infinite')];
@@ -145,7 +145,7 @@ describe('xbox-gamepass', () => {
       vi.mocked(fs.readFile).mockResolvedValue(
         JSON.stringify({
           ownedGames: [],
-        })
+        }),
       );
 
       const catalog = [createGamePassGame('Starfield')];
@@ -158,7 +158,7 @@ describe('xbox-gamepass', () => {
       vi.mocked(fs.readFile).mockResolvedValue(
         JSON.stringify({
           ownedGames: [],
-        })
+        }),
       );
 
       const catalog: GamePassGame[] = [];
@@ -179,7 +179,7 @@ describe('xbox-gamepass', () => {
       vi.mocked(fs.readFile).mockResolvedValue(
         JSON.stringify({
           ownedGames: ['Halo Infinite'],
-        })
+        }),
       );
 
       const game = createGame('Halo Infinite', 'xbox');
@@ -191,7 +191,7 @@ describe('xbox-gamepass', () => {
       vi.mocked(fs.readFile).mockResolvedValue(
         JSON.stringify({
           ownedGames: [],
-        })
+        }),
       );
 
       const game = createGame('Starfield', 'gamepass');
@@ -204,7 +204,7 @@ describe('xbox-gamepass', () => {
       vi.mocked(fs.readFile).mockResolvedValue(
         JSON.stringify({
           ownedGames: [],
-        })
+        }),
       );
 
       const game = createGame('Old Game', 'xbox');
@@ -220,7 +220,7 @@ describe('xbox-gamepass', () => {
           ownedGames: [],
           unavailableGames: [],
           wantToPlay: [],
-        })
+        }),
       );
 
       const playedGames = [createGame('Old Game', 'xbox')];
@@ -240,14 +240,14 @@ describe('xbox-gamepass', () => {
           return Promise.resolve(
             JSON.stringify({
               wantToPlay: ['Future Game'],
-            })
+            }),
           );
         }
         return Promise.resolve(
           JSON.stringify({
             ownedGames: [],
             unavailableGames: [],
-          })
+          }),
         );
       });
 
@@ -265,7 +265,7 @@ describe('xbox-gamepass', () => {
           return Promise.resolve(
             JSON.stringify({
               wantToPlay: ['Returned Game'],
-            })
+            }),
           );
         }
         if (path.toString().includes('unavailable')) {
@@ -279,13 +279,13 @@ describe('xbox-gamepass', () => {
                 },
               ],
               lastUpdated: new Date().toISOString(),
-            })
+            }),
           );
         }
         return Promise.resolve(
           JSON.stringify({
             ownedGames: [],
-          })
+          }),
         );
       });
 
@@ -302,7 +302,7 @@ describe('xbox-gamepass', () => {
       vi.mocked(fs.readFile).mockResolvedValue(
         JSON.stringify({
           wantToPlay: ['Starfield', 'Unavailable Game'],
-        })
+        }),
       );
 
       const catalog = [createGamePassGame('Starfield')];
@@ -318,7 +318,7 @@ describe('xbox-gamepass', () => {
       vi.mocked(fs.readFile).mockResolvedValue(
         JSON.stringify({
           wantToPlay: ['Starfield'],
-        })
+        }),
       );
 
       const catalog = [createGamePassGame('Starfield')];
@@ -333,7 +333,7 @@ describe('xbox-gamepass', () => {
       vi.mocked(fs.readFile).mockResolvedValue(
         JSON.stringify({
           wantToPlay: ['Not Available'],
-        })
+        }),
       );
 
       const result = await getInterestGamesToSync([], []);
@@ -347,7 +347,7 @@ describe('xbox-gamepass', () => {
       vi.mocked(fs.readFile).mockResolvedValue(
         JSON.stringify({
           ownedGames: ['Halo Infinite'],
-        })
+        }),
       );
 
       const catalog = [createGamePassGame('Halo Infinite')];
@@ -360,7 +360,7 @@ describe('xbox-gamepass', () => {
       vi.mocked(fs.readFile).mockResolvedValue(
         JSON.stringify({
           ownedGames: [],
-        })
+        }),
       );
 
       const game = createGame('Starfield', 'xbox');
@@ -374,7 +374,7 @@ describe('xbox-gamepass', () => {
       vi.mocked(fs.readFile).mockResolvedValue(
         JSON.stringify({
           ownedGames: [],
-        })
+        }),
       );
 
       const game = createGame('Old Game', 'xbox');
@@ -382,6 +382,87 @@ describe('xbox-gamepass', () => {
 
       const shouldSync = await shouldSyncToNotion(game, catalog);
       expect(shouldSync).toBe(false);
+    });
+  });
+
+  describe('catalog matching — smart quotes and verbose titles', () => {
+    it('matches interest with straight apostrophe against catalog title with curly apostrophe', async () => {
+      // Microsoft catalog uses U+2019 curly apostrophe; interests use straight apostrophe
+      const catalog = [
+        createGamePassGame('Assassin\u2019s Creed\u00ae Mirage'),
+      ];
+
+      expect(
+        await isAvailableOnGamePass("Assassin's Creed® Mirage", catalog),
+      ).toBe(true);
+    });
+
+    it('matches Tom Clancy title with curly apostrophe in catalog', async () => {
+      const catalog = [createGamePassGame('Tom Clancy\u2019s The Division 2')];
+
+      expect(
+        await isAvailableOnGamePass("Tom Clancy's The Division 2", catalog),
+      ).toBe(true);
+    });
+
+    it('matches interest against verbose catalog title containing it as substring', async () => {
+      // Catalog: "Call of Duty®: Modern Warfare® - Digital Standard Edition (Windows)"
+      const catalog = [
+        createGamePassGame(
+          'Call of Duty\u00ae: Modern Warfare\u00ae - Digital Standard Edition (Windows)',
+        ),
+      ];
+
+      expect(
+        await isAvailableOnGamePass('Call of Duty: Modern Warfare', catalog),
+      ).toBe(true);
+    });
+
+    it('does NOT match a short interest name against a long unrelated catalog title', async () => {
+      const catalog = [
+        createGamePassGame(
+          'Call of Duty: Black Ops 6 Extended Ultimate Mega Edition',
+        ),
+      ];
+
+      // "Doom" (too short for substring guard) should not match
+      expect(await isAvailableOnGamePass('Doom', catalog)).toBe(false);
+    });
+
+    it('processGamePassAvailability does not flag interests that match via smart quotes', async () => {
+      vi.mocked(fs.readFile).mockImplementation(path => {
+        if (path.toString().includes('interests')) {
+          return Promise.resolve(
+            JSON.stringify({ wantToPlay: ["Assassin's Creed\u00ae Mirage"] }),
+          );
+        }
+        return Promise.resolve(
+          JSON.stringify({ ownedGames: [], unavailableGames: [] }),
+        );
+      });
+
+      const catalog = [
+        createGamePassGame('Assassin\u2019s Creed\u00ae Mirage'),
+      ];
+      const result = await processGamePassAvailability([], catalog);
+
+      expect(result.unavailable).toHaveLength(0);
+    });
+
+    it('getInterestGamesToSync matches via substring for verbose catalog titles', async () => {
+      vi.mocked(fs.readFile).mockResolvedValue(
+        JSON.stringify({ wantToPlay: ['Call of Duty: Modern Warfare'] }),
+      );
+
+      const catalog = [
+        createGamePassGame(
+          'Call of Duty\u00ae: Modern Warfare\u00ae - Digital Standard Edition (Windows)',
+        ),
+      ];
+      const result = await getInterestGamesToSync(catalog, []);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].source).toBe('gamepass');
     });
   });
 });

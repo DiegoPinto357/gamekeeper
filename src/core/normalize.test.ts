@@ -48,6 +48,16 @@ describe('normalize', () => {
       );
     });
 
+    it('handles curly/smart apostrophes (U+2018/U+2019) from Microsoft catalog', () => {
+      // Catalog titles from Microsoft use curly quotes; these must normalize the same as straight quotes
+      expect(normalizeGameName('Assassin\u2019s Creed\u00ae Mirage')).toBe(
+        normalizeGameName("Assassin's Creed® Mirage"),
+      );
+      expect(normalizeGameName('Tom Clancy\u2019s The Division 2')).toBe(
+        normalizeGameName("Tom Clancy's The Division 2"),
+      );
+    });
+
     it('removes Windows platform suffixes', () => {
       expect(normalizeGameName('A Plague Tale: Requiem - Windows')).toBe(
         'plague tale requiem',

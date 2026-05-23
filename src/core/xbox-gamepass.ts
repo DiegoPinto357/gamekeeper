@@ -4,6 +4,27 @@ import { RawGameData } from '../types/game';
 import { normalizeGameName } from './normalize';
 import { GamePassGame } from '../adapters/gamepass.adapter';
 
+/**
+ * Check if a normalized interest name matches a normalized catalog title.
+ * Uses exact match first, then falls back to substring containment
+ * (interest is a prefix/substring of the catalog title) for cases where
+ * Microsoft appends edition info like "- Digital Standard Edition (Windows)".
+ * Minimum length guard prevents overly short strings from causing false positives.
+ */
+const MIN_MATCH_LENGTH = 10;
+const catalogMatchesInterest = (
+  catalogName: string,
+  interestName: string,
+): boolean => {
+  if (catalogName === interestName) return true;
+  if (
+    interestName.length >= MIN_MATCH_LENGTH &&
+    catalogName.includes(interestName)
+  )
+    return true;
+  return false;
+};
+
 export type OwnedXboxGames = {
   ownedGames: string[];
 };
@@ -78,11 +99,13 @@ export const isInInterests = async (gameName: string): Promise<boolean> => {
  */
 export const isAvailableOnGamePass = async (
   gameName: string,
-  gamePassCatalog: GamePassGame[]
+  gamePassCatalog: GamePassGame[],
 ): Promise<boolean> => {
   const normalizedName = normalizeGameName(gameName);
   return gamePassCatalog.some(
-    game => game.available && normalizeGameName(game.title) === normalizedName
+    game =>
+      game.available &&
+      catalogMatchesInterest(normalizeGameName(game.title), normalizedName),
   );
 };
 
@@ -105,7 +128,7 @@ export const loadUnavailableGames = async (): Promise<GamePassUnavailable> => {
  * Save unavailable games report
  */
 export const saveUnavailableGames = async (
-  unavailable: UnavailableGame[]
+  unavailable: UnavailableGame[],
 ): Promise<void> => {
   const data: GamePassUnavailable = {
     unavailableGames: unavailable,
@@ -114,7 +137,7 @@ export const saveUnavailableGames = async (
 
   await fs.writeFile(UNAVAILABLE_FILE, JSON.stringify(data, null, 2));
   console.log(
-    `📝 Updated unavailable games report: ${unavailable.length} games`
+    `📝 Updated unavailable games report: ${unavailable.length} games`,
   );
 };
 
@@ -123,7 +146,7 @@ export const saveUnavailableGames = async (
  */
 export const processGamePassAvailability = async (
   playedGames: RawGameData[],
-  gamePassCatalog: GamePassGame[]
+  gamePassCatalog: GamePassGame[],
 ): Promise<{
   unavailable: UnavailableGame[];
   returned: string[];
@@ -137,7 +160,7 @@ export const processGamePassAvailability = async (
   const catalogNames = new Set(
     gamePassCatalog
       .filter(g => g.available)
-      .map(g => normalizeGameName(g.title))
+      .map(g => normalizeGameName(g.title)),
   );
 
   // Check played Xbox games not owned
@@ -160,8 +183,8 @@ export const processGamePassAvailability = async (
 
   // Check interests
   for (const gameName of interests) {
-    const inCatalog = Array.from(catalogNames).some(
-      catalogName => catalogName === gameName
+    const inCatalog = Array.from(catalogNames).some(catalogName =>
+      catalogMatchesInterest(catalogName, gameName),
     );
 
     if (!inCatalog) {
@@ -174,7 +197,7 @@ export const processGamePassAvailability = async (
     } else {
       // Check if this game was previously unavailable and has now returned
       const wasUnavailable = currentUnavailable.unavailableGames.find(
-        u => normalizeGameName(u.name) === gameName
+        u => normalizeGameName(u.name) === gameName,
       );
       if (wasUnavailable) {
         returnedGames.push(gameName);
@@ -193,7 +216,7 @@ export const processGamePassAvailability = async (
  */
 export const resolveXboxSource = async (
   gameName: string,
-  gamePassCatalog: GamePassGame[]
+  gamePassCatalog: GamePassGame[],
 ): Promise<'xbox' | 'gamepass'> => {
   const isOwned = await isOwnedOnXbox(gameName);
 
@@ -210,7 +233,7 @@ export const resolveXboxSource = async (
  */
 export const shouldSyncToNotion = async (
   game: RawGameData,
-  gamePassCatalog: GamePassGame[]
+  gamePassCatalog: GamePassGame[],
 ): Promise<boolean> => {
   // Non-Xbox/GamePass games always sync
   if (game.source !== 'xbox' && game.source !== 'gamepass') {
@@ -234,7 +257,7 @@ export const shouldSyncToNotion = async (
  */
 export const getInterestGamesToSync = async (
   gamePassCatalog: GamePassGame[],
-  playedGames: RawGameData[]
+  playedGames: RawGameData[],
 ): Promise<RawGameData[]> => {
   const interests = await loadGamePassInterests();
   const playedNames = new Set(playedGames.map(g => normalizeGameName(g.name)));
@@ -243,7 +266,9 @@ export const getInterestGamesToSync = async (
   for (const interestName of interests) {
     // Check if available on Game Pass
     const catalogGame = gamePassCatalog.find(
-      g => g.available && normalizeGameName(g.title) === interestName
+      g =>
+        g.available &&
+        catalogMatchesInterest(normalizeGameName(g.title), interestName),
     );
 
     if (!catalogGame) continue;

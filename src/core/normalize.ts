@@ -44,7 +44,7 @@ export const normalizeGameName = (name: string): string => {
   return name
     .toLowerCase()
     .replace(/[™®©]/g, '') // Remove trademark symbols
-    .replace(/[:'-]/g, ' ') // Replace punctuation with spaces
+    .replace(/[:'\u2018\u2019-]/g, ' ') // Replace punctuation with spaces (incl. curly quotes)
     .replace(/\s+/g, ' ') // Normalize whitespace
     .replace(/\b(the|a|an)\b/g, '') // Remove articles
     .replace(/\b(goty|game of the year edition)\b/g, '')
