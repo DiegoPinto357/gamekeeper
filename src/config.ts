@@ -1,7 +1,20 @@
 import { Config, ConfigSchema } from './types/game';
 import dotenv from 'dotenv';
+import os from 'os';
+import path from 'path';
 
 dotenv.config();
+
+const defaultHeroicStoreCachePath = (): string => {
+  if (process.platform === 'darwin') {
+    return path.join(
+      os.homedir(),
+      'Library/Application Support/heroic/store_cache',
+    );
+  }
+  // Linux fallback
+  return path.join(os.homedir(), '.config/heroic/store_cache');
+};
 
 /**
  * Load and validate configuration from environment variables
@@ -36,6 +49,11 @@ export const loadConfig = (): Config => {
       | 'debug'
       | 'info',
     dryRun: process.argv.includes('--dry-run'),
+    playniteEnabled: process.env.PLAYNITE_ENABLED === 'true',
+    heroic: {
+      storeCachePath:
+        process.env.HEROIC_STORE_CACHE_PATH || defaultHeroicStoreCachePath(),
+    },
   };
 
   return ConfigSchema.parse(config);

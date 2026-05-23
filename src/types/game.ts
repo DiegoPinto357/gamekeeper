@@ -151,6 +151,10 @@ export const ConfigSchema = z.object({
   }),
   logLevel: z.enum(['debug', 'info']).default('info'),
   dryRun: z.boolean().default(false),
+  playniteEnabled: z.boolean().default(false),
+  heroic: z.object({
+    storeCachePath: z.string(),
+  }),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;

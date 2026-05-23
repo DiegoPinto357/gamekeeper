@@ -1,6 +1,7 @@
 import { loadConfig } from './config';
 import { steamAdapter } from './adapters/steam.adapter';
 import { playniteAdapter } from './adapters/playnite.adapter';
+import { heroicAdapter } from './adapters/heroic.adapter';
 import { createProtonDBAdapter } from './adapters/protondb.adapter';
 import { createGamePassAdapter } from './adapters/gamepass.adapter';
 import { igdbAdapter } from './adapters/igdb.adapter';
@@ -95,14 +96,18 @@ const main = async () => {
       console.log('Continuing without Steam data...\n');
     }
 
-    // Load Playnite snapshot
-    console.log('📦 Loading Playnite snapshot...');
+    // Load non-Steam games (Heroic or Playnite) + Xbox/Game Pass
+    console.log(
+      config.playniteEnabled
+        ? '📦 Loading Playnite snapshot...'
+        : '📦 Loading Heroic libraries...',
+    );
     let gamePassData:
-      | { playniteGames: RawGameData[]; gamePassCatalog: any[] }
+      | { sourceGames: RawGameData[]; gamePassCatalog: any[] }
       | undefined;
     let gamePassCatalogTitles: Set<string> | undefined;
     try {
-      // Load Game Pass catalog for filtering
+      // Load Game Pass catalog (always needed)
       console.log('🎮 Loading Game Pass catalog...');
       const gamePassCatalog = await gamePassAdapter.getCatalog();
       console.log(`✅ Game Pass: ${gamePassCatalog.length} games available`);
@@ -130,89 +135,105 @@ const main = async () => {
         console.warn('⚠️  No Game Pass interests file found');
       }
 
-      // Load owned Xbox games
+      // Load owned Xbox games (always needed)
       const ownedXboxGames = await loadOwnedXboxGames();
       console.log(`🎯 Loaded ${ownedXboxGames.size} owned Xbox games`);
 
-      // Create Game Pass filter function
-      const gamePassFilter = async (gameTitle: string): Promise<boolean> => {
-        // Check if user wants to play this game
-        const isInterested = gamePassInterests.some(
-          interest =>
-            interest.toLowerCase().trim() === gameTitle.toLowerCase().trim(),
+      let sourceGames: RawGameData[] = [];
+
+      if (config.playniteEnabled) {
+        // ── Playnite path (legacy) ─────────────────────────────────────────
+        const gamePassFilter = async (gameTitle: string): Promise<boolean> => {
+          const isInterested = gamePassInterests.some(
+            interest =>
+              interest.toLowerCase().trim() === gameTitle.toLowerCase().trim(),
+          );
+          if (!isInterested) return false;
+          return gamePassAdapter.isGameAvailable(gameTitle);
+        };
+
+        const playniteGames = await playniteAdapter.loadSnapshot(
+          './data/playnite.json',
+          gamePassFilter,
         );
 
-        if (!isInterested) {
-          return false; // Not interested, skip it
+        const filteredPlayniteGames: RawGameData[] = [];
+        for (const game of playniteGames) {
+          if (game.source === 'xbox') {
+            const resolvedSource = await resolveXboxSource(
+              game.name,
+              gamePassCatalog,
+            );
+            game.source = resolvedSource;
+          }
+          const shouldSync = await shouldSyncToNotion(game, gamePassCatalog);
+          if (shouldSync) filteredPlayniteGames.push(game);
         }
 
-        // Check if game is currently available on Game Pass
-        const isAvailable = await gamePassAdapter.isGameAvailable(gameTitle);
+        sourceGames = filteredPlayniteGames;
+        console.log(
+          `✅ Playnite: ${filteredPlayniteGames.length} games (${
+            playniteGames.length - filteredPlayniteGames.length
+          } filtered out)\n`,
+        );
 
-        return isAvailable; // Only include if both interested AND available
-      };
+        // Add owned Xbox games not present in Playnite
+        const playniteGameNames = new Set(
+          playniteGames.map(g => g.name.toLowerCase().trim()),
+        );
+        const ownedXboxFile = await fs.readFile(
+          './data/owned-xbox-games.json',
+          'utf-8',
+        );
+        const ownedXboxData = JSON.parse(ownedXboxFile);
+        const ownedGamesNames: string[] = ownedXboxData.ownedGames || [];
+        for (const gameName of ownedGamesNames) {
+          if (!playniteGameNames.has(gameName.toLowerCase().trim())) {
+            sourceGames.push({
+              name: gameName,
+              source: 'xbox',
+              externalId: `xbox-owned-${gameName
+                .toLowerCase()
+                .replace(/\s+/g, '-')}`,
+              playtimeHours: 0,
+            });
+          }
+        }
+      } else {
+        // ── Heroic path ────────────────────────────────────────────────────
+        sourceGames = await heroicAdapter.loadAllLibraries(
+          config.heroic.storeCachePath,
+        );
 
-      const playniteGames = await playniteAdapter.loadSnapshot(
-        './data/playnite.json',
-        gamePassFilter,
-      );
-
-      // Resolve Xbox source tags and filter games
-      const filteredPlayniteGames: RawGameData[] = [];
-      for (const game of playniteGames) {
-        // Resolve Xbox/Game Pass source tag
-        if (game.source === 'xbox') {
-          const resolvedSource = await resolveXboxSource(
-            game.name,
-            gamePassCatalog,
+        // All owned Xbox games (Heroic doesn't cover Xbox)
+        try {
+          const ownedXboxFile = await fs.readFile(
+            './data/owned-xbox-games.json',
+            'utf-8',
           );
-          game.source = resolvedSource;
-        }
-
-        // Check if game should sync
-        const shouldSync = await shouldSyncToNotion(game, gamePassCatalog);
-        if (shouldSync) {
-          filteredPlayniteGames.push(game);
-        }
-      }
-
-      rawGames.push(...filteredPlayniteGames);
-      console.log(
-        `✅ Playnite: ${filteredPlayniteGames.length} games (${
-          playniteGames.length - filteredPlayniteGames.length
-        } filtered out)\n`,
-      );
-
-      // Add owned Xbox games that aren't in Playnite (0 playtime)
-      const ownedXboxFile = await fs.readFile(
-        './data/owned-xbox-games.json',
-        'utf-8',
-      );
-      const ownedXboxData = JSON.parse(ownedXboxFile);
-      const ownedGamesNames: string[] = ownedXboxData.ownedGames || [];
-
-      const playniteGameNames = new Set(
-        playniteGames.map(g => g.name.toLowerCase().trim()),
-      );
-
-      for (const gameName of ownedGamesNames) {
-        if (!playniteGameNames.has(gameName.toLowerCase().trim())) {
-          // Game is owned but not played yet
-          rawGames.push({
-            name: gameName,
-            source: 'xbox',
-            externalId: `xbox-owned-${gameName
-              .toLowerCase()
-              .replace(/\s+/g, '-')}`,
-            playtimeHours: 0,
-          });
+          const ownedXboxData = JSON.parse(ownedXboxFile);
+          const ownedGamesNames: string[] = ownedXboxData.ownedGames || [];
+          for (const gameName of ownedGamesNames) {
+            sourceGames.push({
+              name: gameName,
+              source: 'xbox',
+              externalId: `xbox-owned-${gameName
+                .toLowerCase()
+                .replace(/\s+/g, '-')}`,
+              playtimeHours: 0,
+            });
+          }
+        } catch {
+          console.warn('⚠️  No owned Xbox games file found');
         }
       }
 
-      // Add interest games from Game Pass
+      rawGames.push(...sourceGames);
+
+      // Add interest games from Game Pass (always)
       const interestGames = await getInterestGamesToSync(
         gamePassCatalog,
-        playniteGames,
+        sourceGames,
       );
       if (interestGames.length > 0) {
         console.log(
@@ -221,11 +242,10 @@ const main = async () => {
         rawGames.push(...interestGames);
       }
 
-      // Store Game Pass data for later report generation
-      gamePassData = { playniteGames, gamePassCatalog };
+      gamePassData = { sourceGames, gamePassCatalog };
     } catch (error) {
-      console.error('❌ Failed to load Playnite snapshot:', error);
-      console.log('Continuing without Playnite data...\n');
+      console.error('❌ Failed to load game libraries:', error);
+      console.log('Continuing without library data...\n');
     }
 
     if (rawGames.length === 0) {
@@ -382,7 +402,7 @@ const main = async () => {
     if (gamePassData) {
       console.log('📊 Processing Game Pass availability...');
       const { unavailable, returned } = await processGamePassAvailability(
-        gamePassData.playniteGames,
+        gamePassData.sourceGames,
         gamePassData.gamePassCatalog,
       );
 
