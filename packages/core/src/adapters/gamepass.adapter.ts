@@ -9,6 +9,7 @@ export type GamePassGame = {
   id: string;
   title: string;
   available: boolean;
+  coverImageUrl?: string;
 };
 
 /**
@@ -24,7 +25,7 @@ type GamePassCatalog = {
  */
 const isCacheValid = async (
   cacheFile: string,
-  cacheDays: number
+  cacheDays: number,
 ): Promise<boolean> => {
   try {
     const stat = await fs.stat(cacheFile);
@@ -40,7 +41,7 @@ const isCacheValid = async (
  * Read cached catalog
  */
 const readCache = async (
-  cacheFile: string
+  cacheFile: string,
 ): Promise<GamePassCatalog | null> => {
   try {
     const content = await fs.readFile(cacheFile, 'utf-8');
@@ -55,7 +56,7 @@ const readCache = async (
  */
 const writeCache = async (
   cacheFile: string,
-  catalog: GamePassCatalog
+  catalog: GamePassCatalog,
 ): Promise<void> => {
   const dir = path.dirname(cacheFile);
   await fs.mkdir(dir, { recursive: true });
@@ -63,9 +64,27 @@ const writeCache = async (
 };
 
 /**
+ * Maps a raw Microsoft product object to a GamePassGame.
+ * Exported for testing.
+ */
+export const mapProduct = (product: any): GamePassGame | null => {
+  const title: string = product.LocalizedProperties?.[0]?.ProductTitle || '';
+  if (!title) return null;
+  const images: any[] = product.LocalizedProperties?.[0]?.Images ?? [];
+  const boxArt = images.find((img: any) => img.ImagePurpose === 'BoxArt');
+  const poster = images.find((img: any) => img.ImagePurpose === 'Poster');
+  const imageEntry = boxArt ?? poster;
+  const coverImageUrl = imageEntry?.Uri ? `https:${imageEntry.Uri}` : undefined;
+  return {
+    id: product.ProductId || title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+    title,
+    available: true,
+    coverImageUrl,
+  };
+};
+
+/**
  * Fetch current Game Pass catalog from Microsoft's official catalog API
- * Uses the same API as the Game-Pass-API project by NikkelM
- * https://github.com/NikkelM/Game-Pass-API
  */
 const fetchCatalog = async (): Promise<GamePassGame[]> => {
   try {
@@ -83,7 +102,7 @@ const fetchCatalog = async (): Promise<GamePassGame[]> => {
     // Step 1: Fetch game IDs for PC Game Pass
     console.log('Fetching PC Game Pass game IDs from Microsoft catalog...');
     const idsResponse = await axios.get(
-      `https://catalog.gamepass.com/sigls/v2?id=${platformIds.pc}&language=${language}&market=${market}`
+      `https://catalog.gamepass.com/sigls/v2?id=${platformIds.pc}&language=${language}&market=${market}`,
     );
 
     const gameIds = idsResponse.data
@@ -96,26 +115,17 @@ const fetchCatalog = async (): Promise<GamePassGame[]> => {
     console.log('Fetching game details from Microsoft display catalog...');
     const detailsResponse = await axios.get(
       `https://displaycatalog.mp.microsoft.com/v7.0/products?bigIds=${gameIds.join(
-        ','
-      )}&market=${market}&languages=${language}`
+        ',',
+      )}&market=${market}&languages=${language}`,
     );
 
     // Step 3: Extract game titles from the detailed response
     const games: GamePassGame[] = detailsResponse.data.Products.map(
-      (product: any) => {
-        const title = product.LocalizedProperties?.[0]?.ProductTitle || '';
-        return {
-          id:
-            product.ProductId ||
-            title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-          title,
-          available: true,
-        };
-      }
-    ).filter((game: GamePassGame) => game.title.length > 0);
+      mapProduct,
+    ).filter((g: GamePassGame | null): g is GamePassGame => g !== null);
 
     console.log(
-      `✅ Successfully fetched ${games.length} PC Game Pass titles from Microsoft API`
+      `✅ Successfully fetched ${games.length} PC Game Pass titles from Microsoft API`,
     );
 
     if (games.length === 0) {
@@ -126,10 +136,10 @@ const fetchCatalog = async (): Promise<GamePassGame[]> => {
   } catch (error) {
     console.error(
       'Failed to fetch Game Pass catalog from Microsoft API:',
-      error
+      error,
     );
     throw new Error(
-      'Failed to fetch Game Pass catalog. You can manually create .cache/gamepass/gamepass-catalog.json'
+      'Failed to fetch Game Pass catalog. You can manually create .cache/gamepass/gamepass-catalog.json',
     );
   }
 };
@@ -190,7 +200,7 @@ export const createGamePassAdapter = (cacheDir: string, cacheDays: number) => {
     const normalizedTitle = gameTitle.toLowerCase().trim();
 
     return catalog.some(
-      game => game.title.toLowerCase().trim() === normalizedTitle
+      game => game.title.toLowerCase().trim() === normalizedTitle,
     );
   };
 
