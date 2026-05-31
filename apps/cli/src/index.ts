@@ -1,27 +1,26 @@
-import { loadConfig } from './config';
-import { steamAdapter } from './adapters/steam.adapter';
-import { playniteAdapter } from './adapters/playnite.adapter';
-import { heroicAdapter } from './adapters/heroic.adapter';
-import { createProtonDBAdapter } from './adapters/protondb.adapter';
-import { createGamePassAdapter } from './adapters/gamepass.adapter';
-import { igdbAdapter } from './adapters/igdb.adapter';
-import { createNotionClient } from './notion/notion.client';
-import { processRawGames } from './core/deduplicate';
-import { loadOverrides } from './core/overrides';
-import { normalizeGameName } from './core/normalize';
+import './bootstrap';
 import {
+  loadConfig,
+  steamAdapter,
+  playniteAdapter,
+  heroicAdapter,
+  createProtonDBAdapter,
+  createGamePassAdapter,
+  igdbAdapter,
+  createNotionClient,
+  processRawGames,
+  loadOverrides,
+  normalizeGameName,
   generateMergeSuggestions,
   saveMergeSuggestions,
-} from './core/suggestions';
-import {
   loadOwnedXboxGames,
   processGamePassAvailability,
   saveUnavailableGames,
   getInterestGamesToSync,
   shouldSyncToNotion,
   resolveXboxSource,
-} from './core/xbox-gamepass';
-import { RawGameData, UnifiedGame, Source } from './types/game';
+} from '@gamekeeper/core';
+import type { RawGameData, UnifiedGame, Source } from '@gamekeeper/core';
 import fs from 'fs/promises';
 
 /**

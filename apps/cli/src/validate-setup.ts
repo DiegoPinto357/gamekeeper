@@ -5,11 +5,9 @@
  * Checks that all required configuration is in place
  */
 
-import dotenv from 'dotenv';
+import './bootstrap';
 import fs from 'fs/promises';
-import { steamAdapter } from './adapters/steam.adapter';
-
-dotenv.config();
+import { steamAdapter } from '@gamekeeper/core';
 
 const validate = async () => {
   console.log('🔍 GameKeeper Setup Validation\n');

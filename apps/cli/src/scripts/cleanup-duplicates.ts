@@ -1,5 +1,6 @@
+import '../bootstrap';
 import { Client } from '@notionhq/client';
-import { loadConfig } from '../config';
+import { loadConfig } from '@gamekeeper/core';
 
 /**
  * Cleanup script to remove duplicate game entries from Notion

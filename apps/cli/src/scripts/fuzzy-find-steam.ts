@@ -1,6 +1,10 @@
-import { loadConfig } from '../config';
-import { steamAdapter } from '../adapters/steam.adapter';
-import { calculateNameSimilarity, normalizeGameName } from '../core/normalize';
+import '../bootstrap';
+import {
+  loadConfig,
+  steamAdapter,
+  calculateNameSimilarity,
+  normalizeGameName,
+} from '@gamekeeper/core';
 
 (async function main() {
   try {

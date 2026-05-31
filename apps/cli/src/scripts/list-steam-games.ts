@@ -1,5 +1,5 @@
-import { loadConfig } from '../config';
-import { steamAdapter } from '../adapters/steam.adapter';
+import '../bootstrap';
+import { loadConfig, steamAdapter } from '@gamekeeper/core';
 
 (async function main() {
   try {

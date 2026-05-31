@@ -1,4 +1,5 @@
-import { createGamePassAdapter } from '../adapters/gamepass.adapter';
+import '../bootstrap';
+import { createGamePassAdapter } from '@gamekeeper/core';
 
 /**
  * Utility script to view the current Game Pass catalog

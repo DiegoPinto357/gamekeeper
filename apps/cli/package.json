@@ -1,0 +1,23 @@
+{
+  "name": "@gamekeeper/cli",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "dev:dry-run": "tsx src/index.ts --dry-run",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "validate": "tsx src/validate-setup.ts",
+    "cleanup-duplicates": "tsx src/scripts/cleanup-duplicates.ts",
+    "view-gamepass": "tsx src/scripts/view-gamepass-catalog.ts"
+  },
+  "dependencies": {
+    "@gamekeeper/core": "workspace:*",
+    "@notionhq/client": "^2.2.15"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.41",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  }
+}
