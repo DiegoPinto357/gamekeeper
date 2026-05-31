@@ -272,3 +272,63 @@ describe('notion.client - dry-run mode', () => {
     expect(mockUpdate).not.toHaveBeenCalled();
   });
 });
+
+// ── Title normalisation lookup tests ──────────────────────────────────────────
+
+describe('notion.client - title normalisation in lookup', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('finds an existing Notion page when game title uses a different apostrophe variant', async () => {
+    // Notion page stored with U+0027 straight apostrophe (e.g. created via GOG source)
+    const existingPage = makeNotionPage(
+      'Shadowrun: Dragonfall - Director\u0027s Cut',
+    );
+    mockQueryResponse([existingPage]);
+
+    // Game arriving from Epic source with U+2019 curly apostrophe
+    const game = makeUnifiedGame(
+      'Shadowrun: Dragonfall - Director\u2019s Cut',
+      {
+        ownedSources: ['epic' as const],
+        primarySource: 'epic' as const,
+        playtimeHours: undefined,
+      },
+    );
+
+    const client = makeClient();
+    await client.syncGames([game]);
+
+    // Should UPDATE (not create) because the normalised title lookup should match
+    expect(mockCreate).not.toHaveBeenCalled();
+  });
+
+  it('does not flag a game for removal when its title uses a different apostrophe variant', async () => {
+    // Same scenario — existing page has straight apostrophe, game has curly apostrophe
+    const existingPage = makeNotionPage(
+      'Shadowrun: Dragonfall - Director\u0027s Cut',
+    );
+    mockQueryResponse([existingPage]);
+
+    const game = makeUnifiedGame(
+      'Shadowrun: Dragonfall - Director\u2019s Cut',
+      {
+        ownedSources: ['epic' as const],
+        primarySource: 'epic' as const,
+        playtimeHours: undefined,
+      },
+    );
+
+    const client = makeClient();
+    await client.syncGames([game]);
+
+    // The existing page should be considered processed — NOT marked as removed
+    const updateCalls = mockUpdate.mock.calls;
+    const removedCalls = updateCalls.filter(
+      ([_id, body]) =>
+        body?.properties?.['Library Status']?.select?.name === '⚠️ Removed',
+    );
+    expect(removedCalls).toHaveLength(0);
+  });
+});

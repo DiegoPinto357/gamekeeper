@@ -1,21 +1,19 @@
 {
   "wantToPlay": [
-    "Assassin’s Creed® Mirage",
+    "Assassin's Creed® Mirage",
     "Starfield",
     "Hollow Knight: Silksong",
     "Hi-Fi RUSH",
     "1000xRESIST",
     "Clair Obscur: Expedition 33",
-    "Assassin's Creed Mirage",
-    "Tom Clancy’s The Division 2",
+    "Tom Clancy's The Division 2",
     "Call of Duty: Modern Warfare",
     "Star Wars Outlaws",
     "The Alters",
     "The Elder Scrolls IV: Oblivion Remastered",
-    "Tom Clancy's The Division 2",
     "TUNIC",
     "A Plague Tale: Requiem",
-    "Senua’s Saga: Hellblade II",
+    "Senua's Saga: Hellblade II",
     "Little Nightmares Enhanced Edition",
     "Little Nightmares II Enhanced Edition",
     "Warhammer 40,000: Space Marine 2",
@@ -33,7 +31,7 @@
   "_instructions": {
     "description": "Add game titles you want to track from Xbox Game Pass",
     "notes": [
-      "Game titles must match exactly as they appear in Playnite",
+      "Game titles can be copied directly from the Game Pass catalog",
       "Only games currently available on Game Pass will be synced to Notion",
       "Games removed from Game Pass catalog will automatically stop syncing"
     ]

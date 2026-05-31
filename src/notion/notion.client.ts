@@ -380,14 +380,16 @@ const buildLookupMaps = (
     const titleProp = page.properties[titleProperty];
     if (titleProp?.title?.[0]?.text?.content) {
       const title = titleProp.title[0].text.content;
-      const titleKey = title.toLowerCase();
+      // Normalize key so apostrophe variants (U+0027 vs U+2019) and trademark
+      // symbols don't prevent matching a page whose title was stored by a different source.
+      const titleKey = normalizeGameName(title);
       existingByTitle.set(titleKey, page);
       debug(`Indexed page by title: "${title}"`);
 
       // Also check if this title matches a merge rule variant
       const canonicalName = getCanonicalNameFromVariant(title);
       if (canonicalName) {
-        const canonicalKey = canonicalName.toLowerCase();
+        const canonicalKey = normalizeGameName(canonicalName);
 
         // Track variant pages for later marking as removed
         if (title !== canonicalName) {
@@ -445,7 +447,7 @@ const syncSingleGame = async (
     }
 
     if (!existingPage) {
-      const lookupKey = game.name.toLowerCase();
+      const lookupKey = normalizeGameName(game.name);
       existingPage = existingByTitle.get(lookupKey);
       if (existingPage) {
         debug(`  ✓ Found by title: "${lookupKey}"`);
@@ -455,7 +457,7 @@ const syncSingleGame = async (
     }
 
     // Mark any variant pages as removed
-    const variants = variantPages.get(game.name.toLowerCase());
+    const variants = variantPages.get(normalizeGameName(game.name));
     if (variants && variants.length > 0) {
       for (const variantPage of variants) {
         // Skip if this is the page we're about to update

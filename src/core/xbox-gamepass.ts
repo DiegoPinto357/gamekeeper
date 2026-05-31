@@ -6,23 +6,56 @@ import { GamePassGame } from '../adapters/gamepass.adapter';
 
 /**
  * Check if a normalized interest name matches a normalized catalog title.
- * Uses exact match first, then falls back to substring containment
- * (interest is a prefix/substring of the catalog title) for cases where
- * Microsoft appends edition info like "- Digital Standard Edition (Windows)".
- * Minimum length guard prevents overly short strings from causing false positives.
+ * Uses exact match first, then falls back to prefix containment for cases
+ * where Microsoft appends edition info like "- Digital Standard Edition (Windows)".
+ *
+ * Substring match is only allowed when, after the interest text, the catalog
+ * title continues with edition/packaging words — not sequel numbers (II, III, 2, 3…).
+ * This prevents "Modern Warfare" from matching "Modern Warfare II" or "Modern Warfare III".
+ * Minimum length guard prevents short strings from causing false positives.
  */
 const MIN_MATCH_LENGTH = 10;
+const EDITION_WORDS = new Set([
+  'digital',
+  'standard',
+  'deluxe',
+  'ultimate',
+  'complete',
+  'edition',
+  'pack',
+  'remastered',
+  'definitive',
+  'enhanced',
+  'gold',
+  'platinum',
+  'extended',
+  'anniversary',
+  'bundle',
+  'collection',
+  'classic',
+  'premium',
+  'director',
+  'cut',
+  'goty',
+  'content',
+  'windows',
+]);
 const catalogMatchesInterest = (
   catalogName: string,
   interestName: string,
 ): boolean => {
   if (catalogName === interestName) return true;
-  if (
-    interestName.length >= MIN_MATCH_LENGTH &&
-    catalogName.includes(interestName)
-  )
-    return true;
-  return false;
+  if (interestName.length < MIN_MATCH_LENGTH) return false;
+
+  const idx = catalogName.indexOf(interestName);
+  if (idx === -1) return false;
+
+  // Check that whatever follows the interest name in the catalog title
+  // only contains known edition/packaging words (not sequel numbers).
+  const remainder = catalogName.slice(idx + interestName.length).trim();
+  if (remainder === '') return true;
+  const remainderWords = remainder.split(/\s+/);
+  return remainderWords.every(w => EDITION_WORDS.has(w));
 };
 
 export type OwnedXboxGames = {
@@ -259,11 +292,25 @@ export const getInterestGamesToSync = async (
   gamePassCatalog: GamePassGame[],
   playedGames: RawGameData[],
 ): Promise<RawGameData[]> => {
-  const interests = await loadGamePassInterests();
+  // Load raw (non-normalized) interest names to preserve the user's clean title
+  let rawInterests: string[] = [];
+  try {
+    const content = await fs.readFile(INTERESTS_FILE, 'utf-8');
+    const data: GamePassInterests = JSON.parse(content);
+    rawInterests = data.wantToPlay || [];
+  } catch {
+    return [];
+  }
+
   const playedNames = new Set(playedGames.map(g => normalizeGameName(g.name)));
   const gamesToSync: RawGameData[] = [];
+  const seenNormalized = new Set<string>(); // deduplicate interests that normalize identically
 
-  for (const interestName of interests) {
+  for (const rawName of rawInterests) {
+    const interestName = normalizeGameName(rawName);
+    if (seenNormalized.has(interestName)) continue;
+    seenNormalized.add(interestName);
+
     // Check if available on Game Pass
     const catalogGame = gamePassCatalog.find(
       g =>
@@ -276,9 +323,9 @@ export const getInterestGamesToSync = async (
     // Check if already played
     const wasPlayed = playedNames.has(interestName);
 
-    // Create game entry
+    // Use the user's clean interest name (not the verbose catalog title)
     gamesToSync.push({
-      name: catalogGame.title,
+      name: rawName,
       source: 'gamepass',
       externalId: `gamepass-interest-${catalogGame.id}`,
       playtimeHours: wasPlayed ? undefined : 0,

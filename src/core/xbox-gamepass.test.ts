@@ -314,6 +314,43 @@ describe('xbox-gamepass', () => {
       expect(result[0].name).toBe('Starfield');
     });
 
+    it('uses the clean interest name, not the verbose catalog title', async () => {
+      vi.mocked(fs.readFile).mockResolvedValue(
+        JSON.stringify({
+          wantToPlay: ['Call of Duty: Modern Warfare'],
+        }),
+      );
+
+      const catalog = [
+        createGamePassGame(
+          'Call of Duty\u00ae: Modern Warfare\u00ae - Digital Standard Edition (Windows)',
+        ),
+      ];
+      const result = await getInterestGamesToSync(catalog, []);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('Call of Duty: Modern Warfare');
+    });
+
+    it('deduplicates interests that normalize to the same name', async () => {
+      vi.mocked(fs.readFile).mockResolvedValue(
+        JSON.stringify({
+          // Both normalize to the same string
+          wantToPlay: [
+            "Assassin's Creed\u00ae Mirage",
+            "Assassin's Creed Mirage",
+          ],
+        }),
+      );
+
+      const catalog = [
+        createGamePassGame('Assassin\u2019s Creed\u00ae Mirage'),
+      ];
+      const result = await getInterestGamesToSync(catalog, []);
+
+      expect(result).toHaveLength(1);
+    });
+
     it('includes interest games even if already played', async () => {
       vi.mocked(fs.readFile).mockResolvedValue(
         JSON.stringify({
@@ -463,6 +500,38 @@ describe('xbox-gamepass', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0].source).toBe('gamepass');
+    });
+
+    it('does NOT match sequel-numbered title as prefix of base interest name', async () => {
+      // "Modern Warfare" interest must not match "Modern Warfare II" catalog entry
+      const catalog = [
+        createGamePassGame(
+          'Call of Duty\u00ae: Modern Warfare\u00ae II - Standard Edition (Windows)',
+        ),
+        createGamePassGame(
+          'Call of Duty\u00ae: Modern Warfare\u00ae III - Standard Edition (Windows)',
+        ),
+      ];
+
+      // Without the original MW I in the catalog, the interest should NOT match MW II or III
+      expect(
+        await isAvailableOnGamePass('Call of Duty: Modern Warfare', catalog),
+      ).toBe(false);
+    });
+
+    it('matches "Modern Warfare II" interest against the MW II catalog entry', async () => {
+      const catalog = [
+        createGamePassGame(
+          'Call of Duty\u00ae: Modern Warfare\u00ae - Digital Standard Edition (Windows)',
+        ),
+        createGamePassGame(
+          'Call of Duty\u00ae: Modern Warfare\u00ae II - Standard Edition (Windows)',
+        ),
+      ];
+
+      expect(
+        await isAvailableOnGamePass('Call of Duty: Modern Warfare II', catalog),
+      ).toBe(true);
     });
   });
 });
