@@ -148,6 +148,49 @@ Add root script: `pnpm run ui` → starts both `apps/server` and `apps/ui` concu
 
 ---
 
+## Phase 5 — Logger Refactor in `packages/core`
+
+Move output concerns out of `packages/core` and into the consumers (CLI, server).
+
+### Problem
+`packages/core` has ~60+ `console.log/warn/error` calls scattered across adapters and
+orchestration modules. A shared library should not own output — it violates the
+single-responsibility principle and makes it impossible for callers (server, UI) to
+control log formatting or silence output.
+
+### Approach
+
+1. **Define a `Logger` interface in core** (no deps, just a type):
+   ```ts
+   export interface Logger {
+     log(message: string, ...args: unknown[]): void;
+     warn(message: string, ...args: unknown[]): void;
+     error(message: string, ...args: unknown[]): void;
+   }
+   export const noopLogger: Logger = { log: () => {}, warn: () => {}, error: () => {} };
+   ```
+
+2. **Pass `logger` to top-level functions** that currently call `console.*` directly:
+   - `syncGames(options, logger?)`
+   - `fetchCatalog(options, logger?)`
+   - `loadSteamLibrary(options, logger?)` etc.
+   - Default to `noopLogger` so all existing call sites without a logger stay silent
+
+3. **Update consumers:**
+   - `apps/cli` passes `console` (or a pretty-printer) as the logger
+   - `apps/server` passes `noopLogger` (or a structured Fastify logger)
+
+4. **Categories to handle:**
+   - 🔴 Progress/status logs → move to consumers via logger callback
+   - 🟡 Operational warnings/errors → convert to thrown errors or logger.warn
+   - 🟢 `[DEBUG]`-gated logs → keep as-is (already opt-in, low risk)
+
+### Scope
+- Touch only `packages/core` internals and the two `apps/` entry points
+- No behavior changes — same output in CLI, silence in server
+
+---
+
 ## What's Out of Scope (for now)
 
 - Authentication / remote hosting
@@ -168,3 +211,4 @@ Add root script: `pnpm run ui` → starts both `apps/server` and `apps/ui` concu
 7. `ui-scaffold` — Scaffold apps/web with Vite + React + shadcn
 8. `catalog-feature` — Implement catalog grid UI (CatalogGrid, GameCard, SearchBar)
 9. `root-dev-script` — Concurrent dev script to start server + UI together
+10. `logger-refactor` — Define Logger interface in core, inject into adapters, consumers pass their own logger
