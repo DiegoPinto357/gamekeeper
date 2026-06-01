@@ -5,7 +5,7 @@ import { createGamePassAdapter } from '@gamekeeper/core';
 import fs from 'fs/promises';
 import path from 'path';
 
-const PORT = Number(process.env.PORT) || 3001;
+const PORT = Number(process.env.PORT) || 3010;
 const INTERESTS_FILE = path.join(process.cwd(), 'data/gamepass-interests.json');
 const GAMEPASS_CACHE_DIR = path.join(process.cwd(), '.cache/gamepass');
 
@@ -14,7 +14,7 @@ const gamePassAdapter = createGamePassAdapter(GAMEPASS_CACHE_DIR, 7);
 const server = Fastify({ logger: false });
 
 await server.register(cors, {
-  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+  origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://localhost:5174', 'http://127.0.0.1:5174'],
   methods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
 });
 
@@ -41,30 +41,39 @@ server.get('/api/interests', async (_req, reply) => {
 });
 
 /** POST /api/interests — add a game { name: string } */
-server.post<{ Body: { name: string } }>('/api/interests', async (req, reply) => {
-  const name = req.body?.name?.trim();
-  if (!name) return reply.status(400).send({ error: 'name is required' });
+server.post<{ Body: { name: string } }>(
+  '/api/interests',
+  async (req, reply) => {
+    const name = req.body?.name?.trim();
+    if (!name) return reply.status(400).send({ error: 'name is required' });
 
-  const data = await readInterests();
-  if (!data.wantToPlay.includes(name)) {
-    data.wantToPlay.push(name);
-    await writeInterests(data);
-  }
-  return reply.send({ interests: data.wantToPlay });
-});
+    const data = await readInterests();
+    if (!data.wantToPlay.includes(name)) {
+      data.wantToPlay.push(name);
+      await writeInterests(data);
+    }
+    return reply.send({ interests: data.wantToPlay });
+  },
+);
 
 /** DELETE /api/interests/:name — remove a game from interests */
-server.delete<{ Params: { name: string } }>('/api/interests/:name', async (req, reply) => {
-  const name = decodeURIComponent(req.params.name);
-  const data = await readInterests();
-  data.wantToPlay = data.wantToPlay.filter((n: string) => n !== name);
-  await writeInterests(data);
-  return reply.send({ interests: data.wantToPlay });
-});
+server.delete<{ Params: { name: string } }>(
+  '/api/interests/:name',
+  async (req, reply) => {
+    const name = decodeURIComponent(req.params.name);
+    const data = await readInterests();
+    data.wantToPlay = data.wantToPlay.filter((n: string) => n !== name);
+    await writeInterests(data);
+    return reply.send({ interests: data.wantToPlay });
+  },
+);
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
-async function readInterests(): Promise<{ wantToPlay: string[]; [k: string]: unknown }> {
+async function readInterests(): Promise<{
+  wantToPlay: string[];
+  [k: string]: unknown;
+}> {
   try {
     const content = await fs.readFile(INTERESTS_FILE, 'utf-8');
     return JSON.parse(content);
@@ -83,4 +92,3 @@ async function writeInterests(data: object): Promise<void> {
 
 await server.listen({ port: PORT, host: '0.0.0.0' });
 console.log(`🎮 GameKeeper server running at http://localhost:${PORT}`);
-

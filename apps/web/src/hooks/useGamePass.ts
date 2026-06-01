@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { CatalogGame, InterestsResponse } from '@/types/api';
 
-const API_BASE = 'http://localhost:3001';
+const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3010';
 
 async function fetchCatalog(): Promise<CatalogGame[]> {
   const res = await fetch(`${API_BASE}/api/catalog`);
