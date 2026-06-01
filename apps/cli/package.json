@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx src/index.ts",
-    "dev:dry-run": "tsx src/index.ts --dry-run",
+    "sync": "tsx src/index.ts",
+    "sync:dry-run": "tsx src/index.ts --dry-run",
     "build": "tsc",
     "start": "node dist/index.js",
     "validate": "tsx src/validate-setup.ts",
