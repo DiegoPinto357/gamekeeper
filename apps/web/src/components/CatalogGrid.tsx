@@ -35,8 +35,9 @@ export function CatalogGrid() {
     if (filter === 'interested') result = result.filter((g) => interestSet.has(g.title));
     else if (filter === 'not-interested') result = result.filter((g) => !interestSet.has(g.title));
 
-    // Sort — 'recent' keeps original API order (MS catalog is most-recent-first)
+    // Sort — 'recent' = newest firstSeenAt first; 'az' = alphabetical
     if (sort === 'az') result.sort((a, b) => a.title.localeCompare(b.title));
+    else result.sort((a, b) => (b.firstSeenAt ?? '').localeCompare(a.firstSeenAt ?? ''));
 
     return result;
   }, [catalog, search, sort, filter, interestSet]);

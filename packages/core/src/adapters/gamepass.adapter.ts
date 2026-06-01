@@ -10,6 +10,7 @@ export type GamePassGame = {
   title: string;
   available: boolean;
   coverImageUrl?: string;
+  firstSeenAt?: string;
 };
 
 /**
@@ -169,10 +170,21 @@ export const createGamePassAdapter = (cacheDir: string, cacheDays: number) => {
     // Cache is invalid or doesn't exist, fetch fresh data
     console.log('Fetching fresh Game Pass catalog...');
     try {
-      const games = await fetchCatalog();
+      const freshGames = await fetchCatalog();
+
+      // Preserve firstSeenAt for games already in the cache
+      const staleCache = await readCache(cacheFile);
+      const existingDates = new Map(
+        (staleCache?.games ?? []).map((g) => [g.id, g.firstSeenAt]),
+      );
+      const now = new Date().toISOString();
+      const games = freshGames.map((g) => ({
+        ...g,
+        firstSeenAt: existingDates.get(g.id) ?? now,
+      }));
 
       const catalog: GamePassCatalog = {
-        lastUpdated: new Date().toISOString(),
+        lastUpdated: now,
         games,
       };
 
