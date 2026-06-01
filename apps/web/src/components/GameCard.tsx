@@ -17,12 +17,12 @@ export function GameCard({ game, isInterested, onToggle, isPending }: GameCardPr
         isInterested && 'ring-2 ring-primary',
       )}
     >
-      <div className="relative aspect-[3/4] bg-muted overflow-hidden">
+      <div className="relative aspect-[3/4] bg-zinc-900 overflow-hidden">
         {game.coverImageUrl ? (
           <img
             src={game.coverImageUrl}
             alt={game.title}
-            className="h-full w-full object-cover transition-transform group-hover:scale-105"
+            className="h-full w-full object-contain transition-transform group-hover:scale-105"
             loading="lazy"
           />
         ) : (

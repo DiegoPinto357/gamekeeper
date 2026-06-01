@@ -22,7 +22,14 @@ await server.register(cors, {
 server.get('/api/catalog', async (_req, reply) => {
   try {
     const catalog = await gamePassAdapter.getCatalog();
-    return reply.send(catalog);
+    // Deduplicate by title, keeping first occurrence
+    const seen = new Set<string>();
+    const deduped = catalog.filter(({ title }) => {
+      if (seen.has(title)) return false;
+      seen.add(title);
+      return true;
+    });
+    return reply.send(deduped);
   } catch (error) {
     server.log.error(error);
     return reply.status(500).send({ error: 'Failed to load catalog' });
