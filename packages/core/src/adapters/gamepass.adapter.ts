@@ -10,6 +10,7 @@ export type GamePassGame = {
   title: string;
   available: boolean;
   coverImageUrl?: string;
+  releaseDate?: string;
   firstSeenAt?: string;
   catalogPosition?: number;
 };
@@ -77,11 +78,14 @@ export const mapProduct = (product: any): GamePassGame | null => {
   const poster = images.find((img: any) => img.ImagePurpose === 'Poster');
   const imageEntry = boxArt ?? poster;
   const coverImageUrl = imageEntry?.Uri ? `https:${imageEntry.Uri}` : undefined;
+  const releaseDate: string | undefined =
+    product.MarketProperties?.[0]?.OriginalReleaseDate ?? undefined;
   return {
     id: product.ProductId || title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
     title,
     available: true,
     coverImageUrl,
+    releaseDate,
   };
 };
 

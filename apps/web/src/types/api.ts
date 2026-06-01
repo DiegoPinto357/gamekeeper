@@ -3,6 +3,7 @@ export interface CatalogGame {
   title: string;
   available: boolean;
   coverImageUrl?: string;
+  releaseDate?: string;
   firstSeenAt?: string;
   catalogPosition?: number;
 }
