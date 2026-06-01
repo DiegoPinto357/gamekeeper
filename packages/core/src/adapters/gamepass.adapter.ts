@@ -11,6 +11,7 @@ export type GamePassGame = {
   available: boolean;
   coverImageUrl?: string;
   firstSeenAt?: string;
+  catalogPosition?: number;
 };
 
 /**
@@ -106,9 +107,12 @@ const fetchCatalog = async (): Promise<GamePassGame[]> => {
       `https://catalog.gamepass.com/sigls/v2?id=${platformIds.pc}&language=${language}&market=${market}`,
     );
 
-    const gameIds = idsResponse.data
+    const gameIds: string[] = idsResponse.data
       .filter((entry: any) => entry.id)
-      .map((entry: any) => entry.id);
+      .map((entry: any) => entry.id as string);
+
+    // Build position map from the ordered IDs list (index 0 = most recently added per MS catalog)
+    const positionByProductId = new Map(gameIds.map((id, idx) => [id, idx]));
 
     console.log(`Found ${gameIds.length} PC Game Pass game IDs`);
 
@@ -121,9 +125,15 @@ const fetchCatalog = async (): Promise<GamePassGame[]> => {
     );
 
     // Step 3: Extract game titles from the detailed response
+    // Assign catalogPosition from the ordered IDs list so "recently added" sort works
     const games: GamePassGame[] = detailsResponse.data.Products.map(
       mapProduct,
-    ).filter((g: GamePassGame | null): g is GamePassGame => g !== null);
+    )
+      .filter((g: GamePassGame | null): g is GamePassGame => g !== null)
+      .map((g: GamePassGame) => ({
+        ...g,
+        catalogPosition: positionByProductId.get(g.id) ?? Number.MAX_SAFE_INTEGER,
+      }));
 
     console.log(
       `✅ Successfully fetched ${games.length} PC Game Pass titles from Microsoft API`,
@@ -174,13 +184,13 @@ export const createGamePassAdapter = (cacheDir: string, cacheDays: number) => {
 
       // Preserve firstSeenAt for games already in the cache
       const staleCache = await readCache(cacheFile);
-      const existingDates = new Map(
-        (staleCache?.games ?? []).map((g) => [g.id, g.firstSeenAt]),
+      const existingById = new Map(
+        (staleCache?.games ?? []).map((g) => [g.id, g]),
       );
       const now = new Date().toISOString();
       const games = freshGames.map((g) => ({
         ...g,
-        firstSeenAt: existingDates.get(g.id) ?? now,
+        firstSeenAt: existingById.get(g.id)?.firstSeenAt ?? now,
       }));
 
       const catalog: GamePassCatalog = {

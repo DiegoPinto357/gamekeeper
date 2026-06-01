@@ -35,9 +35,9 @@ export function CatalogGrid() {
     if (filter === 'interested') result = result.filter((g) => interestSet.has(g.title));
     else if (filter === 'not-interested') result = result.filter((g) => !interestSet.has(g.title));
 
-    // Sort — 'recent' = newest firstSeenAt first; 'az' = alphabetical
+    // Sort — 'recent' = lowest catalogPosition first (MS catalog order); 'az' = alphabetical
     if (sort === 'az') result.sort((a, b) => a.title.localeCompare(b.title));
-    else result.sort((a, b) => (b.firstSeenAt ?? '').localeCompare(a.firstSeenAt ?? ''));
+    else result.sort((a, b) => (a.catalogPosition ?? 9999) - (b.catalogPosition ?? 9999));
 
     return result;
   }, [catalog, search, sort, filter, interestSet]);

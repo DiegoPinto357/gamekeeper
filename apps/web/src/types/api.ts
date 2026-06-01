@@ -4,6 +4,7 @@ export interface CatalogGame {
   available: boolean;
   coverImageUrl?: string;
   firstSeenAt?: string;
+  catalogPosition?: number;
 }
 
 export interface InterestsResponse {
