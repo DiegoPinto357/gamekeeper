@@ -9,6 +9,10 @@ interface GameCardProps {
   isPending?: boolean;
 }
 
+function xboxStoreUrl(id: string) {
+  return `https://www.xbox.com/en-US/games/store/-/${id}`;
+}
+
 export function GameCard({ game, isInterested, onToggle, isPending }: GameCardProps) {
   return (
     <div
@@ -17,7 +21,12 @@ export function GameCard({ game, isInterested, onToggle, isPending }: GameCardPr
         isInterested && 'ring-2 ring-primary',
       )}
     >
-      <div className="bg-zinc-900 overflow-hidden">
+      <a
+        href={xboxStoreUrl(game.id)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="bg-zinc-900 overflow-hidden cursor-pointer"
+      >
         {game.coverImageUrl ? (
           <img
             src={game.coverImageUrl}
@@ -30,7 +39,7 @@ export function GameCard({ game, isInterested, onToggle, isPending }: GameCardPr
             {game.title}
           </div>
         )}
-      </div>
+      </a>
 
       <div className="flex flex-col flex-1 gap-2 p-3">
         <p className="flex-1 line-clamp-2 text-sm font-medium leading-tight">{game.title}</p>
