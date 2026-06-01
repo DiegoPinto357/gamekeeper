@@ -13,31 +13,31 @@ export function GameCard({ game, isInterested, onToggle, isPending }: GameCardPr
   return (
     <div
       className={cn(
-        'group relative flex flex-col overflow-hidden rounded-lg border bg-card transition-all hover:shadow-md',
+        'group flex flex-col overflow-hidden rounded-lg border bg-card transition-all hover:shadow-md',
         isInterested && 'ring-2 ring-primary',
       )}
     >
-      <div className="relative aspect-[3/4] bg-zinc-900 overflow-hidden">
+      <div className="bg-zinc-900 overflow-hidden">
         {game.coverImageUrl ? (
           <img
             src={game.coverImageUrl}
             alt={game.title}
-            className="h-full w-full object-contain transition-transform group-hover:scale-105"
+            className="w-full object-cover transition-transform group-hover:scale-105"
             loading="lazy"
           />
         ) : (
-          <div className="flex h-full items-center justify-center p-4 text-center text-sm text-muted-foreground">
+          <div className="flex h-40 items-center justify-center p-4 text-center text-sm text-muted-foreground">
             {game.title}
           </div>
         )}
       </div>
 
-      <div className="flex flex-col gap-2 p-3">
-        <p className="line-clamp-2 text-sm font-medium leading-tight">{game.title}</p>
+      <div className="flex flex-col flex-1 gap-2 p-3">
+        <p className="flex-1 line-clamp-2 text-sm font-medium leading-tight">{game.title}</p>
         <Button
           size="sm"
           variant={isInterested ? 'default' : 'outline'}
-          className="w-full"
+          className="w-full mt-auto"
           disabled={isPending}
           onClick={() => onToggle(game)}
         >
