@@ -3,6 +3,7 @@ import { GameCard } from '@/components/GameCard';
 import { SearchBar } from '@/components/SearchBar';
 import { Button } from '@/components/ui/button';
 import { useCatalog, useInterests, useAddInterest, useRemoveInterest } from '@/hooks/useGamePass';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { cn } from '@/lib/utils';
 import type { CatalogGame } from '@/types/api';
 
@@ -11,8 +12,8 @@ type FilterOption = 'all' | 'interested' | 'not-interested';
 
 export function CatalogGrid() {
   const [search, setSearch] = useState('');
-  const [sort, setSort] = useState<SortOption>('az');
-  const [filter, setFilter] = useState<FilterOption>('all');
+  const [sort, setSort] = useLocalStorage<SortOption>('catalog-sort', 'az');
+  const [filter, setFilter] = useLocalStorage<FilterOption>('catalog-filter', 'all');
 
   const { data: catalog, isLoading: catalogLoading, isError: catalogError } = useCatalog();
   const { data: interestsData } = useInterests();
