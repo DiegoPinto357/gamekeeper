@@ -605,9 +605,12 @@ const markRemovedGames = async (
           const currentStatus =
             existingPage.properties['Library Status']?.select?.name;
 
+          const normalizedTitle = normalizeGameName(gameTitle);
+          const sortedTitle = normalizedTitle.split(' ').filter(Boolean).sort().join(' ');
           const stillInGamePass =
             gamePassCatalogTitles !== undefined &&
-            gamePassCatalogTitles.has(normalizeGameName(gameTitle));
+            (gamePassCatalogTitles.has(normalizedTitle) ||
+              gamePassCatalogTitles.has(sortedTitle));
 
           if (stillInGamePass) {
             // Game is still available on Game Pass — user just removed it from

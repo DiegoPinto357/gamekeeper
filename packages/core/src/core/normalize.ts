@@ -54,6 +54,15 @@ export const normalizeGameName = (name: string): string => {
 };
 
 /**
+ * Normalize a game name and sort its words alphabetically.
+ * Used as a secondary lookup key to match titles where the subtitle and
+ * main title are swapped (e.g. "Hellblade II: Senua's Saga" vs
+ * "Senua's Saga: Hellblade II").
+ */
+export const wordSortedKey = (name: string): string =>
+  normalizeGameName(name).split(' ').filter(Boolean).sort().join(' ');
+
+/**
  * Generate a canonical ID from a game name
  * Used when no Steam AppID is available
  */

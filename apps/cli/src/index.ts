@@ -111,11 +111,18 @@ const main = async () => {
       const gamePassCatalog = await gamePassAdapter.getCatalog();
       console.log(`✅ Game Pass: ${gamePassCatalog.length} games available`);
 
-      // Build normalized set of catalog titles for removal detection
+      // Build normalized set of catalog titles for removal detection.
+      // Each title contributes two keys: its normalized form AND its word-sorted
+      // form, so titles with swapped main/subtitle (e.g. "Hellblade II: Senua's
+      // Saga" vs "Senua's Saga: Hellblade II") still match.
       gamePassCatalogTitles = new Set(
         gamePassCatalog
           .filter((g: any) => g.available)
-          .map((g: any) => normalizeGameName(g.title)),
+          .flatMap((g: any) => {
+            const norm = normalizeGameName(g.title);
+            const sorted = norm.split(' ').filter(Boolean).sort().join(' ');
+            return [norm, sorted];
+          }),
       );
 
       // Load Game Pass interests

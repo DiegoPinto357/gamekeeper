@@ -8,7 +8,7 @@ export { igdbAdapter } from './adapters/igdb.adapter';
 export { createNotionClient } from './notion/notion.client';
 export { processRawGames } from './core/deduplicate';
 export { loadOverrides } from './core/overrides';
-export { normalizeGameName, calculateNameSimilarity } from './core/normalize';
+export { normalizeGameName, calculateNameSimilarity, wordSortedKey } from './core/normalize';
 export {
   generateMergeSuggestions,
   saveMergeSuggestions,
