@@ -397,7 +397,12 @@ const main = async () => {
     await notionClient.syncGames(unifiedGames, gamePassCatalogTitles);
     console.log('✅ Sync to Notion complete\n');
 
-    // 11. Generate Game Pass availability report
+    // 11. Save local library snapshot
+    console.log('💾 Saving local library snapshot...');
+    await saveLibrarySnapshot(unifiedGames);
+    console.log('✅ Saved to data/library.json\n');
+
+    // 12. Generate Game Pass availability report
     if (gamePassData) {
       console.log('📊 Processing Game Pass availability...');
       const { unavailable, returned } = await processGamePassAvailability(
@@ -423,7 +428,7 @@ const main = async () => {
       }
     }
 
-    // 12. Summary
+    // 13. Summary
     console.log('\n📈 Summary:');
     console.log(`   • Total unique games: ${unifiedGames.length}`);
     console.log(
@@ -442,6 +447,22 @@ const main = async () => {
     console.error('\n❌ Error during sync:', error);
     process.exit(1);
   }
+};
+
+/**
+ * Save unified game library to data/library.json
+ */
+const saveLibrarySnapshot = async (games: UnifiedGame[]): Promise<void> => {
+  const snapshot = {
+    lastSynced: new Date().toISOString(),
+    gameCount: games.length,
+    games,
+  };
+  await fs.writeFile(
+    './data/library.json',
+    JSON.stringify(snapshot, null, 2),
+    'utf-8',
+  );
 };
 
 /**
