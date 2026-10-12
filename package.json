@@ -11,14 +11,16 @@
     "validate": "pnpm --filter @gamekeeper/cli run validate",
     "cleanup-duplicates": "pnpm --filter @gamekeeper/cli run cleanup-duplicates",
     "view-gamepass": "pnpm --filter @gamekeeper/cli run view-gamepass",
-    "test": "pnpm --filter @gamekeeper/core run test",
-    "test:watch": "pnpm --filter @gamekeeper/core run test:watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "ui": "concurrently --names server,web --prefix-colors blue,green \"pnpm --filter @gamekeeper/server run dev\" \"pnpm --filter web run dev\""
   },
   "author": "Diego Pinto dos Santos",
   "license": "ISC",
   "description": "Personal game library aggregator focused on visibility and decision-making",
   "devDependencies": {
-    "concurrently": "^10.0.0"
+    "@vitest/coverage-v8": "^4.1.7",
+    "concurrently": "^10.0.0",
+    "vitest": "^4.1.7"
   }
 }

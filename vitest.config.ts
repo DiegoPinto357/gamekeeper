@@ -1,12 +1,13 @@
 import { defineConfig } from 'vitest/config';
 
-// Root vitest config: run tests across all packages
+// Root vitest config: runs tests across all workspaces via projects
 export default defineConfig({
   test: {
-    globals: true,
-    environment: 'node',
-    include: ['packages/*/src/**/*.test.ts'],
-    exclude: ['node_modules/**', 'dist/**'],
+    projects: [
+      './packages/core/vitest.config.ts',
+      './apps/server/vitest.config.ts',
+      './apps/web/vitest.config.ts',
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
