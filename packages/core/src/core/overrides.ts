@@ -1,5 +1,5 @@
 import fs from 'fs/promises';
-import { GameOverrides } from '../types/overrides';
+import { type GameOverrides } from '../types/overrides';
 import { normalizeGameName } from './normalize';
 
 let overrides: GameOverrides | null = null;

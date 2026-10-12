@@ -53,7 +53,8 @@ Tests: migrations idempotent; seed idempotent; repo round-trip (insert → read 
 - New `apps/server/src/app.ts`: `export function buildApp()` — Fastify instance + cors + routes (moved from `index.ts`); no `listen`, no chdir side-effect
 - `apps/server/src/index.ts` becomes: `import './bootstrap'` → `buildApp()` → `listen()` (≈10 lines)
 - Fix dist bug: add `rootDir: 'src'`, `outDir: 'dist'` to `apps/server/tsconfig.json` **and** stop pulling core TS sources into its program — cleanest fix: point server tsconfig at core's **built types** (`@gamekeeper/core` types field) or add `paths` mapping to `packages/core/dist`. (Cli has the same latent bug; fix server now, note cli for later — apply same fix if verified broken.)
-- Fix `bootstrap.ts`: compute `REPO_ROOT` robustly (walk up for `pnpm-workspace.yaml` or `__dirname` fallbacks) so it works from both `src` (tsx) and `dist` (node)
+- Fix `bootstrap.ts`: compute `REPO_ROOT` robustly (walk up for `pnpm-workspace.yaml`) so it works from both `src` (tsx) and any location
+- **Decision (user, P0):** no file extensions in relative imports → vanilla `node dist/index.js` cannot execute ESM with extensionless specifiers; server `start` = `tsx src/index.ts` (dist emit stays clean for future use; `pnpm ui`/`dev` unchanged). `node:sqlite` loads via `createRequire` in core's connection module so the ExperimentalWarning suppression holds under tsx/CJS interop too
 - First `fastify.inject` test: `GET /api/interests` against `buildApp()` with a temp data dir (no chdir side-effect; app takes paths as params/env) → 200 + `{ interests: [] }` shape
 
 ## Step 5 — Web router shell + `packages/shared`

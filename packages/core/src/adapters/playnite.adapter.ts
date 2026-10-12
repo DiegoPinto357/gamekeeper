@@ -1,5 +1,5 @@
 import fs from 'fs/promises';
-import { RawGameData, Source } from '../types/game';
+import { type RawGameData, type Source } from '../types/game';
 
 /**
  * Playnite export JSON structure

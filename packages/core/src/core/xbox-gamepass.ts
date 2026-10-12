@@ -1,8 +1,8 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { RawGameData } from '../types/game';
+import { type RawGameData } from '../types/game';
 import { normalizeGameName } from './normalize';
-import { GamePassGame } from '../adapters/gamepass.adapter';
+import { type GamePassGame } from '../adapters/gamepass.adapter';
 
 /**
  * Check if a normalized interest name matches a normalized catalog title.

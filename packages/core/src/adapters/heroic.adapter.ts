@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { RawGameData, Source } from '../types/game';
+import { type RawGameData, type Source } from '../types/game';
 
 /**
  * Minimal shape of a game entry from Heroic store cache files

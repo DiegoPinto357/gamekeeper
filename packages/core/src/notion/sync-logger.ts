@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { UnifiedGame } from '../types/game';
+import { type UnifiedGame } from '../types/game';
 
 /**
  * Sync operation tracker

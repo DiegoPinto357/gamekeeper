@@ -1,5 +1,5 @@
 import fs from 'fs/promises';
-import { RawGameData } from '../types/game';
+import { type RawGameData } from '../types/game';
 import { calculateNameSimilarity, normalizeGameName } from './normalize';
 
 export type MergeSuggestion = {

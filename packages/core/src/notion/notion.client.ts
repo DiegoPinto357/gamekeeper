@@ -1,9 +1,9 @@
 import { Client } from '@notionhq/client';
-import { UnifiedGame, NotionSyncProperties } from '../types/game';
+import { type UnifiedGame, type NotionSyncProperties } from '../types/game';
 import { getCanonicalNameFromVariant } from '../core/overrides';
 import { normalizeGameName } from '../core/normalize';
 import { getConfig } from '../config';
-import syncLogger, { SyncOperations } from './sync-logger';
+import syncLogger, { type SyncOperations } from './sync-logger';
 
 const debug = (message: string, ...args: any[]) => {
   if (getConfig().logLevel === 'debug') {

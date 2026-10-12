@@ -36,4 +36,4 @@ export {
   listGames,
   rebuildGamesFts,
   installSqliteWarningSuppression,
-} from './db';
+} from './db/index';

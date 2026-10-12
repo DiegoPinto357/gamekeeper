@@ -1,9 +1,5 @@
-import { RawGameData, UnifiedGame, PLATFORM_PRIORITY } from '../types/game';
-import {
-  normalizeGameName,
-  generateCanonicalId,
-  areNamesMatching,
-} from './normalize';
+import { type RawGameData, type UnifiedGame, PLATFORM_PRIORITY } from '../types/game';
+import { normalizeGameName, generateCanonicalId, areNamesMatching } from './normalize';
 import { shouldForceMerge, getCanonicalNameFromVariant } from './overrides';
 import { getConfig } from '../config';
 

@@ -1,10 +1,17 @@
-import { fileURLToPath } from 'url';
-import path from 'path';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
+import fs from 'node:fs';
 
-// Resolve repo root: apps/server/src/ → apps/server/ → apps/ → repo root
-export const REPO_ROOT = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  '../../..',
-);
+const findRepoRoot = (start: string): string => {
+  let dir = start;
+  for (;;) {
+    if (fs.existsSync(path.join(dir, 'pnpm-workspace.yaml'))) return dir;
+    const parent = path.dirname(dir);
+    if (parent === dir) return start;
+    dir = parent;
+  }
+};
+
+export const REPO_ROOT = findRepoRoot(path.dirname(fileURLToPath(import.meta.url)));
 
 process.chdir(REPO_ROOT);

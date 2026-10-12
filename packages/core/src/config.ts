@@ -1,4 +1,4 @@
-import { Config, ConfigSchema } from './types/game';
+import { type Config, ConfigSchema } from './types/game';
 import dotenv from 'dotenv';
 import os from 'os';
 import path from 'path';
