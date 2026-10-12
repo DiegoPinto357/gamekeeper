@@ -73,7 +73,7 @@ Tests: migrations idempotent; seed idempotent; repo round-trip (insert → read 
 - `pnpm sync` → DB populated (sanity: `sqlite3 data/gamekeeper.db 'select count(*) from games'` ≈ 697); `library.json` still written
 - `pnpm ui` → Game Pass works at `/gamepass`
 - `pnpm --filter web lint && pnpm --filter web build`
-- **Then** `git add data/gamekeeper.db` (check `.gitignore` — currently `*.db` is not ignored)
+- ~~**Then** `git add data/gamekeeper.db`~~ — decision changed: `data/gamekeeper.db` is **gitignored** (user decision, P0 step 3); skip the add
 
 ## Notes / risks carried
 

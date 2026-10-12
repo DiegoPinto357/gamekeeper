@@ -7,4 +7,5 @@ dist/
 data/merge-suggestions.json
 data/gamepass-unavailable.json
 data/library.json
+data/gamekeeper.db
 logs/sync-*.json

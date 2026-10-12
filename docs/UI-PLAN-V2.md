@@ -21,7 +21,7 @@ Replace Notion as the primary visualization layer with a self-contained local we
 |---|---|
 | User-data storage | **SQLite** — statuses, Game Pass interests, owned games (expanded), overrides move out of JSON |
 | Derived data | SQLite too (games, genres, tags, FTS, similar) |
-| `data/gamekeeper.db` in git | **Committed** (carries irreplaceable user data; single file, DELETE journal). Fallback if churn annoys: split `user.db` tracked / `library.db` ignored |
+| `data/gamekeeper.db` in git | **Ignored** (decision changed during P0 step 3: local-only; irreplaceable user data lives in JSON until P0B migrates it to the tracked DB tables — revisit after P0B if a tracked DB is wanted). Fallback if churn annoys: split `user.db` tracked / `library.db` ignored |
 | Manual-edit data identity | **Canonical/stable ids as index, never game names** (details §6) |
 | Views | **Categories board is the only library view for now**; grid "all games" view and detail page demoted to deferred milestones |
 | Sync | Runnable **from the UI** (button), skips Notion by default there; progress shown as checklist + counters (style TBD, §4); **no cancel button** for now |

@@ -19,6 +19,8 @@ import {
   getInterestGamesToSync,
   shouldSyncToNotion,
   resolveXboxSource,
+  openDb,
+  upsertGames,
 } from '@gamekeeper/core';
 import type { RawGameData, UnifiedGame, Source } from '@gamekeeper/core';
 import fs from 'fs/promises';
@@ -408,6 +410,16 @@ const main = async () => {
     console.log('💾 Saving local library snapshot...');
     await saveLibrarySnapshot(unifiedGames);
     console.log('✅ Saved to data/library.json\n');
+
+    // 11b. Write library to SQLite database
+    console.log('🗄️  Writing games to database...');
+    const db = openDb();
+    try {
+      upsertGames(db.raw, unifiedGames);
+      console.log(`✅ Wrote ${unifiedGames.length} games to ${db.path}\n`);
+    } finally {
+      db.close();
+    }
 
     // 12. Generate Game Pass availability report
     if (gamePassData) {
