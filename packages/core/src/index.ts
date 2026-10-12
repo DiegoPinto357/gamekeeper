@@ -22,3 +22,18 @@ export {
   resolveXboxSource,
 } from './core/xbox-gamepass';
 export type { RawGameData, UnifiedGame, Source, Config } from './types/game';
+export {
+  openDb,
+  defaultDbPath,
+  type Db,
+  migrate,
+  MIGRATIONS,
+  seedStatuses,
+  DEFAULT_STATUSES,
+  type StatusSeed,
+  upsertGames,
+  getGame,
+  listGames,
+  rebuildGamesFts,
+  installSqliteWarningSuppression,
+} from './db';
