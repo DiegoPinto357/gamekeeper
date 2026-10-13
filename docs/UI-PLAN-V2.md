@@ -21,7 +21,7 @@ Replace Notion as the primary visualization layer with a self-contained local we
 |---|---|
 | User-data storage | **SQLite** — statuses, Game Pass interests, owned games (expanded), overrides move out of JSON |
 | Derived data | SQLite too (games, genres, tags, FTS, similar) |
-| `data/gamekeeper.db` in git | **Ignored** (decision changed during P0 step 3: local-only; irreplaceable user data lives in JSON until P0B migrates it to the tracked DB tables — revisit after P0B if a tracked DB is wanted). Fallback if churn annoys: split `user.db` tracked / `library.db` ignored |
+| `data/gamekeeper.db` in git | **Ignored — local-only, permanent decision.** Never commit/push the DB: it carries user data (statuses, interests, owned, overrides — everything after P0B) and must not leave this machine. Consequence: after P6 untracks the legacy JSONs, user data has no git backup — accepted |
 | Manual-edit data identity | **Canonical/stable ids as index, never game names** (details §6) |
 | Views | **Categories board is the only library view for now**; grid "all games" view and detail page demoted to deferred milestones |
 | Sync | Runnable **from the UI** (button), skips Notion by default there; progress shown as checklist + counters (style TBD, §4); **no cancel button** for now |
@@ -245,7 +245,7 @@ Principle: **anything hand-edited/indexed by game name gets a stable id instead.
 
 ### P2 — Categories board ✅
 1. Statuses seeded in P0 (keys per §2); confirm display labels + column order at build time (stored as data — trivial to change)
-2. `GET /api/board`, `PATCH /api/games/:id/status` (fractional position; reindex only on precision decay)
+2. `GET /api/board`, `PATCH /api/games/:id/status` (fractional position; reindex only on precision decay) — `updated_at` is DB-managed by the `game_status_touch_updated_at` trigger (migration #2, P0); repos must NOT set it explicitly
 3. Board UI per §3: dnd-kit columns/cards, drawer, toolbar (search/source/genre), optimistic + rollback, lazy-render Backlog, counts, empty states; no-status games render in Backlog; positions materialized on first reorder there
 4. Stretch: `POST /api/board/move` bulk multi-select
 5. **Verify:** drag survives reload **and** a subsequent `pnpm sync` (status rows untouched, new games appear in Backlog); 697-card Backlog stays responsive. **Tests (first):** fractional-position math (midpoint, precision-decay reindex); board route + `PATCH status` via `inject`; Backlog-default rendering for no-status games; Move-to menu flow (RTL — see DnD caveat)
@@ -255,7 +255,7 @@ Principle: **anything hand-edited/indexed by game name gets a stable id instead.
 2. Steam `fetchAppDetails` (typed, never called): genres/categories/release/dev/pub/`header_image` → fixes zero Steam covers; ~1.2s/req, resumable via `enriched_at`, `--force`
 3. IGDB: persist `igdb_id` (currently discarded); fetch genres/themes/keywords/summary/similar_games/companies (4 req/s)
 4. MS Store: keep genres/description from displaycatalog response already fetched (Xbox coverage)
-5. Fix lossy merge (`deduplicate.ts:139-141`) → genre/tag **union**; `pnpm enrich` script; FTS rebuild; manual/physical games included (IGDB by name)
+5. Fix lossy merge (`deduplicate.ts:139-141`) → genre/tag **union**; `pnpm enrich` script; FTS rebuild; manual/physical games included (IGDB by name). Migration #3 (migration #2 = the P0 `game_status` trigger): extend `games` (description, developer, publisher) and `games_fts` (currently name-only) to cover description + genres + tags
 6. **Verify:** >95% genre coverage; mapper tests; enrichment is progress-emitted (participates in UI checklist)
 
 ### P4 — Discover + directed random ✅

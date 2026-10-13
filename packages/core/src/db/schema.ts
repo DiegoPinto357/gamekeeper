@@ -104,4 +104,14 @@ export const MIGRATIONS: string[] = [
     tokenize = 'porter unicode61'
   );
   `,
+  `
+  CREATE TRIGGER game_status_touch_updated_at
+  AFTER UPDATE ON game_status
+  FOR EACH ROW
+  BEGIN
+    UPDATE game_status
+    SET updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+    WHERE canonical_id = NEW.canonical_id;
+  END;
+  `,
 ];

@@ -87,10 +87,17 @@ export const upsertGames = (
   games: UnifiedGame[],
 ): number => {
   const stmt = db.prepare(UPSERT_SQL);
-  for (const game of games) {
-    stmt.run(...toRow(game));
+  db.exec('BEGIN');
+  try {
+    for (const game of games) {
+      stmt.run(...toRow(game));
+    }
+    rebuildGamesFts(db);
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
   }
-  rebuildGamesFts(db);
+  db.exec('COMMIT');
   return games.length;
 };
 

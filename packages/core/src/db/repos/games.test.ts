@@ -143,4 +143,18 @@ describe('games', () => {
     const count = rebuildGamesFts(db.raw);
     expect(count).toBe(1);
   });
+
+  it('upsertGames rolls back the whole batch when one row fails', () => {
+    upsertGames(db.raw, [makeGame({ canonicalId: 'steam:1', name: 'Existing' })]);
+
+    const bad = makeGame({
+      canonicalId: 'steam:2',
+      name: undefined as unknown as string,
+    });
+    expect(() => upsertGames(db.raw, [makeGame({ canonicalId: 'steam:3', name: 'Good' }), bad])).toThrow();
+
+    expect(getGame(db.raw, 'steam:3')).toBeUndefined();
+    expect(listGames(db.raw).map((g) => g.canonicalId)).toEqual(['steam:1']);
+    expect(searchFts(db.raw, 'good')).toEqual([]);
+  });
 });

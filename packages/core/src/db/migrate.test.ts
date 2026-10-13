@@ -83,4 +83,36 @@ describe('migrate', () => {
     expect(hits.map((h) => h.canonical_id)).toEqual(['steam:1']);
     db.close();
   });
+
+  it('has the game_status_touch_updated_at trigger and it fires on update', () => {
+    const db = freshDb();
+
+    const trigger = db.raw
+      .prepare(
+        "SELECT name FROM sqlite_master WHERE type = 'trigger' AND name = 'game_status_touch_updated_at'",
+      )
+      .get() as { name: string } | undefined;
+    expect(trigger?.name).toBe('game_status_touch_updated_at');
+
+    db.raw
+      .prepare(
+        "INSERT INTO statuses (key, label, position, color) VALUES ('custom', 'Custom', 99, '#888888')",
+      )
+      .run();
+    db.raw
+      .prepare(
+        'INSERT INTO game_status (canonical_id, status, updated_at) VALUES (?, ?, ?)',
+      )
+      .run('steam:1', 'playing', '2000-01-01T00:00:00.000Z');
+
+    db.raw
+      .prepare("UPDATE game_status SET status = 'completed' WHERE canonical_id = ?")
+      .run('steam:1');
+
+    const row = db.raw
+      .prepare('SELECT updated_at FROM game_status WHERE canonical_id = ?')
+      .get('steam:1') as { updated_at: string };
+    expect(row.updated_at).not.toBe('2000-01-01T00:00:00.000Z');
+    db.close();
+  });
 });
