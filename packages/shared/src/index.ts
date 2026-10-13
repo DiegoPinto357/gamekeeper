@@ -1,4 +1,4 @@
-export interface CatalogGame {
+export type CatalogGame = {
   id: string;
   title: string;
   available: boolean;
@@ -6,8 +6,8 @@ export interface CatalogGame {
   releaseDate?: string;
   firstSeenAt?: string;
   catalogPosition?: number;
-}
+};
 
-export interface InterestsResponse {
+export type InterestsResponse = {
   interests: string[];
-}
+};

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { CatalogGame, InterestsResponse } from '@/types/api';
+import type { CatalogGame, InterestsResponse } from '@gamekeeper/shared';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3010';
 

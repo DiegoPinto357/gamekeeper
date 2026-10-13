@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { useCatalog, useInterests, useAddInterest, useRemoveInterest } from '@/hooks/useGamePass';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { cn } from '@/lib/utils';
-import type { CatalogGame } from '@/types/api';
+import type { CatalogGame } from '@gamekeeper/shared';
 
 type SortOption = 'az' | 'recent';
 type FilterOption = 'all' | 'interested' | 'not-interested';

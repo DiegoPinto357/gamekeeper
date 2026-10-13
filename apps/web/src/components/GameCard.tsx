@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import type { CatalogGame } from '@/types/api';
+import type { CatalogGame } from '@gamekeeper/shared';
 
 interface GameCardProps {
   game: CatalogGame;
