@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import { type RawGameData } from '../types/game';
 import { calculateNameSimilarity, normalizeGameName } from './normalize';
+import { log } from '../logger';
 
 export type MergeSuggestion = {
   games: string[];
@@ -89,7 +90,7 @@ export const saveMergeSuggestions = async (
   };
 
   await fs.writeFile(outputPath, JSON.stringify(output, null, 2));
-  console.log(
+  log.info(
     `📝 Saved ${suggestions.length} merge suggestions to ${outputPath}`
   );
 };

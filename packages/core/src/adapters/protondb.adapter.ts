@@ -2,6 +2,7 @@ import axios from 'axios';
 import fs from 'fs/promises';
 import path from 'path';
 import { type ProtonInfo, type ProtonTier, type SteamDeckStatus } from '../types/game';
+import { log } from '../logger';
 
 /**
  * ProtonDB API response types
@@ -183,7 +184,7 @@ const setCached = async (
 
     await fs.writeFile(cachePath, JSON.stringify(entry, null, 2), 'utf-8');
   } catch (error) {
-    console.warn(`Failed to cache ProtonDB data for app ${steamAppId}:`, error);
+    log.warn(`Failed to cache ProtonDB data for app ${steamAppId}:`, error);
   }
 };
 
@@ -194,7 +195,7 @@ const init = async (cacheDir: string): Promise<void> => {
   try {
     await fs.mkdir(cacheDir, { recursive: true });
   } catch (error) {
-    console.warn('Failed to create ProtonDB cache directory:', error);
+    log.warn('Failed to create ProtonDB cache directory:', error);
   }
 };
 
@@ -238,7 +239,7 @@ const fetchCompatibility = async (
 
     return protonInfo;
   } catch (error) {
-    console.warn(`Failed to fetch ProtonDB data for app ${steamAppId}:`, error);
+    log.warn(`Failed to fetch ProtonDB data for app ${steamAppId}:`, error);
     return null;
   }
 };
@@ -271,7 +272,7 @@ const cleanCache = async (
       }
     }
   } catch (error) {
-    console.warn('Failed to clean ProtonDB cache:', error);
+    log.warn('Failed to clean ProtonDB cache:', error);
   }
 };
 

@@ -1,6 +1,7 @@
 import axios from 'axios';
 import fs from 'fs/promises';
 import path from 'path';
+import { log } from '../logger';
 
 /**
  * IGDB API adapter for matching games to Steam App IDs
@@ -262,14 +263,14 @@ const findSteamAppId = async (gameName: string): Promise<number | null> => {
         }
       );
 
-      console.log(
+      log.info(
         `[IGDB] Search "${searchTerm}" returned ${
           response.data?.length || 0
         } results`
       );
 
       if (!response.data || response.data.length === 0) {
-        console.log(`[IGDB] No results for "${searchTerm}"`);
+        log.info(`[IGDB] No results for "${searchTerm}"`);
         continue; // Try next search term
       }
 
@@ -313,7 +314,7 @@ const findSteamAppId = async (gameName: string): Promise<number | null> => {
           game.external_games = externalGamesMap.get(game.id) || [];
         }
       } catch (error) {
-        console.warn(
+        log.warn(
           `[IGDB] Failed to fetch external_games for batch:`,
           error instanceof Error ? error.message : error
         );
@@ -430,13 +431,13 @@ const findSteamAppId = async (gameName: string): Promise<number | null> => {
     return null;
   } catch (error) {
     if (axios.isAxiosError(error)) {
-      console.warn(
+      log.warn(
         `IGDB API error for "${gameName}":`,
         error.response?.status,
         error.response?.data
       );
     } else {
-      console.warn(`Failed to find Steam App ID for "${gameName}":`, error);
+      log.warn(`Failed to find Steam App ID for "${gameName}":`, error);
     }
     return null;
   }
@@ -451,10 +452,10 @@ const initialize = async (): Promise<void> => {
   // Test authentication
   try {
     await authenticate();
-    console.log('✅ IGDB authentication successful');
+    log.info('✅ IGDB authentication successful');
   } catch (error) {
-    console.warn('⚠️  IGDB authentication failed:', error);
-    console.warn('Steam App ID lookup for non-Steam games will be disabled.');
+    log.warn('⚠️  IGDB authentication failed:', error);
+    log.warn('Steam App ID lookup for non-Steam games will be disabled.');
   }
 };
 

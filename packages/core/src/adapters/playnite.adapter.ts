@@ -1,5 +1,6 @@
 import fs from 'fs/promises';
 import { type RawGameData, type Source } from '../types/game';
+import { log } from '../logger';
 
 /**
  * Playnite export JSON structure
@@ -122,7 +123,7 @@ const loadSnapshot = async (
   gamePassFilter?: (gameTitle: string) => Promise<boolean>
 ): Promise<RawGameData[]> => {
   try {
-    console.log(`Loading Playnite snapshot from ${exportPath}...`);
+    log.info(`Loading Playnite snapshot from ${exportPath}...`);
 
     // Read file and strip BOM (Byte Order Mark) if present
     // PowerShell exports often include UTF-8 BOM which breaks JSON parsing
@@ -139,7 +140,7 @@ const loadSnapshot = async (
       );
     }
 
-    console.log(`Found ${games.length} games in Playnite export`);
+    log.info(`Found ${games.length} games in Playnite export`);
 
     // Filter and map games
     const rawGames: RawGameData[] = [];
@@ -180,17 +181,17 @@ const loadSnapshot = async (
       }
     }
 
-    console.log(
+    log.info(
       `Processed ${rawGames.length} games from Playnite (Epic, GOG, Amazon, Xbox)`
     );
 
     const breakdown = getSourceBreakdown(rawGames);
-    console.log('Source breakdown:', breakdown);
+    log.info('Source breakdown:', breakdown);
 
     return rawGames;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      console.warn(`Playnite export file not found: ${exportPath}`);
+      log.warn(`Playnite export file not found: ${exportPath}`);
       return [];
     }
     throw new Error(`Failed to load Playnite snapshot: ${error}`);

@@ -2,10 +2,11 @@ import { type RawGameData, type UnifiedGame, PLATFORM_PRIORITY } from '../types/
 import { normalizeGameName, generateCanonicalId, areNamesMatching } from './normalize';
 import { shouldForceMerge, getCanonicalNameFromVariant } from './overrides';
 import { getConfig } from '../config';
+import { log } from '../logger';
 
 const debug = (message: string, ...args: any[]) => {
   if (getConfig().logLevel === 'debug') {
-    console.log(`[DEBUG] ${message}`, ...args);
+    log.info(`[DEBUG] ${message}`, ...args);
   }
 };
 
@@ -146,10 +147,10 @@ export const mergeGameGroup = (games: RawGameData[]): UnifiedGame => {
  * Process raw games from multiple sources into deduplicated unified games
  */
 export const processRawGames = (rawGames: RawGameData[]): UnifiedGame[] => {
-  console.log(`Processing ${rawGames.length} raw games...`);
+  log.info(`Processing ${rawGames.length} raw games...`);
 
   const gameGroups = deduplicateGames(rawGames);
-  console.log(`Deduplicated into ${gameGroups.size} unique games`);
+  log.info(`Deduplicated into ${gameGroups.size} unique games`);
 
   const unifiedGames: UnifiedGame[] = [];
 
@@ -161,15 +162,15 @@ export const processRawGames = (rawGames: RawGameData[]): UnifiedGame[] => {
       // Only log merge if there are multiple different sources
       const uniqueSources = [...new Set(games.map(g => g.source))];
       if (uniqueSources.length > 1) {
-        console.log(
+        log.info(
           `Merged "${unified.name}" from sources: ${uniqueSources.join(', ')}`
         );
       }
     } catch (error) {
-      console.warn(`Failed to merge game group ${key}:`, error);
+      log.warn(`Failed to merge game group ${key}:`, error);
       // Debug: Check if this is Silksong
       if (games.some(g => g.name === 'Hollow Knight: Silksong')) {
-        console.error(
+        log.error(
           `[ERROR] Failed to merge Silksong! Games in group:`,
           games.map(g => g.name)
         );

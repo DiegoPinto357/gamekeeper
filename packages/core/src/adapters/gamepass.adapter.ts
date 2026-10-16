@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import axios from 'axios';
+import { log } from '../logger';
 
 /**
  * Game Pass catalog game entry
@@ -106,7 +107,7 @@ const fetchCatalog = async (): Promise<GamePassGame[]> => {
     const market = 'US';
 
     // Step 1: Fetch game IDs for PC Game Pass
-    console.log('Fetching PC Game Pass game IDs from Microsoft catalog...');
+    log.info('Fetching PC Game Pass game IDs from Microsoft catalog...');
     const idsResponse = await axios.get(
       `https://catalog.gamepass.com/sigls/v2?id=${platformIds.pc}&language=${language}&market=${market}`,
     );
@@ -118,10 +119,10 @@ const fetchCatalog = async (): Promise<GamePassGame[]> => {
     // Build position map from the ordered IDs list (index 0 = most recently added per MS catalog)
     const positionByProductId = new Map(gameIds.map((id, idx) => [id, idx]));
 
-    console.log(`Found ${gameIds.length} PC Game Pass game IDs`);
+    log.info(`Found ${gameIds.length} PC Game Pass game IDs`);
 
     // Step 2: Fetch detailed properties for all games
-    console.log('Fetching game details from Microsoft display catalog...');
+    log.info('Fetching game details from Microsoft display catalog...');
     const detailsResponse = await axios.get(
       `https://displaycatalog.mp.microsoft.com/v7.0/products?bigIds=${gameIds.join(
         ',',
@@ -139,17 +140,17 @@ const fetchCatalog = async (): Promise<GamePassGame[]> => {
         catalogPosition: positionByProductId.get(g.id) ?? Number.MAX_SAFE_INTEGER,
       }));
 
-    console.log(
+    log.info(
       `✅ Successfully fetched ${games.length} PC Game Pass titles from Microsoft API`,
     );
 
     if (games.length === 0) {
-      console.warn('⚠️  API returned no games. This is unexpected.');
+      log.warn('⚠️  API returned no games. This is unexpected.');
     }
 
     return games;
   } catch (error) {
-    console.error(
+    log.error(
       'Failed to fetch Game Pass catalog from Microsoft API:',
       error,
     );
@@ -174,7 +175,7 @@ export const createGamePassAdapter = (cacheDir: string, cacheDays: number) => {
     const cacheValid = await isCacheValid(cacheFile, cacheDays);
 
     if (cacheValid) {
-      console.log('Using cached Game Pass catalog');
+      log.info('Using cached Game Pass catalog');
       const cached = await readCache(cacheFile);
       if (cached) {
         return cached.games;
@@ -182,7 +183,7 @@ export const createGamePassAdapter = (cacheDir: string, cacheDays: number) => {
     }
 
     // Cache is invalid or doesn't exist, fetch fresh data
-    console.log('Fetching fresh Game Pass catalog...');
+    log.info('Fetching fresh Game Pass catalog...');
     try {
       const freshGames = await fetchCatalog();
 
@@ -203,15 +204,15 @@ export const createGamePassAdapter = (cacheDir: string, cacheDays: number) => {
       };
 
       await writeCache(cacheFile, catalog);
-      console.log(`✅ Cached ${games.length} Game Pass games`);
+      log.info(`✅ Cached ${games.length} Game Pass games`);
 
       return games;
     } catch (error) {
       // If fetch fails, try to use stale cache
-      console.warn('Failed to fetch catalog, attempting to use stale cache...');
+      log.warn('Failed to fetch catalog, attempting to use stale cache...');
       const cached = await readCache(cacheFile);
       if (cached) {
-        console.log('Using stale cache as fallback');
+        log.info('Using stale cache as fallback');
         return cached.games;
       }
       throw error;

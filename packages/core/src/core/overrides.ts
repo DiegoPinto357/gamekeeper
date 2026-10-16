@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import { type GameOverrides } from '../types/overrides';
 import { normalizeGameName } from './normalize';
+import { log } from '../logger';
 
 let overrides: GameOverrides | null = null;
 
@@ -13,10 +14,10 @@ export const loadOverrides = async (
   try {
     const content = await fs.readFile(filePath, 'utf-8');
     overrides = JSON.parse(content);
-    console.log('✅ Loaded manual overrides');
+    log.info('✅ Loaded manual overrides');
     return overrides!;
   } catch (error) {
-    console.log('⚠️  No overrides file found, using defaults');
+    log.info('⚠️  No overrides file found, using defaults');
     overrides = { forceMerge: [], propertyOverrides: [] };
     return overrides;
   }

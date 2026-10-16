@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { type RawGameData } from '../types/game';
+import { log } from '../logger';
 
 /**
  * Steam Web API response types
@@ -82,24 +83,24 @@ const fetchOwnedGames = async (
       format: 'json',
     };
 
-    console.log('Fetching Steam library...');
+    log.info('Fetching Steam library...');
     const response = await axios.get<SteamOwnedGamesResponse>(url, {
       params,
     });
 
     if (!response.data.response.games) {
-      console.warn('No games found in Steam library');
+      log.warn('No games found in Steam library');
       return [];
     }
 
     const games = response.data.response.games;
-    console.log(`Found ${games.length} games in Steam library`);
+    log.info(`Found ${games.length} games in Steam library`);
 
     return games.map(game => mapSteamGameToRaw(game));
   } catch (error) {
     if (axios.isAxiosError(error)) {
       const errorDetails = error.response?.data || error.message;
-      console.error('Steam API Error Details:', errorDetails);
+      log.error('Steam API Error Details:', errorDetails);
       throw new Error(`Steam API error: ${error.message}`);
     }
     throw error;
@@ -126,7 +127,7 @@ const fetchAppDetails = async (
 
     return null;
   } catch (error) {
-    console.warn(`Failed to fetch details for Steam app ${appId}:`, error);
+    log.warn(`Failed to fetch details for Steam app ${appId}:`, error);
     return null;
   }
 };

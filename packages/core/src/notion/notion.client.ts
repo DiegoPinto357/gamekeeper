@@ -4,10 +4,11 @@ import { getCanonicalNameFromVariant } from '../core/overrides';
 import { normalizeGameName } from '../core/normalize';
 import { getConfig } from '../config';
 import syncLogger, { type SyncOperations } from './sync-logger';
+import { log } from '../logger';
 
 const debug = (message: string, ...args: any[]) => {
   if (getConfig().logLevel === 'debug') {
-    console.log(`[DEBUG] ${message}`, ...args);
+    log.info(`[DEBUG] ${message}`, ...args);
   }
 };
 
@@ -474,7 +475,7 @@ const syncSingleGame = async (
 
         try {
           if (dryRun) {
-            console.log(
+            log.info(
               `  [DRY RUN] Would mark variant "${variantTitle}" as removed`,
             );
           } else {
@@ -486,7 +487,7 @@ const syncSingleGame = async (
             });
           }
         } catch (error) {
-          console.error(
+          log.error(
             `Failed to mark variant page ${variantTitle} as removed:`,
             error,
           );
@@ -521,7 +522,7 @@ const syncSingleGame = async (
           const fieldList = needsStatusClear
             ? [...changedFields, 'Library Status (restore)']
             : changedFields;
-          console.log(`  [UPDATE] ${game.name} → ${fieldList.join(', ')}`);
+          log.info(`  [UPDATE] ${game.name} → ${fieldList.join(', ')}`);
         } else {
           await updatePage(
             client,
@@ -539,7 +540,7 @@ const syncSingleGame = async (
       }
     } else {
       if (dryRun) {
-        console.log(`  [CREATE] ${game.name}`);
+        log.info(`  [CREATE] ${game.name}`);
       } else {
         await createPage(
           client,
@@ -553,7 +554,7 @@ const syncSingleGame = async (
       return 'created';
     }
   } catch (error) {
-    console.error(`Failed to sync game "${game.name}":`, error);
+    log.error(`Failed to sync game "${game.name}":`, error);
     if (tracker) syncLogger.trackError(tracker);
     return 'error';
   }
@@ -578,16 +579,16 @@ const markRemovedGames = async (
   gamePassCatalogTitles?: Set<string>,
   tracker?: SyncOperations,
 ): Promise<{ marked: number }> => {
-  console.log('\n🔍 Checking for removed games...');
+  log.info('\n🔍 Checking for removed games...');
 
   const unprocessedPages = Array.from(existingById.entries()).filter(
     ([pageId]) => !processedPages.has(pageId),
   );
 
-  console.log(`  Games not in current library: ${unprocessedPages.length}`);
+  log.info(`  Games not in current library: ${unprocessedPages.length}`);
 
   if (unprocessedPages.length === 0) {
-    console.log(`  ✅ No removed games detected`);
+    log.info(`  ✅ No removed games detected`);
     return { marked: 0 };
   }
 
@@ -634,11 +635,11 @@ const markRemovedGames = async (
           if (currentStatus !== '⚠️ Removed') {
             const canonicalId = extractCanonicalId(existingPage, titleProperty);
             if (dryRun) {
-              console.log(
+              log.info(
                 `  [REMOVE] "${gameTitle}"${canonicalId ? ` (ID: ${canonicalId})` : ''}`,
               );
             } else {
-              console.log(
+              log.info(
                 `  ⚠️  Marking as removed: "${gameTitle}"${
                   canonicalId ? ` (ID: ${canonicalId})` : ''
                 }`,
@@ -654,7 +655,7 @@ const markRemovedGames = async (
             marked++;
           }
         } catch (error) {
-          console.error(`Failed to mark page ${pageId} as removed:`, error);
+          log.error(`Failed to mark page ${pageId} as removed:`, error);
         }
       }),
     );
@@ -665,7 +666,7 @@ const markRemovedGames = async (
     }
   }
 
-  console.log(`  ✅ Marked ${marked} games as removed`);
+  log.info(`  ✅ Marked ${marked} games as removed`);
   return { marked };
 };
 
@@ -681,11 +682,19 @@ const syncGames = async (
   syncProperties: NotionSyncProperties,
   dryRun: boolean,
   gamePassCatalogTitles?: Set<string>,
-): Promise<void> => {
+  onProgress?: (progress: {
+    current: number;
+    total: number;
+    created: number;
+    updated: number;
+    skipped: number;
+    errors: number;
+  }) => void,
+): Promise<SyncOperations> => {
   if (dryRun) {
-    console.log('🏃 DRY RUN — no changes will be written to Notion\n');
+    log.info('🏃 DRY RUN — no changes will be written to Notion\n');
   }
-  console.log(`Syncing ${games.length} games to Notion...`);
+  log.info(`Syncing ${games.length} games to Notion...`);
 
   // Initialize sync tracker
   const { operations, startTime } = syncLogger.createSyncTracker();
@@ -694,7 +703,7 @@ const syncGames = async (
   const { existingById, existingByCanonicalId, existingByTitle, variantPages } =
     buildLookupMaps(existingPages, titleProperty);
 
-  console.log(`Found ${existingPages.length} existing pages in Notion`);
+  log.info(`Found ${existingPages.length} existing pages in Notion`);
 
   let created = 0;
   let updated = 0;
@@ -736,9 +745,10 @@ const syncGames = async (
 
     const processed = Math.min(i + BATCH_SIZE, total);
     if (processed % 25 === 0 || processed === total) {
-      console.log(
+      log.info(
         `  Progress: ${processed}/${total} games (${created} created, ${updated} updated, ${skipped} skipped, ${errors} errors)`,
       );
+      onProgress?.({ current: processed, total, created, updated, skipped, errors });
     }
 
     if (!dryRun && i + BATCH_SIZE < games.length) {
@@ -759,7 +769,7 @@ const syncGames = async (
   }
 
   const verb = dryRun ? 'Would' : '';
-  console.log(
+  log.info(
     dryRun
       ? `\n📊 Dry run summary: ${created} would be created, ${updated} would be updated, ${skipped} unchanged, ${errors} errors`
       : `✅ Sync complete: ${created} created, ${updated} updated, ${skipped} skipped, ${errors} errors`,
@@ -769,8 +779,10 @@ const syncGames = async (
     // Save and print log summary
     syncLogger.printSyncSummary(operations, startTime);
     const logPath = await syncLogger.saveSyncLog(operations, startTime);
-    console.log(`📝 Log saved to: ${logPath}`);
+    log.info(`📝 Log saved to: ${logPath}`);
   }
+
+  return operations;
 };
 
 /**
@@ -784,7 +796,7 @@ const verifyDatabase = async (
     await client.databases.retrieve({ database_id: databaseId });
     return true;
   } catch (error) {
-    console.error('Failed to access Notion database:', error);
+    log.error('Failed to access Notion database:', error);
     return false;
   }
 };
@@ -803,7 +815,18 @@ export const createNotionClient = (
   const client = new Client({ auth: apiKey });
 
   return {
-    syncGames: (games: UnifiedGame[], gamePassCatalogTitles?: Set<string>) =>
+    syncGames: (
+      games: UnifiedGame[],
+      gamePassCatalogTitles?: Set<string>,
+      onProgress?: (progress: {
+        current: number;
+        total: number;
+        created: number;
+        updated: number;
+        skipped: number;
+        errors: number;
+      }) => void,
+    ) =>
       syncGames(
         client,
         databaseId,
@@ -812,6 +835,7 @@ export const createNotionClient = (
         syncProperties,
         dryRun,
         gamePassCatalogTitles,
+        onProgress,
       ),
     verifyDatabase: () => verifyDatabase(client, databaseId),
   };

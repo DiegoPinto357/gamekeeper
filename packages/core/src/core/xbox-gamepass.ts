@@ -3,6 +3,7 @@ import path from 'path';
 import { type RawGameData } from '../types/game';
 import { normalizeGameName } from './normalize';
 import { type GamePassGame } from '../adapters/gamepass.adapter';
+import { log } from '../logger';
 
 /**
  * Check if a normalized interest name matches a normalized catalog title.
@@ -92,7 +93,7 @@ export const loadOwnedXboxGames = async (): Promise<Set<string>> => {
     const data: OwnedXboxGames = JSON.parse(content);
     return new Set(data.ownedGames.map(normalizeGameName));
   } catch (error) {
-    console.warn('Could not load owned Xbox games, using empty set');
+    log.warn('Could not load owned Xbox games, using empty set');
     return new Set();
   }
 };
@@ -106,7 +107,7 @@ export const loadGamePassInterests = async (): Promise<Set<string>> => {
     const data: GamePassInterests = JSON.parse(content);
     return new Set(data.wantToPlay.map(normalizeGameName));
   } catch (error) {
-    console.warn('Could not load Game Pass interests, using empty set');
+    log.warn('Could not load Game Pass interests, using empty set');
     return new Set();
   }
 };
@@ -169,7 +170,7 @@ export const saveUnavailableGames = async (
   };
 
   await fs.writeFile(UNAVAILABLE_FILE, JSON.stringify(data, null, 2));
-  console.log(
+  log.info(
     `📝 Updated unavailable games report: ${unavailable.length} games`,
   );
 };
@@ -286,22 +287,14 @@ export const shouldSyncToNotion = async (
 };
 
 /**
- * Get games from interests that should be synced
+ * Pick interest games that should be synced, given already-loaded raw interest
+ * names. Pure — no file access.
  */
-export const getInterestGamesToSync = async (
+export const selectInterestGames = async (
+  rawInterests: string[],
   gamePassCatalog: GamePassGame[],
   playedGames: RawGameData[],
 ): Promise<RawGameData[]> => {
-  // Load raw (non-normalized) interest names to preserve the user's clean title
-  let rawInterests: string[] = [];
-  try {
-    const content = await fs.readFile(INTERESTS_FILE, 'utf-8');
-    const data: GamePassInterests = JSON.parse(content);
-    rawInterests = data.wantToPlay || [];
-  } catch {
-    return [];
-  }
-
   const playedNames = new Set(playedGames.map(g => normalizeGameName(g.name)));
   const gamesToSync: RawGameData[] = [];
   const seenNormalized = new Set<string>(); // deduplicate interests that normalize identically
@@ -333,4 +326,24 @@ export const getInterestGamesToSync = async (
   }
 
   return gamesToSync;
+};
+
+/**
+ * Get games from interests that should be synced
+ */
+export const getInterestGamesToSync = async (
+  gamePassCatalog: GamePassGame[],
+  playedGames: RawGameData[],
+): Promise<RawGameData[]> => {
+  // Load raw (non-normalized) interest names to preserve the user's clean title
+  let rawInterests: string[] = [];
+  try {
+    const content = await fs.readFile(INTERESTS_FILE, 'utf-8');
+    const data: GamePassInterests = JSON.parse(content);
+    rawInterests = data.wantToPlay || [];
+  } catch {
+    return [];
+  }
+
+  return selectInterestGames(rawInterests, gamePassCatalog, playedGames);
 };

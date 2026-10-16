@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { type RawGameData, type Source } from '../types/game';
+import { log } from '../logger';
 
 /**
  * Minimal shape of a game entry from Heroic store cache files
@@ -40,18 +41,18 @@ const loadLibraryFile = async (
     const games: HeroicGame[] = data[rootKey];
 
     if (!Array.isArray(games)) {
-      console.warn(`⚠️  Unexpected format in ${filePath}`);
+      log.warn(`⚠️  Unexpected format in ${filePath}`);
       return [];
     }
 
     const filtered = filterDlc ? games.filter(g => !g.install?.is_dlc) : games;
 
     const mapped = filtered.map(g => mapHeroicGame(g, source));
-    console.log(`  ✅ ${source.toUpperCase()}: ${mapped.length} games`);
+    log.info(`  ✅ ${source.toUpperCase()}: ${mapped.length} games`);
     return mapped;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      console.warn(`  ⚠️  Heroic ${source} library not found: ${filePath}`);
+      log.warn(`  ⚠️  Heroic ${source} library not found: ${filePath}`);
       return [];
     }
     throw new Error(`Failed to load Heroic ${source} library: ${error}`);
@@ -61,7 +62,7 @@ const loadLibraryFile = async (
 const loadAllLibraries = async (
   storeCachePath: string,
 ): Promise<RawGameData[]> => {
-  console.log('📦 Loading Heroic libraries...');
+  log.info('📦 Loading Heroic libraries...');
 
   const [gog, epic, amazon] = await Promise.all([
     loadLibraryFile(
@@ -85,7 +86,7 @@ const loadAllLibraries = async (
   ]);
 
   const all = [...gog, ...epic, ...amazon];
-  console.log(
+  log.info(
     `✅ Heroic: ${all.length} games (GOG: ${gog.length}, Epic: ${epic.length}, Amazon: ${amazon.length})\n`,
   );
   return all;

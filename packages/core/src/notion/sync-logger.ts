@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { type UnifiedGame } from '../types/game';
+import { log } from '../logger';
 
 /**
  * Sync operation tracker
@@ -125,15 +126,15 @@ const printSyncSummary = (
     operations.skippedCount +
     operations.errorCount;
 
-  console.log('\n📊 Sync Summary:');
-  console.log(`   Duration: ${duration}s`);
-  console.log(`   Total: ${total} games`);
-  console.log(`   ✅ Added: ${operations.added.length}`);
-  console.log(`   🔄 Updated: ${operations.updated.length}`);
-  console.log(`   ⚠️  Removed: ${operations.removed.length}`);
-  console.log(`   ⏭️  Skipped: ${operations.skippedCount}`);
+  log.info('\n📊 Sync Summary:');
+  log.info(`   Duration: ${duration}s`);
+  log.info(`   Total: ${total} games`);
+  log.info(`   ✅ Added: ${operations.added.length}`);
+  log.info(`   🔄 Updated: ${operations.updated.length}`);
+  log.info(`   ⚠️  Removed: ${operations.removed.length}`);
+  log.info(`   ⏭️  Skipped: ${operations.skippedCount}`);
   if (operations.errorCount > 0) {
-    console.log(`   ❌ Errors: ${operations.errorCount}`);
+    log.info(`   ❌ Errors: ${operations.errorCount}`);
   }
 };
 

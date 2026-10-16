@@ -1,4 +1,23 @@
 export { loadConfig } from './config';
+export {
+  log,
+  getLogger,
+  setLogger,
+  silentLogger,
+  consoleLogger,
+  type Logger,
+} from './logger';
+export { runSync } from './sync/orchestrator';
+export { defaultSyncIO } from './sync/default-io';
+export type {
+  SyncEvent,
+  SyncSummary,
+  SyncOptions,
+  SyncDeps,
+  SyncIO,
+  SyncAdapters,
+  SyncStepKey,
+} from './sync/types';
 export { steamAdapter } from './adapters/steam.adapter';
 export { playniteAdapter } from './adapters/playnite.adapter';
 export { heroicAdapter } from './adapters/heroic.adapter';

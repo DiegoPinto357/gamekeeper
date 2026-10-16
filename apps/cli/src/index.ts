@@ -1,6 +1,8 @@
 import './bootstrap';
 import {
   loadConfig,
+  setLogger,
+  consoleLogger,
   steamAdapter,
   playniteAdapter,
   heroicAdapter,
@@ -24,6 +26,11 @@ import {
 } from '@gamekeeper/core';
 import type { RawGameData, UnifiedGame, Source } from '@gamekeeper/core';
 import fs from 'fs/promises';
+
+// Core no longer touches console.* — install the console-backed logger so
+// adapter/dedupe/notion logs keep flowing to the terminal (until the CLI is
+// rewired to render SyncEvents as a checklist).
+setLogger(consoleLogger);
 
 /**
  * Main orchestration function
