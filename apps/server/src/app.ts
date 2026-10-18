@@ -4,10 +4,15 @@ import path from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import { registerCatalogRoutes } from './routes/catalog';
 import { registerInterestRoutes } from './routes/interests';
+import { registerSyncRoutes } from './routes/sync';
+import { createSyncRunManager } from './sync/run-manager';
+import type { RunSyncFn } from './sync/run-manager';
 
 export interface AppOptions {
   dataDir?: string;
   cacheDir?: string;
+  /** injectable orchestrator for tests; defaults to core's runSync */
+  runSync?: RunSyncFn;
 }
 
 export const buildApp = (opts: AppOptions = {}): FastifyInstance => {
@@ -30,6 +35,9 @@ export const buildApp = (opts: AppOptions = {}): FastifyInstance => {
   registerInterestRoutes(app, {
     interestsFile: path.join(dataDir, 'gamepass-interests.json'),
   });
+
+  const syncManager = createSyncRunManager({ runSync: opts.runSync });
+  registerSyncRoutes(app, { manager: syncManager });
 
   return app;
 };
