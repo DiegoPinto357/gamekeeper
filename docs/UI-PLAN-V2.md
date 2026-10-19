@@ -130,7 +130,7 @@ Header **`[Sync ▶]`** button → slide-over panel:
 │ ☐ Availability report                   │
 │ ✓ Notion sync (skipped)                 │
 │ ─────────────────────────────────────   │
-│ Step 6/10 ·  overall 58%                │ ← numbers style = open Q10.2
+│ Step 6/10 ·  overall 58%                │ ← numbers style = both (Q10.2, resolved)
 │                                 [Close]   │
 └─────────────────────────────────────────┘
 ```
@@ -236,14 +236,16 @@ Principle: **anything hand-edited/indexed by game name gets a stable id instead.
 2. Server: `/api/interests` → DB transaction (replaces tmp+rename); add `/api/owned-games` CRUD
 3. **Verify:** row counts 72/93/25; `pnpm sync` behavior identical (interest filtering, owned-xbox source, forceMerge); GP UI add/remove works; legacy JSONs untouched. **Tests (first):** legacy import runs once / is idempotent on second open; interests + owned-games + overrides repos round-trip; interests endpoint via `inject`
 
-### P1 — Sync from the UI
+### P1 — Sync from the UI ✅
 1. Orchestrator extraction (§4.1): `runSync(options, deps)` + `SyncEvent` types + `Logger` interface in core (absorbs old logger-refactor todo)
 2. CLI wrapper: console checklist rendering; `--skip-notion` flag; default = Notion ON
 3. Server: `POST /api/sync` (409 guard), `GET /api/sync/events` SSE (snapshot-on-connect), in-process run
 4. Web: Sync ▶ header button, slide-over panel, checklist components, `useSyncEvents`, query invalidation on summary
 5. **Verify:** UI sync runs end-to-end with Notion skipped; progress animates (checklist ✓ + counters); CLI `pnpm sync` output unchanged in substance; concurrent second POST → 409; API responsive during a run. **Tests (first):** orchestrator event sequence with fake deps; SSE snapshot + live event stream + 409 guard via `inject`; checklist/progress panel rendered from a canned event stream (RTL)
 
-### P2 — Categories board ✅
+   _Deltas from `P1-PLAN.md`: SSE event ring = 1000 events (plan suggested ~500); slide-over is a hand-rolled fixed panel (no radix sheet — plan allowed either, zero new deps); checklist states rendered with lucide icons rather than literal glyphs; Q10.2 settled = **both** (`Step x/y · NN%`); query invalidation covers `catalog`/`interests` now, with `library`/`board`/`discover` reserved via comment for P2/P4; UI E2E verified via live API runs + RTL (browser click-through left to user)._
+
+### P2 — Categories board
 1. Statuses seeded in P0 (keys per §2); confirm display labels + column order at build time (stored as data — trivial to change)
 2. `GET /api/board`, `PATCH /api/games/:id/status` (fractional position; reindex only on precision decay) — `updated_at` is DB-managed by the `game_status_touch_updated_at` trigger (migration #2, P0); repos must NOT set it explicitly
 3. Board UI per §3: dnd-kit columns/cards, drawer, toolbar (search/source/genre), optimistic + rollback, lazy-render Backlog, counts, empty states; no-status games render in Backlog; positions materialized on first reorder there
@@ -258,7 +260,7 @@ Principle: **anything hand-edited/indexed by game name gets a stable id instead.
 5. Fix lossy merge (`deduplicate.ts:139-141`) → genre/tag **union**; `pnpm enrich` script; FTS rebuild; manual/physical games included (IGDB by name). Migration #3 (migration #2 = the P0 `game_status` trigger): extend `games` (description, developer, publisher) and `games_fts` (currently name-only) to cover description + genres + tags
 6. **Verify:** >95% genre coverage; mapper tests; enrichment is progress-emitted (participates in UI checklist)
 
-### P4 — Discover + directed random ✅
+### P4 — Discover + directed random
 1. `GET /api/games` filter params + `GET /api/facets` (counted genre/tag chips, source, status, playtime, Deck/Proton, year)
 2. `/discover`: filter panel, FTS search, sort, URL-persisted filters, result grid
 3. `GET /api/suggest`: respects active filters; excludes completed/dropped; weights unplayed → queued_to_play → want_to_play → backlog; returns reason chips → **Surprise me** modal (spin again / open / move to want-to-play)
@@ -295,9 +297,9 @@ Settings UI (owned-games CRUD form, overrides editor, status labels/colors); unt
 ## 10. Open questions
 
 1. **Backlog default sort key ("by date")** — `lastPlayedAt` exists for only 139/697 (Steam-only today); check whether Heroic `store_cache` exposes any activity/install dates for Epic/GOG/Amazon (likely not); `updatedAt` is sync noise. Evaluate candidates before locking (applies to the no-position first render; after the user's first reorder, fractional positions take over).
-2. **Progress numbers style** — checklist + per-step counters (shown in §4.3) plus overall: (a) weighted %, (b) plain step x/y, (c) both. Leaning both; settle during P1.
+2. ~~**Progress numbers style**~~ — settled during P1: **both** (`Step x/y · NN%`, weighted)
 3. **forceMerge id mechanics** — how far to push ids into a mechanism that matches raw names pre-canonicalization.
 4. **Physical platforms** — `manual` source vs extending `Source` enum (switch/ps5).
 5. **Legacy JSON untrack timing** — recommend P6 after verification.
 
-_Resolved since first draft: status key list (§2), Notion defaults (§2), sync cancellation (none for now), Playnite retirement (§2), Unsorted column (dropped — Backlog is the default)._
+_Resolved since first draft: status key list (§2), Notion defaults (§2), sync cancellation (none for now), Playnite retirement (§2), Unsorted column (dropped — Backlog is the default), progress numbers style = both (Q10.2)._
