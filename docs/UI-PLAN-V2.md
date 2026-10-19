@@ -30,7 +30,7 @@ Replace Notion as the primary visualization layer with a self-contained local we
 | Game Pass view | Stays separate route; interests UI rekeyed to stable ids (P0B) |
 | Library source | **Heroic integration** — Playnite is retired (no harvest from `playnite.json`, no Playnite path work) |
 | Notion | CLI sync **ON** by default (`--skip-notion` to opt out); UI sync **OFF** by default (toggle in panel); status never pushed |
-| Categories/columns | Fixed keys stored in `statuses` table: **`backlog, want_to_play, queued_to_play, trying, playing, paused, completed, dropped`** (label/order/color editable as data). Suggested display labels: Backlog · Want to Play · **Up Next** · **Trying Out** · Playing · Paused · Completed · Dropped |
+| Categories/columns | Fixed keys stored in `statuses` table: **`backlog, want_to_play, queued_to_play, trying, recurrent, playing, paused, completed, dropped`** (label/order/color editable as data). Suggested display labels: Backlog · Want to Play · **Up Next** · **Trying Out** · **Recurrent** · Playing · Paused · Completed · Dropped |
 | Unsorted column | **None** — Backlog is the default category: games without a status render there; sync never writes status rows |
 | Similar games | Local genre/tag overlap + IGDB `similar_games` |
 | Testing | **Vitest everywhere + RTL for web**; **TDD (RED → GREEN)** expected of every phase; root `pnpm test` runs all workspaces |
@@ -57,7 +57,7 @@ Replace Notion as the primary visualization layer with a self-contained local we
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-Column order shown = seed order from §2 (`backlog → want_to_play → queued_to_play → trying → playing → paused → completed → dropped`); stored as `statuses.position`, reorderable without code changes.
+Column order shown = seed order from §2 (`backlog → want_to_play → queued_to_play → trying → recurrent → playing → paused → completed → dropped`); stored as `statuses.position`, reorderable without code changes. **Manual reorder (no UI):** `UPDATE statuses SET position = N WHERE key = '...'` — integers 0..8 (column is INTEGER; renumber the tail to insert between). Seed/migrations never touch positions of existing rows after first insert, so manual tweaks stick.
 
 **No Unsorted column:** a game with no `game_status` row renders in **Backlog** — the default category for new entries. Sync never writes status rows; Backlog gets a lazy first-render order (by date → open Q10.1), and positions are materialized in a single transaction on the user's first reorder in that column.
 
@@ -257,7 +257,7 @@ Principle: **anything hand-edited/indexed by game name gets a stable id instead.
 2. Steam `fetchAppDetails` (typed, never called): genres/categories/release/dev/pub/`header_image` → fixes zero Steam covers; ~1.2s/req, resumable via `enriched_at`, `--force`
 3. IGDB: persist `igdb_id` (currently discarded); fetch genres/themes/keywords/summary/similar_games/companies (4 req/s)
 4. MS Store: keep genres/description from displaycatalog response already fetched (Xbox coverage)
-5. Fix lossy merge (`deduplicate.ts:139-141`) → genre/tag **union**; `pnpm enrich` script; FTS rebuild; manual/physical games included (IGDB by name). Migration #3 (migration #2 = the P0 `game_status` trigger): extend `games` (description, developer, publisher) and `games_fts` (currently name-only) to cover description + genres + tags
+5. Fix lossy merge (`deduplicate.ts:139-141`) → genre/tag **union**; `pnpm enrich` script; FTS rebuild; manual/physical games included (IGDB by name). Migration #4 (migration #2 = P0 `game_status` trigger, #3 = `recurrent` status): extend `games` (description, developer, publisher) and `games_fts` (currently name-only) to cover description + genres + tags
 6. **Verify:** >95% genre coverage; mapper tests; enrichment is progress-emitted (participates in UI checklist)
 
 ### P4 — Discover + directed random

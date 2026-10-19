@@ -11,7 +11,7 @@ const freshDb = () => {
 };
 
 describe('seed', () => {
-  it('seeds the 8 canonical status keys in order', () => {
+  it('seeds the 9 canonical status keys in order', () => {
     const db = freshDb();
     const rows = db.raw
       .prepare('SELECT key, label, position, color FROM statuses ORDER BY position')
@@ -22,6 +22,7 @@ describe('seed', () => {
       'want_to_play',
       'queued_to_play',
       'trying',
+      'recurrent',
       'playing',
       'paused',
       'completed',
@@ -32,17 +33,18 @@ describe('seed', () => {
       'Want to Play',
       'Up Next',
       'Trying Out',
+      'Recurrent',
       'Playing',
       'Paused',
       'Completed',
       'Dropped',
     ]);
-    expect(rows.map((r) => r.position)).toEqual([0, 1, 2, 3, 4, 5, 6, 7]);
+    expect(rows.map((r) => r.position)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
     for (const row of rows) expect(row.color).toMatch(/^#[0-9a-f]{6}$/i);
     db.close();
   });
 
-  it('is idempotent: running twice keeps 8 rows', () => {
+  it('is idempotent: running twice keeps 9 rows', () => {
     const db = freshDb();
     seedStatuses(db.raw);
     seedStatuses(db.raw);
@@ -50,7 +52,7 @@ describe('seed', () => {
     const count = db.raw.prepare('SELECT COUNT(*) AS c FROM statuses').get() as {
       c: number;
     };
-    expect(count.c).toBe(8);
+    expect(count.c).toBe(9);
     db.close();
   });
 
@@ -75,6 +77,7 @@ describe('seed', () => {
       'want_to_play',
       'queued_to_play',
       'trying',
+      'recurrent',
       'playing',
       'paused',
       'completed',

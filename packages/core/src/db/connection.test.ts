@@ -67,7 +67,7 @@ describe('connection', () => {
     const statuses = db.raw
       .prepare('SELECT COUNT(*) AS c FROM statuses')
       .get() as { c: number };
-    expect(statuses.c).toBe(8);
+    expect(statuses.c).toBe(9);
     db.close();
   });
 
@@ -85,7 +85,7 @@ describe('connection', () => {
     const statuses = second.raw
       .prepare('SELECT COUNT(*) AS c FROM statuses')
       .get() as { c: number };
-    expect(statuses.c).toBe(8);
+    expect(statuses.c).toBe(9);
     second.close();
   });
 

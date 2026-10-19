@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { openDb } from './connection';
 import { MIGRATIONS, migrate } from './migrate';
 
@@ -114,5 +115,49 @@ describe('migrate', () => {
       .get('steam:1') as { updated_at: string };
     expect(row.updated_at).not.toBe('2000-01-01T00:00:00.000Z');
     db.close();
+  });
+
+  it('migration #3 inserts recurrent and renumbers an old 8-status layout', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gamekeeper-migrate-recurrent-'));
+    const raw = new DatabaseSync(path.join(dir, 'old.db'));
+
+    // old v2 state: migrations 1-2 applied, 8 statuses with pre-recurrent positions
+    raw.exec(MIGRATIONS[0]);
+    raw.exec(MIGRATIONS[1]);
+    raw.exec('PRAGMA user_version = 2');
+    const insert = raw.prepare(
+      'INSERT INTO statuses (key, label, position, color) VALUES (?, ?, ?, ?)',
+    );
+    const old = [
+      ['backlog', 'Backlog', 0],
+      ['want_to_play', 'Want to Play', 1],
+      ['queued_to_play', 'Up Next', 2],
+      ['trying', 'Trying Out', 3],
+      ['playing', 'Playing', 4],
+      ['paused', 'Paused', 5],
+      ['completed', 'Completed', 6],
+      ['dropped', 'Dropped', 7],
+    ] as const;
+    for (const [key, label, position] of old) insert.run(key, label, position, '#000000');
+
+    const applied = migrate(raw);
+
+    expect(applied).toBe(1);
+    const rows = raw
+      .prepare('SELECT key, position FROM statuses ORDER BY position')
+      .all() as { key: string; position: number }[];
+    expect(rows.map((r) => r.key)).toEqual([
+      'backlog',
+      'want_to_play',
+      'queued_to_play',
+      'trying',
+      'recurrent',
+      'playing',
+      'paused',
+      'completed',
+      'dropped',
+    ]);
+    expect(rows.map((r) => r.position)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+    raw.close();
   });
 });

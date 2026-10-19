@@ -11,6 +11,7 @@ export const DEFAULT_STATUSES: StatusSeed[] = [
   { key: 'want_to_play', label: 'Want to Play', color: '#eab308' },
   { key: 'queued_to_play', label: 'Up Next', color: '#f97316' },
   { key: 'trying', label: 'Trying Out', color: '#a855f7' },
+  { key: 'recurrent', label: 'Recurrent', color: '#ec4899' },
   { key: 'playing', label: 'Playing', color: '#22c55e' },
   { key: 'paused', label: 'Paused', color: '#0ea5e9' },
   { key: 'completed', label: 'Completed', color: '#14b8a6' },

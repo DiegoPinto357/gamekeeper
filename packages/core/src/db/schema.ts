@@ -114,4 +114,25 @@ export const MIGRATIONS: string[] = [
     WHERE canonical_id = NEW.canonical_id;
   END;
   `,
+  `
+  INSERT INTO statuses (key, label, position, color)
+  VALUES ('recurrent', 'Recurrent', 4, '#ec4899')
+  ON CONFLICT(key) DO NOTHING;
+
+  UPDATE statuses SET position = CASE key
+    WHEN 'backlog' THEN 0
+    WHEN 'want_to_play' THEN 1
+    WHEN 'queued_to_play' THEN 2
+    WHEN 'trying' THEN 3
+    WHEN 'recurrent' THEN 4
+    WHEN 'playing' THEN 5
+    WHEN 'paused' THEN 6
+    WHEN 'completed' THEN 7
+    WHEN 'dropped' THEN 8
+  END
+  WHERE key IN (
+    'backlog', 'want_to_play', 'queued_to_play', 'trying', 'recurrent',
+    'playing', 'paused', 'completed', 'dropped'
+  );
+  `,
 ];
