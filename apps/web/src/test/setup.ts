@@ -21,3 +21,28 @@ if (typeof window.matchMedia !== 'function') {
     }),
   });
 }
+
+// jsdom does not implement EventSource; useSyncEvents connects on mount.
+// Tests that need events stub a recording implementation globally.
+if (typeof window.EventSource !== 'function') {
+  class NoopEventSource {
+    url: string;
+    onmessage: ((event: MessageEvent) => void) | null = null;
+    onopen: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+
+    constructor(url: string) {
+      this.url = url;
+    }
+
+    close() {
+      /* noop */
+    }
+  }
+
+  Object.defineProperty(window, 'EventSource', {
+    writable: true,
+    configurable: true,
+    value: NoopEventSource,
+  });
+}

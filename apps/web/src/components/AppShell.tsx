@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { NavLink, Outlet } from 'react-router';
-import { Moon, Sun } from 'lucide-react';
+import { Moon, Play, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { SyncPanel } from '@/components/SyncPanel';
+import { useSyncEvents } from '@/hooks/useSyncEvents';
 import { useTheme } from '@/hooks/useTheme';
 import { cn } from '@/lib/utils';
 
@@ -12,6 +15,8 @@ const navItems = [
 
 export function AppShell() {
   const { theme, toggle } = useTheme();
+  const [syncOpen, setSyncOpen] = useState(false);
+  const { state, startError, starting, start } = useSyncEvents();
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -40,13 +45,27 @@ export function AppShell() {
             ))}
           </nav>
         </div>
-        <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
-          {theme === 'dark' ? <Sun className="size-5" /> : <Moon className="size-5" />}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setSyncOpen(true)}>
+            <Play aria-hidden />
+            Sync
+          </Button>
+          <Button variant="ghost" size="icon" onClick={toggle} aria-label="Toggle theme">
+            {theme === 'dark' ? <Sun className="size-5" /> : <Moon className="size-5" />}
+          </Button>
+        </div>
       </header>
       <main className="px-6 py-6">
         <Outlet />
       </main>
+      <SyncPanel
+        open={syncOpen}
+        onClose={() => setSyncOpen(false)}
+        state={state}
+        startError={startError}
+        starting={starting}
+        onStart={start}
+      />
     </div>
   );
 }
