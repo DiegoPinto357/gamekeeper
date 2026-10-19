@@ -59,13 +59,13 @@ Replace Notion as the primary visualization layer with a self-contained local we
 
 Column order shown = seed order from §2 (`backlog → want_to_play → queued_to_play → trying → recurrent → playing → paused → completed → dropped`); stored as `statuses.position`, reorderable without code changes. **Manual reorder (no UI):** `UPDATE statuses SET position = N WHERE key = '...'` — integers 0..8 (column is INTEGER; renumber the tail to insert between). Seed/migrations never touch positions of existing rows after first insert, so manual tweaks stick.
 
-**No Unsorted column:** a game with no `game_status` row renders in **Backlog** — the default category for new entries. Sync never writes status rows; Backlog gets a lazy first-render order (by date → open Q10.1), and positions are materialized in a single transaction on the user's first reorder in that column.
+**No Unsorted column:** a game with no `game_status` row renders in **Backlog** — the default category for new entries. Sync never writes status rows; Backlog gets a lazy first-render order (`COALESCE(last_played_at, created_at) DESC, name ASC` — Q10.1 settled), and positions are materialized in a single transaction on the user's first reorder in that column.
 
 **Settled details:**
 
 | Aspect | Decision |
 |---|---|
-| Backlog (default) | All games land here when unassigned; **lazy-rendered** (~50 cards + show more); default order **by date** (which date → open Q10.1) |
+| Backlog (default) | All games land here when unassigned; **lazy-rendered** (~50 cards + show more); default order **by date**: `COALESCE(last_played_at, created_at) DESC, name ASC` (Q10.1, settled) |
 | Card click | Slide-over drawer (board stays mounted, scroll position kept) |
 | Card style | Compact row: cover thumb + title + micro-badges (platform, playtime) |
 | Board toolbar | Search + source filter + genre filter, persisted to localStorage |
@@ -296,10 +296,10 @@ Settings UI (owned-games CRUD form, overrides editor, status labels/colors); unt
 
 ## 10. Open questions
 
-1. **Backlog default sort key ("by date")** — `lastPlayedAt` exists for only 139/697 (Steam-only today); check whether Heroic `store_cache` exposes any activity/install dates for Epic/GOG/Amazon (likely not); `updatedAt` is sync noise. Evaluate candidates before locking (applies to the no-position first render; after the user's first reorder, fractional positions take over).
+1. ~~**Backlog default sort key ("by date")**~~ — settled before P2: `COALESCE(last_played_at, created_at) DESC, name ASC` (recently played first, newly-added next, stable tiebreak; `updatedAt` rejected as sync noise)
 2. ~~**Progress numbers style**~~ — settled during P1: **both** (`Step x/y · NN%`, weighted)
 3. **forceMerge id mechanics** — how far to push ids into a mechanism that matches raw names pre-canonicalization.
 4. **Physical platforms** — `manual` source vs extending `Source` enum (switch/ps5).
 5. **Legacy JSON untrack timing** — recommend P6 after verification.
 
-_Resolved since first draft: status key list (§2), Notion defaults (§2), sync cancellation (none for now), Playnite retirement (§2), Unsorted column (dropped — Backlog is the default), progress numbers style = both (Q10.2)._
+_Resolved since first draft: status key list (§2), Notion defaults (§2), sync cancellation (none for now), Playnite retirement (§2), Unsorted column (dropped — Backlog is the default), progress numbers style = both (Q10.2), backlog default sort = `COALESCE(last_played_at, created_at) DESC, name ASC` (Q10.1)._
