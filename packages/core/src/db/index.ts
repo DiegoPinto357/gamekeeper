@@ -7,4 +7,15 @@ export {
   listGames,
   rebuildGamesFts,
 } from './repos/games';
+export {
+  listStatuses,
+  getBoardGames,
+  setGameStatus,
+  materializeBacklog,
+  UnknownStatusError,
+  UnknownGameError,
+  type StatusEntry,
+  type BoardGame,
+  type SetStatusResult,
+} from './repos/game-status';
 export { installSqliteWarningSuppression } from './suppress-warning';
