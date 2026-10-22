@@ -46,9 +46,9 @@ const STEAM_STORE_URL = 'https://store.steampowered.com/api';
  * Map Steam API game data to our internal raw format
  */
 const mapSteamGameToRaw = (game: SteamGame): RawGameData => {
-  const coverImageUrl = game.img_logo_url
-    ? `https://steamcdn-a.akamaihd.net/steam/apps/${game.appid}/header.jpg`
-    : undefined;
+  // Steam CDN header art is keyed by appid and exists for every store game;
+  // the API's img_logo_url is no longer returned, so don't gate on it.
+  const coverImageUrl = `https://steamcdn-a.akamaihd.net/steam/apps/${game.appid}/header.jpg`;
 
   const lastPlayedAt = game.rtime_last_played
     ? new Date(game.rtime_last_played * 1000)

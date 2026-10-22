@@ -104,6 +104,18 @@ describe('deduplicate', () => {
       expect(unified.coverImageUrl).toBe('steam-cover.jpg');
     });
 
+    it('falls back to a sibling source cover when the primary has none', () => {
+      const games: RawGameData[] = [
+        createGame('Test Game', 'epic', { coverImageUrl: 'epic-cover.jpg' }),
+        createGame('Test Game', 'steam', { steamAppId: 12345 }),
+      ];
+
+      const unified = mergeGameGroup(games);
+
+      expect(unified.primarySource).toBe('steam');
+      expect(unified.coverImageUrl).toBe('epic-cover.jpg');
+    });
+
     it('tracks all owned sources', () => {
       const games: RawGameData[] = [
         createGame('Multi-Platform Game', 'steam', { steamAppId: 12345 }),

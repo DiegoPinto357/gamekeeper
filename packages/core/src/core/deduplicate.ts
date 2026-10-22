@@ -125,6 +125,13 @@ export const mergeGameGroup = (games: RawGameData[]): UnifiedGame => {
 
   // gameName was already determined above (before generating canonical ID)
 
+  // Prefer the primary source's cover; fall back to any sibling source that
+  // has one (e.g. Steam API no longer returns logo URLs, but Epic's store
+  // cache does — better a secondary cover than none).
+  const coverImageUrl =
+    primary.coverImageUrl ??
+    sorted.find(game => game.coverImageUrl != null)?.coverImageUrl;
+
   const unified: UnifiedGame = {
     canonicalId,
     name: gameName,
@@ -133,7 +140,7 @@ export const mergeGameGroup = (games: RawGameData[]): UnifiedGame => {
     steamAppId: primary.steamAppId,
     playtimeHours: totalPlaytime > 0 ? totalPlaytime : undefined,
     lastPlayedAt,
-    coverImageUrl: primary.coverImageUrl,
+    coverImageUrl,
     releaseDate: primary.releaseDate,
     genres: primary.genres,
     createdAt: now,
