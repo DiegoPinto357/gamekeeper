@@ -36,6 +36,27 @@ function stubCatalogFetch() {
         headers: { 'Content-Type': 'application/json' },
       });
     }
+    if (url.endsWith('/api/library')) {
+      return new Response(
+        JSON.stringify({
+          statuses: [
+            { key: 'backlog', label: 'Backlog', color: '#64748b', position: 0 },
+            { key: 'playing', label: 'Playing', color: '#22c55e', position: 5 },
+          ],
+          games: [
+            {
+              canonicalId: 'steam:1145350',
+              name: 'Hades II',
+              primarySource: 'steam',
+              ownedSources: ['steam'],
+              status: null,
+              position: null,
+            },
+          ],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
     return new Response('Not found', { status: 404 });
   });
   vi.stubGlobal('fetch', fetchMock);
@@ -48,16 +69,19 @@ describe('App', () => {
     window.history.pushState({}, '', '/');
   });
 
-  it('renders nav links and the library placeholder at /', async () => {
+  it('renders nav links and the categories board at /', async () => {
+    stubCatalogFetch();
     renderApp();
 
     expect(screen.getByRole('link', { name: 'Library' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Discover' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Game Pass' })).toBeInTheDocument();
 
-    expect(screen.getByRole('heading', { name: 'Library' })).toBeInTheDocument();
-    expect(screen.getByText('Coming soon')).toBeInTheDocument();
-    expect(screen.queryByText('Hades II')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId('column-backlog')).toBeInTheDocument());
+    expect(screen.getByTestId('column-backlog')).toHaveTextContent('Backlog');
+    expect(screen.getByText('Hades II')).toBeInTheDocument();
+    expect(screen.queryByText('Coming soon')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Add to Interests' })).not.toBeInTheDocument();
   });
 
   it('shows the catalog grid when navigating to /gamepass', async () => {

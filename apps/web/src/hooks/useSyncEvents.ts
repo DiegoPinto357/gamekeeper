@@ -178,9 +178,8 @@ export function useSyncEvents() {
       if (payload.type === 'summary') {
         void queryClient.invalidateQueries({ queryKey: ['catalog'] });
         void queryClient.invalidateQueries({ queryKey: ['interests'] });
-        // reserved for later phases (P2/P4):
-        // void queryClient.invalidateQueries({ queryKey: ['library'] });
-        // void queryClient.invalidateQueries({ queryKey: ['board'] });
+        void queryClient.invalidateQueries({ queryKey: ['library'] });
+        // reserved for P4:
         // void queryClient.invalidateQueries({ queryKey: ['discover'] });
       }
     };
