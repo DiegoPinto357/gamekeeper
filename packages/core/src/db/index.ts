@@ -9,13 +9,13 @@ export {
 } from './repos/games';
 export {
   listStatuses,
-  getBoardGames,
+  getLibraryGames,
   setGameStatus,
   materializeBacklog,
   UnknownStatusError,
   UnknownGameError,
   type StatusEntry,
-  type BoardGame,
+  type LibraryGame,
   type SetStatusResult,
 } from './repos/game-status';
 export { installSqliteWarningSuppression } from './suppress-warning';

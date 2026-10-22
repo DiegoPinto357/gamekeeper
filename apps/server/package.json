@@ -12,6 +12,7 @@
   "dependencies": {
     "@fastify/cors": "^10.0.2",
     "@gamekeeper/core": "workspace:*",
+    "@gamekeeper/shared": "workspace:*",
     "fastify": "^5.3.2"
   },
   "devDependencies": {

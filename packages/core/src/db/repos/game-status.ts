@@ -10,7 +10,7 @@ export type StatusEntry = {
   position: number;
 };
 
-export type BoardGame = {
+export type LibraryGame = {
   canonicalId: string;
   name: string;
   coverImageUrl: string | null;
@@ -50,7 +50,7 @@ export const listStatuses = (db: DatabaseSync): StatusEntry[] => {
   return rows;
 };
 
-export const getBoardGames = (db: DatabaseSync): BoardGame[] => {
+export const getLibraryGames = (db: DatabaseSync): LibraryGame[] => {
   const rows = db
     .prepare(
       `

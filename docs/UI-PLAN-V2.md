@@ -171,7 +171,7 @@ UI [Sync] ── server ─┘            │                        (user data 
 |---|---|
 | `GET /api/games?q&genre&tag&source&status&sort&page` | library queries + discover |
 | `GET /api/games/:id` · `GET /api/games/:id/similar` | drawer/de detail |
-| `GET /api/board` · `PATCH /api/games/:id/status` · `POST /api/board/move` | kanban + bulk triage |
+| `GET /api/library` · `PATCH /api/games/:id/status` · `POST /api/games/status` | categorized library (statuses + status assignments) + bulk triage |
 | `GET /api/facets` · `GET /api/suggest?...filters` | discover + directed random |
 | `GET/POST/DELETE /api/interests` | rewire file → DB; **keyed by catalog product id** |
 | `GET/POST/DELETE /api/owned-games` | new (canonical_id + platform) |
@@ -247,10 +247,10 @@ Principle: **anything hand-edited/indexed by game name gets a stable id instead.
 
 ### P2 — Categories board
 1. Statuses seeded in P0 (keys per §2); confirm display labels + column order at build time (stored as data — trivial to change)
-2. `GET /api/board`, `PATCH /api/games/:id/status` (fractional position; reindex only on precision decay) — `updated_at` is DB-managed by the `game_status_touch_updated_at` trigger (migration #2, P0); repos must NOT set it explicitly
+2. `GET /api/library`, `PATCH /api/games/:id/status` (fractional position; reindex only on precision decay) — `updated_at` is DB-managed by the `game_status_touch_updated_at` trigger (migration #2, P0); repos must NOT set it explicitly
 3. Board UI per §3: dnd-kit columns/cards, drawer, toolbar (search/source/genre), optimistic + rollback, lazy-render Backlog, counts, empty states; no-status games render in Backlog; positions materialized on first reorder there
-4. Stretch: `POST /api/board/move` bulk multi-select
-5. **Verify:** drag survives reload **and** a subsequent `pnpm sync` (status rows untouched, new games appear in Backlog); 697-card Backlog stays responsive. **Tests (first):** fractional-position math (midpoint, precision-decay reindex); board route + `PATCH status` via `inject`; Backlog-default rendering for no-status games; Move-to menu flow (RTL — see DnD caveat)
+4. Stretch: `POST /api/games/status` bulk multi-select
+5. **Verify:** drag survives reload **and** a subsequent `pnpm sync` (status rows untouched, new games appear in Backlog); 697-card Backlog stays responsive. **Tests (first):** fractional-position math (midpoint, precision-decay reindex); library route + `PATCH status` via `inject`; Backlog-default rendering for no-status games; Move-to menu flow (RTL — see DnD caveat)
 
 ### P3 — Metadata enrichment
 1. Local harvest: expand Heroic `store_cache` field usage — GOG/Amazon genres already flow; verify what `legendary_library`/`nile_library` expose beyond current mapping (Epic likely thin → IGDB covers the gap). Playnite retired — no `playnite.json` harvest

@@ -7,7 +7,7 @@ import { openDb, type Db } from '../connection';
 import { upsertGames } from './games';
 import {
   listStatuses,
-  getBoardGames,
+  getLibraryGames,
   setGameStatus,
   materializeBacklog,
   UnknownStatusError,
@@ -64,7 +64,7 @@ describe('game-status repo', () => {
   let db: Db;
 
   beforeEach(() => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gamekeeper-board-'));
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gamekeeper-library-'));
     db = openDb(path.join(dir, 'lib.db'));
   });
 
@@ -91,11 +91,11 @@ describe('game-status repo', () => {
     });
   });
 
-  describe('getBoardGames', () => {
+  describe('getLibraryGames', () => {
     it('returns games with status null when no game_status row exists', () => {
       seedGames(db, [makeGame({ canonicalId: 'steam:1', name: 'A' })]);
 
-      const games = getBoardGames(db.raw);
+      const games = getLibraryGames(db.raw);
       expect(games).toHaveLength(1);
       expect(games[0]).toMatchObject({
         canonicalId: 'steam:1',
@@ -109,7 +109,7 @@ describe('game-status repo', () => {
       seedGames(db, [makeGame({ canonicalId: 'steam:1', name: 'A' })]);
       insertStatusRow(db, 'steam:1', 'playing', 2.5);
 
-      const [game] = getBoardGames(db.raw);
+      const [game] = getLibraryGames(db.raw);
       expect(game).toMatchObject({
         status: 'playing',
         position: 2.5,
@@ -144,7 +144,7 @@ describe('game-status repo', () => {
         }),
       ]);
 
-      const ordered = getBoardGames(db.raw).map((g) => g.canonicalId);
+      const ordered = getLibraryGames(db.raw).map((g) => g.canonicalId);
       expect(ordered).toEqual(['steam:d', 'steam:a', 'steam:b', 'steam:c']);
     });
 
@@ -154,7 +154,7 @@ describe('game-status repo', () => {
         makeGame({ canonicalId: 'steam:a', name: 'Alpha' }),
       ]);
 
-      const ordered = getBoardGames(db.raw).map((g) => g.canonicalId);
+      const ordered = getLibraryGames(db.raw).map((g) => g.canonicalId);
       expect(ordered).toEqual(['steam:a', 'steam:z']);
     });
   });
@@ -454,10 +454,10 @@ describe('game-status repo', () => {
       });
     });
 
-    it('getBoardGames renders no-status games as backlog until materialized', () => {
+    it('getLibraryGames renders no-status games as backlog until materialized', () => {
       seedGames(db, [makeGame({ canonicalId: 'steam:1', name: 'A' })]);
 
-      const games = getBoardGames(db.raw);
+      const games = getLibraryGames(db.raw);
       expect(games[0].status).toBeNull();
       expect(db.raw.prepare('SELECT COUNT(*) AS c FROM game_status').get()).toEqual({
         c: 0,

@@ -6,7 +6,7 @@
   "scripts": {
     "sync": "pnpm --filter @gamekeeper/cli run sync",
     "sync:dry-run": "pnpm --filter @gamekeeper/cli run sync:dry-run",
-    "build": "pnpm --filter @gamekeeper/core run build && pnpm --filter @gamekeeper/cli run build",
+    "build": "pnpm --filter @gamekeeper/shared run build && pnpm --filter @gamekeeper/core run build && pnpm --filter @gamekeeper/cli run build",
     "start": "pnpm --filter @gamekeeper/cli run start",
     "validate": "pnpm --filter @gamekeeper/cli run validate",
     "cleanup-duplicates": "pnpm --filter @gamekeeper/cli run cleanup-duplicates",

@@ -4,13 +4,13 @@
 >
 > Repo context (as of planning @ recurrent-status commit): P0 (db module, sync→SQLite, test infra) and P1 (orchestrator + `runSync`, SSE sync panel) complete; **P0B not done — orchestrator still reads JSON via `SyncIO`; board reads the DB directly, unaffected**. DB: `data/gamekeeper.db` local-only (gitignored, never commit), 698 games, 9 statuses (`backlog → want_to_play → queued_to_play → trying → recurrent → playing → paused → completed → dropped`, positions 0..8), `game_status` trigger owns `updated_at`. Web has router (`/library` placeholder), SyncPanel, GameCard, shadcn `badge/button/input` only; no dnd-kit yet.
 >
-> Decisions settled with user: **Q10.1 = `COALESCE(last_played_at, created_at) DESC, name ASC`** for no-position Backlog first render; board lives at **`/library`** (default route, replaces placeholder); **9 statuses incl. `recurrent`**; column order = `statuses.position` (manual reorder via SQL, no UI); bulk move = stretch.
+> Decisions settled with user: **Q10.1 = `COALESCE(last_played_at, created_at) DESC, name ASC`** for no-position Backlog first render; board lives at **`/library`** (default route, replaces placeholder); **9 statuses incl. `recurrent`**; column order = `statuses.position` (manual reorder via SQL, no UI); bulk move = stretch; **API surface drops "board" (UI-view term)** — endpoint `GET /api/library`, shared types `LibraryResponse`/`LibraryGame`/`StatusEntry`, core `getLibraryGames`, server `routes/library.ts`; UI keeps board terminology (`BoardPage`, columns, `['library']` query key); future bulk endpoint = `POST /api/games/status`.
 
 ## Step 1 — Repos: game_status + fractional positions (core)
 
 - `packages/core/src/db/repos/game-status.ts` (tests-first, `*.test.ts` co-located):
   - `listStatuses(db)` → ordered by `position` (columns come from data — never hardcode the 9 keys in web/server)
-  - `getBoardGames(db)` → all games joined with their status row (`LEFT JOIN game_status`; no row ⇒ status `null` ⇒ client renders in Backlog). Select only board-needed columns (canonical_id, name, cover_image_url, playtime_hours, primary_source, owned_sources, status, position)
+  - `getLibraryGames(db)` → all games joined with their status row (`LEFT JOIN game_status`; no row ⇒ status `null` ⇒ client renders in Backlog). Select only board-needed columns (canonical_id, name, cover_image_url, playtime_hours, primary_source, owned_sources, status, position)
   - `setGameStatus(db, canonicalId, status, { beforeId, afterId })`:
     - **Client sends neighbor ids, not floats.** Server computes midpoint `(prev.position + next.position) / 2`; missing neighbors ⇒ `first − 1` / `last + 1` / `[1]` for empty column
     - **Precision decay reindex:** if midpoint is not strictly between neighbors (float exhaustion) or spacing falls below `1e-9`, reindex that column in a transaction (order by position, renumber `1..n`) and recompute — never reindex other columns
@@ -21,27 +21,27 @@
 
 ## Step 2 — Server: board routes
 
-- `apps/server/src/routes/board.ts` → `registerBoardRoutes(app, { db })`; wire in `app.ts` next to catalog/interests/sync
-- `GET /api/board` → `{ statuses: [...ordered], games: [...board columns incl. status/position] }` — **one payload, client groups by status** (697 rows is trivial; toolbar filters run client-side, no filter endpoints)
+- `apps/server/src/routes/library.ts` → `registerLibraryRoutes(app, { db })`; wire in `app.ts` next to catalog/interests/sync
+- `GET /api/library` → `{ statuses: [...ordered], games: [...board columns incl. status/position] }` — **one payload, client groups by status** (697 rows is trivial; toolbar filters run client-side, no filter endpoints)
 - `PATCH /api/games/:id/status` body `{ status: string, beforeId?: string | null, afterId?: string | null }` → 200 `{ canonicalId, status, position }`; 404 unknown game; 400 unknown status. Idempotent (re-PATCH same status recomputes position)
-- db access via the existing `buildApp` opts pattern (injectable `dbPath`/manager — mirror how sync routes got their seam; keep tests on temp-dir DBs)
-- Tests (`fastify.inject`): board shape (statuses ordered, no-status game present with `status: null`); PATCH moves game, neighbors respected, appears in new column on refetch; 404/400 paths; trigger sets `updated_at` after PATCH (assert changed, don't assert exact value)
+- db access via the existing `buildApp` opts pattern (injectable `dbPath` — mirror how sync routes got their seam; keep tests on temp-dir DBs)
+- Tests (`fastify.inject`): library shape (statuses ordered, no-status game present with `status: null`); PATCH moves game, neighbors respected, appears in new column on refetch; 404/400 paths; trigger sets `updated_at` after PATCH (assert changed, don't assert exact value)
 
 ## Step 3 — Web: board page at `/library`
 
 - Deps: `@dnd-kit/core` + `@dnd-kit/sortable` (the one planned new dependency)
 - Replace `/library` placeholder route with `BoardPage`; keep nav label "Library"
-- `hooks/useBoard.ts` — TanStack Query `['board']` against `GET /api/board`
+- `hooks/useLibrary.ts` — TanStack Query `['library']` against `GET /api/library`
 - Columns: label + count + color dot from `statuses` data (colors/labels/order come from DB — `recurrent` included automatically); horizontal scroll baseline; empty-column state
 - Cards: compact row (cover thumb + title + micro-badges platform/playtime) — reuse/adapt `GameCard`; **memoized** (`React.memo`) — 697 cards must stay responsive
 - **Lazy Backlog:** render ~50 + "show more" (incremental batches); default order = payload order (repo already sorts Q10.1) until the user reorders that column
-- DnD: `DndContext` + `SortableContext` per column; on drop → **optimistic mutation** (`PATCH .../status` with neighbor ids) → rollback on failure (invalidate `['board']` on settle either way); Backlog drop → server materializes first, then positions the moved card (client just sends `beforeId`/`afterId` as usual — server handles materialization inside the same txn)
+- DnD: `DndContext` + `SortableContext` per column; on drop → **optimistic mutation** (`PATCH .../status` with neighbor ids) → rollback on failure (invalidate `['library']` on settle either way); Backlog drop → server materializes first, then positions the moved card (client just sends `beforeId`/`afterId` as usual — server handles materialization inside the same txn)
 - Card click → **slide-over drawer** (hand-rolled, P1 SyncPanel precedent, zero new deps): cover, sources, playtime, release, genres (empty until P3 — degrade gracefully), **`[Move to ▾]` menu** (statuses from payload → PATCH, append to target column end), notes placeholder (P2.5 territory — render read-only/empty), ✕. Board stays mounted, scroll position kept
 - Toolbar: search (name) + source filter + genre filter (mostly empty until P3 — fine), persisted to **localStorage** (board filters, unlike discover which will use URL)
-- Uncomment `invalidateQueries({ queryKey: ['board'] })` in `useSyncEvents` summary handler (alongside existing catalog/interests)
+- Uncomment `invalidateQueries({ queryKey: ['library'] })` in `useSyncEvents` summary handler (alongside existing catalog/interests; drop the dead `['board']` comment line)
 - Tests (RTL): no-status game renders in Backlog; column order/counters from canned payload; Move-to menu flow (PATCH called, optimistic update); drawer opens on card click; lazy Backlog shows first 50 then more. **DnD caveat:** dnd-kit pointer sensors are awkward in jsdom — do NOT e2e-test drags in RTL; cover drag math via Step 1 unit tests + manual verify. A thin mock of `DndContext` for smoke render is acceptable
 
-## Step 4 — Stretch (only if Steps 1-3 verified): `POST /api/board/move`
+## Step 4 — Stretch (only if Steps 1-3 verified): `POST /api/games/status`
 
 - Bulk multi-select (shift/ctrl click or checkbox) → single PATCH-style endpoint moving N games to a status in one transaction (draining the Backlog is a slog otherwise). Skip if time-boxed — plan marks it stretch.
 
@@ -54,7 +54,7 @@
 ## API shapes (pin)
 
 ```ts
-GET /api/board → {
+GET /api/library → {
   statuses: { key, label, color, position }[],
   games: { canonicalId, name, coverImageUrl?, playtimeHours?, primarySource,
            ownedSources, status: string | null, position: number | null }[]
