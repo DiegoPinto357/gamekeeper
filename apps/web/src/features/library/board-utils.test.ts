@@ -192,21 +192,33 @@ describe('applyMove', () => {
     const groups = groupGames(next.games);
     expect(ids(groups.backlog)).toEqual(['c']);
     expect(ids(groups.playing)).toEqual(['b', 'a']);
+    // cross-column: lands in the target column's auto flow, unpinned
     expect(next.games.find(game => game.canonicalId === 'a')).toMatchObject({
       status: 'playing',
-      position: 2,
-      pinned: true,
+      position: null,
+      pinned: false,
     });
   });
 
-  it('pins the moved game (drag = manual priority)', () => {
+  it('does not pin a cross-column move', () => {
     const next = applyMove(base, {
       id: 'a',
       status: 'playing',
       beforeId: 'b',
       afterId: null,
     });
-    expect(next.games.find(game => game.canonicalId === 'a')?.pinned).toBe(true);
+    expect(next.games.find(game => game.canonicalId === 'a')?.pinned).toBe(false);
+  });
+
+  it('pins a same-column drag at the drop slot', () => {
+    const next = applyMove(base, {
+      id: 'b',
+      status: 'playing',
+      beforeId: null,
+      afterId: null,
+    });
+    const moved = next.games.find(game => game.canonicalId === 'b');
+    expect(moved).toMatchObject({ status: 'playing', pinned: true });
   });
 
   it('prepends (afterId only): moves before the anchor', () => {
@@ -236,9 +248,12 @@ describe('applyMove', () => {
       afterId: 'e',
     });
     expect(ids(groupGames(next.games).playing)).toEqual(['b', 'c', 'e']);
+    // cross-column: the optimistic insert still lands between the anchors,
+    // but the card is unpinned (exact auto position arrives with the refetch)
     expect(next.games.find(game => game.canonicalId === 'c')).toMatchObject({
       status: 'playing',
-      position: 2,
+      position: null,
+      pinned: false,
     });
   });
 
@@ -251,7 +266,8 @@ describe('applyMove', () => {
     });
     expect(ids(groupGames(next.games).queued_to_play)).toEqual(['a']);
     expect(next.games.find(game => game.canonicalId === 'a')).toMatchObject({
-      position: 1,
+      position: null,
+      pinned: false,
     });
   });
 

@@ -191,6 +191,13 @@ describe('BoardPage', () => {
     // optimistic: card sits in the target column while PATCH is still in flight
     expect(within(column('playing')).getByText('Game A')).toBeInTheDocument();
     expect(within(column('backlog')).queryByText('Game A')).not.toBeInTheDocument();
+    // cross-column move: the moved card is not pinned
+    const cardA = within(column('playing'))
+      .getByText('Game A')
+      .closest('[data-testid="board-card"]')!;
+    expect(
+      within(cardA as HTMLElement).queryByTestId('pin-indicator'),
+    ).not.toBeInTheDocument();
 
     stub.release();
     await waitFor(() =>

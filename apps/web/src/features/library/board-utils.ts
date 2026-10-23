@@ -158,11 +158,14 @@ export const applyMove = (
   const index = data.games.findIndex(game => game.canonicalId === id);
   if (index === -1) return data;
 
+  // same-column drags pin at the drop slot; cross-column moves land in the
+  // target column's auto flow (pinned=false — exact order comes from refetch)
+  const sameColumn = (data.games[index].status ?? BACKLOG_KEY) === status;
   const moved: LibraryGame = {
     ...data.games[index],
     status,
-    position: estimatePosition(data.games, { beforeId, afterId }),
-    pinned: true,
+    position: sameColumn ? estimatePosition(data.games, { beforeId, afterId }) : null,
+    pinned: sameColumn,
   };
   const rest = data.games.filter((_, i) => i !== index);
 

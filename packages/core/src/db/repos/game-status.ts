@@ -24,7 +24,8 @@ export type LibraryGame = {
 export type SetStatusResult = {
   canonicalId: string;
   status: string;
-  position: number;
+  /** null for cross-column moves (the game joins the auto flow). */
+  position: number | null;
 };
 
 export type UnpinResult = {
@@ -216,13 +217,17 @@ const upsertGameStatus = (
 };
 
 /**
- * Move a game to a status, pinning it at the drop slot (P2.2a).
+ * Move a game to a status (P2.2a).
  *
- * The column's current display order is computed with the moving game
- * excluded; `beforeId`/`afterId` are interpreted as *display* neighbors
- * (the client sends them from the rendered order). The game is inserted
- * at the resulting slot, `pinned=1`, and every pinned row in the column
- * is reindexed to its new display rank.
+ * Same-column moves (reorder within the current status, incl. drops on
+ * default-backlog no-row games) PIN the game at the drop slot: the
+ * column's display order is computed with the moving game excluded,
+ * `beforeId`/`afterId` are display neighbors, and pinned rows are
+ * reindexed to their new ranks.
+ *
+ * Cross-column moves never pin: the game joins the target column's auto
+ * flow (pinned=0, position NULL — ordered live by last played) and the
+ * neighbors are ignored.
  */
 export const setGameStatus = (
   db: DatabaseSync,
@@ -232,6 +237,13 @@ export const setGameStatus = (
 ): SetStatusResult => {
   if (!statusExists(db, status)) throw new UnknownStatusError(status);
   if (!gameExists(db, canonicalId)) throw new UnknownGameError(canonicalId);
+
+  const current = getStatusRow(db, canonicalId);
+  const fromColumn = current?.status ?? 'backlog';
+  if (fromColumn !== status) {
+    upsertGameStatus(db, canonicalId, status, null, 0);
+    return { canonicalId, status, position: null };
+  }
 
   const columnRows = readBoardRows(db).filter(
     (row) =>

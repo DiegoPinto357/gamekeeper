@@ -118,34 +118,28 @@ describe('library routes', () => {
     expect(body).toEqual({
       canonicalId: 'steam:2',
       status: 'playing',
-      position: 1,
+      position: null,
     });
 
     const library = await getLibrary();
     const moved = library.games.find(g => g.canonicalId === 'steam:2');
     const untouched = library.games.find(g => g.canonicalId === 'steam:1');
-    expect(moved).toMatchObject({ status: 'playing', position: 1, pinned: true });
+    // cross-column moves join the auto flow, unpinned
+    expect(moved).toMatchObject({ status: 'playing', position: null, pinned: false });
     // the pin model never bulk-materializes: the remaining game stays in the
     // lazy no-row backlog
     expect(untouched).toMatchObject({ status: null, position: null, pinned: false });
   });
 
-  it('PATCH respects neighbor ids (insert between two display neighbors)', async () => {
+  it('PATCH same-column with neighbors pins at the drop slot', async () => {
     upsertGames(seedDb.raw, [
       makeGame('steam:1', 'Alpha'),
       makeGame('steam:2', 'Beta'),
       makeGame('steam:3', 'Gamma'),
     ]);
-    seedDb.raw
-      .prepare(
-        'INSERT INTO game_status (canonical_id, status, position) VALUES (?, ?, ?)',
-      )
-      .run('steam:1', 'playing', 1);
-    seedDb.raw
-      .prepare(
-        'INSERT INTO game_status (canonical_id, status, position) VALUES (?, ?, ?)',
-      )
-      .run('steam:2', 'playing', 2);
+    await patchStatus('steam:1', { status: 'playing' });
+    await patchStatus('steam:2', { status: 'playing' });
+    await patchStatus('steam:3', { status: 'playing' });
 
     const res = await patchStatus('steam:3', {
       status: 'playing',
@@ -168,6 +162,30 @@ describe('library routes', () => {
     expect(playing).toEqual(['steam:1', 'steam:3', 'steam:2']);
   });
 
+  it('PATCH cross-column ignores neighbors and unpins (auto flow by last played)', async () => {
+    upsertGames(seedDb.raw, [
+      makeGame('steam:1', 'Alpha'),
+      makeGame('steam:2', 'Beta'),
+      makeGame('steam:3', 'Gamma'),
+    ]);
+    await patchStatus('steam:1', { status: 'playing' });
+
+    const res = await patchStatus('steam:3', {
+      status: 'playing',
+      beforeId: 'steam:1',
+      afterId: null,
+    });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({ status: 'playing', position: null });
+
+    const library = await getLibrary();
+    expect(library.games.find(g => g.canonicalId === 'steam:3')).toMatchObject({
+      status: 'playing',
+      pinned: false,
+      position: null,
+    });
+  });
+
   it('re-PATCH same status re-pins at the new slot', async () => {
     upsertGames(seedDb.raw, [
       makeGame('steam:1', 'Alpha'),
@@ -177,14 +195,15 @@ describe('library routes', () => {
 
     const first = await patchStatus('steam:3', { status: 'queued_to_play' });
     expect(first.statusCode).toBe(200);
-    expect(first.json()).toMatchObject({ status: 'queued_to_play', position: 1 });
+    expect(first.json()).toMatchObject({ status: 'queued_to_play', position: null });
 
     const second = await patchStatus('steam:1', {
       status: 'queued_to_play',
       beforeId: 'steam:3',
     });
     expect(second.statusCode).toBe(200);
-    expect(second.json()).toMatchObject({ status: 'queued_to_play', position: 2 });
+    // cross-column: neighbors ignored, auto by name (Alpha < Gamma)
+    expect(second.json()).toMatchObject({ status: 'queued_to_play', position: null });
 
     const third = await patchStatus('steam:3', {
       status: 'queued_to_play',
@@ -198,6 +217,7 @@ describe('library routes', () => {
       .filter(g => g.status === 'queued_to_play')
       .map(g => g.canonicalId);
     expect(queued).toEqual(['steam:1', 'steam:3']);
+    expect(library.games.find(g => g.canonicalId === 'steam:3')?.pinned).toBe(true);
   });
 
   it('PATCH unknown game returns 404', async () => {
@@ -252,6 +272,7 @@ describe('library routes', () => {
   it('POST /api/library/games/:id/unpin clears the pin for a non-backlog status', async () => {
     upsertGames(seedDb.raw, [makeGame('steam:1', 'Alpha')]);
     await patchStatus('steam:1', { status: 'playing' });
+    await patchStatus('steam:1', { status: 'playing' }); // same-column → pin
 
     const res = await unpin('steam:1');
     expect(res.statusCode).toBe(200);

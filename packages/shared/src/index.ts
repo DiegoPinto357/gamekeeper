@@ -42,7 +42,8 @@ export type LibraryResponse = {
 export type GameStatusResult = {
   canonicalId: string;
   status: string;
-  position: number;
+  /** null for cross-column moves (the game joins the auto flow). */
+  position: number | null;
 };
 
 export type UnpinResult = {

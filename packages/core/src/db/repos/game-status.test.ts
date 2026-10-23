@@ -278,23 +278,51 @@ describe('game-status repo', () => {
   });
 
   describe('setGameStatus — pin model', () => {
-    it('places the game at position 1 in an empty column and pins it', () => {
-      seedGames(db, [makeGame({ canonicalId: 'steam:1' })]);
+    it('cross-column move joins the auto flow (unpinned, no position)', () => {
+      seedGames(db, [makeGame({ canonicalId: 'steam:1', name: 'A' })]);
 
       const result = setGameStatus(db.raw, 'steam:1', 'playing', {});
       expect(result).toEqual({
         canonicalId: 'steam:1',
         status: 'playing',
-        position: 1,
+        position: null,
       });
       expect(getStatusRow(db, 'steam:1')).toMatchObject({
         status: 'playing',
-        position: 1,
-        pinned: 1,
+        position: null,
+        pinned: 0,
       });
     });
 
-    it('inserting between two cards lands at the slot and shifts the tail down', () => {
+    it('cross-column move ignores neighbors and sorts into the auto flow by last played', () => {
+      seedGames(db, [
+        makeGame({
+          canonicalId: 'steam:a',
+          name: 'A',
+          lastPlayedAt: new Date('2026-03-01T00:00:00.000Z'),
+        }),
+        makeGame({
+          canonicalId: 'steam:b',
+          name: 'B',
+          lastPlayedAt: new Date('2026-01-01T00:00:00.000Z'),
+        }),
+        makeGame({ canonicalId: 'steam:p', name: 'P' }),
+      ]);
+      insertStatusRow(db, 'steam:p', 'playing', 1, 1);
+
+      setGameStatus(db.raw, 'steam:a', 'playing', {});
+      setGameStatus(db.raw, 'steam:b', 'playing', {
+        beforeId: 'steam:p',
+        afterId: 'steam:a',
+      });
+
+      // auto order by last played: A (Mar) then B (Jan); the pin anchors at 1
+      expect(boardOrder(db, 'playing')).toEqual(['steam:p', 'steam:a', 'steam:b']);
+      expect(getStatusRow(db, 'steam:a')).toMatchObject({ pinned: 0, position: null });
+      expect(getStatusRow(db, 'steam:b')).toMatchObject({ pinned: 0, position: null });
+    });
+
+    it('a same-column move pins the game at the drop slot', () => {
       seedGames(db, [
         makeGame({ canonicalId: 'steam:1', name: 'One' }),
         makeGame({ canonicalId: 'steam:2', name: 'Two' }),
@@ -302,6 +330,34 @@ describe('game-status repo', () => {
       ]);
       setGameStatus(db.raw, 'steam:1', 'playing', {});
       setGameStatus(db.raw, 'steam:2', 'playing', {});
+      setGameStatus(db.raw, 'steam:3', 'playing', {});
+      // auto by name: One, Three, Two — all unpinned
+      expect(boardOrder(db, 'playing')).toEqual(['steam:1', 'steam:3', 'steam:2']);
+
+      const result = setGameStatus(db.raw, 'steam:3', 'playing', {
+        beforeId: 'steam:1',
+      });
+      expect(result).toEqual({
+        canonicalId: 'steam:3',
+        status: 'playing',
+        position: 2,
+      });
+      expect(getStatusRow(db, 'steam:3')).toMatchObject({ pinned: 1, position: 2 });
+      expect(boardOrder(db, 'playing')).toEqual(['steam:1', 'steam:3', 'steam:2']);
+    });
+
+    it('inserting between two pinned cards lands at the slot and shifts the tail down', () => {
+      seedGames(db, [
+        makeGame({ canonicalId: 'steam:1', name: 'One' }),
+        makeGame({ canonicalId: 'steam:2', name: 'Two' }),
+        makeGame({ canonicalId: 'steam:3', name: 'Three' }),
+      ]);
+      setGameStatus(db.raw, 'steam:1', 'playing', {});
+      setGameStatus(db.raw, 'steam:2', 'playing', {});
+      // pin both so the drop computes from pinned ranks
+      setGameStatus(db.raw, 'steam:1', 'playing', {});
+      setGameStatus(db.raw, 'steam:2', 'playing', {});
+      setGameStatus(db.raw, 'steam:3', 'playing', {}); // cross → auto
 
       const result = setGameStatus(db.raw, 'steam:3', 'playing', {
         beforeId: 'steam:1',
@@ -312,38 +368,50 @@ describe('game-status repo', () => {
       expect(boardOrder(db, 'playing')).toEqual(['steam:1', 'steam:3', 'steam:2']);
     });
 
-    it('appends at the end of the column when no neighbors given', () => {
+    it('prepends at the top of the pinned group when only afterId given', () => {
       seedGames(db, [
-        makeGame({ canonicalId: 'steam:1' }),
-        makeGame({ canonicalId: 'steam:2' }),
+        makeGame({ canonicalId: 'steam:1', name: 'One' }),
+        makeGame({ canonicalId: 'steam:2', name: 'Two' }),
       ]);
       setGameStatus(db.raw, 'steam:1', 'playing', {});
-      setGameStatus(db.raw, 'steam:2', 'playing', {});
-
-      const result = setGameStatus(db.raw, 'steam:2', 'playing', {});
-      expect(result.position).toBe(2);
-      expect(boardOrder(db, 'playing')).toEqual(['steam:1', 'steam:2']);
-    });
-
-    it('prepends at the top when only afterId given', () => {
-      seedGames(db, [
-        makeGame({ canonicalId: 'steam:1' }),
-        makeGame({ canonicalId: 'steam:2' }),
-      ]);
-      setGameStatus(db.raw, 'steam:1', 'playing', {});
+      setGameStatus(db.raw, 'steam:1', 'playing', {}); // pin One
+      setGameStatus(db.raw, 'steam:2', 'playing', {}); // cross → auto
 
       const result = setGameStatus(db.raw, 'steam:2', 'playing', {
         afterId: 'steam:1',
       });
       expect(result.position).toBe(1);
+      expect(getStatusRow(db, 'steam:2')).toMatchObject({ pinned: 1, position: 1 });
       expect(boardOrder(db, 'playing')).toEqual(['steam:2', 'steam:1']);
     });
 
-    it('ignores neighbors from another column (falls back to end)', () => {
+    it('a drop on default Backlog (no-row game) pins within Backlog', () => {
+      seedGames(db, [makeGame({ canonicalId: 'steam:1', name: 'A' })]);
+
+      const result = setGameStatus(db.raw, 'steam:1', 'backlog', {});
+      expect(result).toMatchObject({ status: 'backlog', position: 1 });
+      expect(getStatusRow(db, 'steam:1')).toMatchObject({ pinned: 1, position: 1 });
+    });
+
+    it('moving a pinned card to another column unpins it', () => {
+      seedGames(db, [makeGame({ canonicalId: 'steam:1', name: 'A' })]);
+      setGameStatus(db.raw, 'steam:1', 'playing', {});
+      setGameStatus(db.raw, 'steam:1', 'playing', {}); // pin
+      expect(getStatusRow(db, 'steam:1')).toMatchObject({ pinned: 1 });
+
+      setGameStatus(db.raw, 'steam:1', 'paused', {});
+      expect(getStatusRow(db, 'steam:1')).toMatchObject({
+        status: 'paused',
+        pinned: 0,
+        position: null,
+      });
+    });
+
+    it('ignores neighbors from another column (falls back to auto)', () => {
       seedGames(db, [
-        makeGame({ canonicalId: 'steam:1' }),
-        makeGame({ canonicalId: 'steam:2' }),
-        makeGame({ canonicalId: 'steam:other' }),
+        makeGame({ canonicalId: 'steam:1', name: 'One' }),
+        makeGame({ canonicalId: 'steam:2', name: 'Two' }),
+        makeGame({ canonicalId: 'steam:other', name: 'Other' }),
       ]);
       setGameStatus(db.raw, 'steam:1', 'playing', {});
       setGameStatus(db.raw, 'steam:other', 'paused', {});
@@ -351,48 +419,21 @@ describe('game-status repo', () => {
       const result = setGameStatus(db.raw, 'steam:2', 'playing', {
         beforeId: 'steam:other',
       });
-      expect(result.position).toBe(2);
+      expect(result).toMatchObject({ position: null });
       expect(boardOrder(db, 'playing')).toEqual(['steam:1', 'steam:2']);
-    });
-
-    it('re-pins a same-status move at the new slot', () => {
-      seedGames(db, [
-        makeGame({ canonicalId: 'steam:1' }),
-        makeGame({ canonicalId: 'steam:2' }),
-        makeGame({ canonicalId: 'steam:3' }),
-      ]);
-      setGameStatus(db.raw, 'steam:1', 'playing', {});
-      setGameStatus(db.raw, 'steam:2', 'playing', {});
-      setGameStatus(db.raw, 'steam:3', 'playing', {});
-      expect(boardOrder(db, 'playing')).toEqual(['steam:1', 'steam:2', 'steam:3']);
-
-      setGameStatus(db.raw, 'steam:3', 'playing', { beforeId: 'steam:1' });
-      expect(boardOrder(db, 'playing')).toEqual(['steam:1', 'steam:3', 'steam:2']);
-    });
-
-    it('drops an auto (unpinned) card into a column at the requested slot and pins it', () => {
-      seedGames(db, [
-        makeGame({ canonicalId: 'steam:a', name: 'A' }),
-        makeGame({ canonicalId: 'steam:b', name: 'B' }),
-        makeGame({ canonicalId: 'steam:c', name: 'C' }),
-      ]);
-      // all auto in backlog: A B C
-      setGameStatus(db.raw, 'steam:c', 'playing', { beforeId: 'steam:a' });
-
-      expect(getStatusRow(db, 'steam:c')).toMatchObject({ pinned: 1, position: 1 });
-      expect(boardOrder(db, 'backlog')).toEqual(['steam:a', 'steam:b']);
-      expect(boardOrder(db, 'playing')).toEqual(['steam:c']);
     });
 
     it('never reindexes other columns', () => {
       seedGames(db, [
-        makeGame({ canonicalId: 'steam:1' }),
-        makeGame({ canonicalId: 'steam:2' }),
-        makeGame({ canonicalId: 'steam:3' }),
-        makeGame({ canonicalId: 'steam:4' }),
+        makeGame({ canonicalId: 'steam:1', name: 'One' }),
+        makeGame({ canonicalId: 'steam:2', name: 'Two' }),
+        makeGame({ canonicalId: 'steam:3', name: 'Three' }),
+        makeGame({ canonicalId: 'steam:4', name: 'Four' }),
       ]);
       setGameStatus(db.raw, 'steam:1', 'playing', {});
       setGameStatus(db.raw, 'steam:2', 'playing', {});
+      setGameStatus(db.raw, 'steam:1', 'playing', {}); // pin One
+      setGameStatus(db.raw, 'steam:2', 'playing', {}); // pin Two
       setGameStatus(db.raw, 'steam:4', 'paused', {});
 
       setGameStatus(db.raw, 'steam:3', 'playing', {
@@ -402,7 +443,8 @@ describe('game-status repo', () => {
 
       expect(getStatusRow(db, 'steam:4')).toMatchObject({
         status: 'paused',
-        position: 1,
+        pinned: 0,
+        position: null,
       });
     });
 
@@ -410,10 +452,11 @@ describe('game-status repo', () => {
       seedGames(db, [makeGame({ canonicalId: 'steam:mover', name: 'Mover' })]);
 
       const result = setGameStatus(db.raw, 'steam:mover', 'want_to_play', {});
-      expect(result).toMatchObject({ status: 'want_to_play', position: 1 });
+      expect(result).toMatchObject({ status: 'want_to_play', position: null });
       expect(db.raw.prepare('SELECT COUNT(*) AS c FROM game_status').get()).toEqual({
         c: 1,
       });
+      expect(getStatusRow(db, 'steam:mover')).toMatchObject({ pinned: 0 });
     });
   });
 
@@ -450,6 +493,8 @@ describe('game-status repo', () => {
     it('clears the pin for non-backlog statuses, keeping the status', () => {
       seedGames(db, [makeGame({ canonicalId: 'steam:1' })]);
       setGameStatus(db.raw, 'steam:1', 'playing', {});
+      setGameStatus(db.raw, 'steam:1', 'playing', {}); // same-column → pin
+      expect(getStatusRow(db, 'steam:1')).toMatchObject({ pinned: 1 });
 
       const result = unpinGame(db.raw, 'steam:1');
       expect(result).toEqual({
