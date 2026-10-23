@@ -31,6 +31,7 @@ Replace Notion as the primary visualization layer with a self-contained local we
 | Library source | **Heroic integration** — Playnite is retired (no harvest from `playnite.json`, no Playnite path work) |
 | Notion | CLI sync **ON** by default (`--skip-notion` to opt out); UI sync **OFF** by default (toggle in panel); status never pushed |
 | Categories/columns | Fixed keys stored in `statuses` table: **`backlog, want_to_play, queued_to_play, trying, recurrent, playing, paused, completed, dropped`** (label/order/color editable as data). Suggested display labels: Backlog · Want to Play · **Up Next** · **Trying Out** · **Recurrent** · Playing · Paused · Completed · Dropped |
+| Board ordering (P2.2) | **Per-card pin**: default order is auto by last played (live); dragging a card **pins** it at the drop slot — manual priority wins over auto; pinned cards can be unpinned back into the auto flow; new/played games re-flow around pins |
 | Unsorted column | **None** — Backlog is the default category: games without a status render there; sync never writes status rows |
 | Similar games | Local genre/tag overlap + IGDB `similar_games` |
 | Testing | **Vitest everywhere + RTL for web**; **TDD (RED → GREEN)** expected of every phase; root `pnpm test` runs all workspaces |
@@ -59,7 +60,7 @@ Replace Notion as the primary visualization layer with a self-contained local we
 
 Column order shown = seed order from §2 (`backlog → want_to_play → queued_to_play → trying → recurrent → playing → paused → completed → dropped`); stored as `statuses.position`, reorderable without code changes. **Manual reorder (no UI):** `UPDATE statuses SET position = N WHERE key = '...'` — integers 0..8 (column is INTEGER; renumber the tail to insert between). Seed/migrations never touch positions of existing rows after first insert, so manual tweaks stick.
 
-**No Unsorted column:** a game with no `game_status` row renders in **Backlog** — the default category for new entries. Sync never writes status rows; Backlog gets a lazy first-render order (`COALESCE(last_played_at, created_at) DESC, name ASC` — Q10.1 settled), and positions are materialized in a single transaction on the user's first reorder in that column.
+**No Unsorted column:** a game with no `game_status` row renders in **Backlog** — the default category for new entries. Sync never writes status rows; Backlog gets a lazy first-render order (`COALESCE(last_played_at, created_at) DESC, name ASC` — Q10.1 settled). Since P2.2 no column is ever bulk-materialized: every card starts unpinned (auto flow) and a row — with `pinned=1` + a slot position — is written only when the user drags a card.
 
 **Settled details:**
 
@@ -69,7 +70,7 @@ Column order shown = seed order from §2 (`backlog → want_to_play → queued_t
 | Card click | Slide-over drawer (board stays mounted, scroll position kept) |
 | Card style | Compact row: cover thumb + title + micro-badges (platform, playtime) |
 | Board toolbar | Search + source filter + genre filter, persisted to localStorage |
-| Ordering numbers | **None** — priority in Want to Play is pure drag order |
+| Ordering numbers | **None** — no numeric UI; manual priority = drag-to-pin (P2.2) |
 | Bulk move (multi-select → move) | P2 stretch (draining ~697-game Backlog by hand is a slog) |
 | Mobile | Not targeted; baseline = columns scroll horizontally |
 | Genre filter availability | Degrades gracefully until enrichment (P3) — only ~9% of games have genres today |
@@ -260,12 +261,48 @@ Principle: **anything hand-edited/indexed by game name gets a stable id instead.
 5. **"Removed"/"Not available" badge:** red/gray badge like Notion's when a game left its source's catalog (e.g. delisted from Game Pass). *Data gap:* availability currently lives only in `data/gamepass-unavailable.json` (10 rows: `name`, `reason: interest-unavailable`, `lastSeen`, `wasPlayed` — **no canonical_id**). Persist it in the DB (e.g. `games.unavailable_reason` or `game_availability(canonical_id, reason, last_seen)` written by the orchestrator's `processGamePassAvailability` step, which already computes this) so `GET /api/library` can expose it; badge shows in card + drawer
 6. **Verify:** column headers visible while scrolling a 600+-card Backlog; drag still correct with per-column scroll; every source renders its color; unavailable badge survives reload + sync. **Tests (first):** availability persistence (orchestrator step → DB row); library route returns `unavailableReason`; RTL for multi-source badges, clear button, wrap-not-truncate
 
+### P2.2 — Board fidelity (pin ordering + compatibility badges)
+Matches the reference board (Figma): live last-played ordering with manual-priority override, ProtonDB/Deck badges, and the correct Game Pass availability flags. Three independent items — implement in order, each green on its own.
+
+#### P2.2a — Per-card pin ordering (manual priority > auto by last played)
+*Semantics:* every column defaults to the live auto order (`COALESCE(last_played_at, created_at) DESC, name ASC`). Dragging a card **pins** it at the exact display slot where it was dropped; pinned slots are anchored while unpinned (auto) cards flow around them by last played. Unpinning returns the card to the auto flow. `materializeBacklog`'s freeze-on-first-drag is removed.
+
+1. **Migration #5** (`packages/core/src/db/schema.ts`): `ALTER TABLE game_status ADD COLUMN pinned INTEGER NOT NULL DEFAULT 1` — existing rows were all manual drags, so default 1 is correct.
+2. **Shared merge function** (`packages/core/src/db/repos/game-status.ts`): per column, merge pinned cards (ordered by `position`) with auto cards (ordered by `COALESCE(last_played_at, created_at) DESC, name ASC`); the *i*-th pinned card anchors at its stored slot index (rounded display rank), auto cards fill the remaining slots in order. One function, used by both the read path and write-reindex.
+3. `getLibraryGames`: return rows in merged order (JS-side merge; 707 rows — trivial). `LibraryGame` gains `pinned: boolean`.
+4. `setGameStatus`: on any move set `pinned=1`; position = fractional insert among pinned slots (reuse `needsReindex`/`reindexColumn`); **drop the `materializeBacklog` call and export** — no bulk snapshot anymore.
+5. New `unpinGame(db, canonicalId)`: Backlog → delete the row; any other status → `pinned=0, position=NULL`.
+6. **Server:** keep the existing `PATCH .../status` contract; add `POST /api/library/games/:id/unpin`.
+7. **Web:** `board-store.ts` — optimistic unpin + `unpinGame` mutation (move path unchanged); `BoardCard.tsx` — subtle pin indicator on pinned cards + "Unpin" action in the card's hover/context menu.
+8. **Tests (first):** merge order (pinned anchored, auto reflow after `last_played` change, new game arrives between pins); pin-on-drag; unpin per status; route tests for the new endpoint; web store + RTL for indicator/unpin.
+
+#### P2.2b — ProtonDB + Steam Deck badges (dedicated second row)
+Data already exists: `games.proton_json` has `tier` (platinum/gold/silver/bronze/borked) and `steamDeck` (verified/playable/unsupported/unknown) for ~551/707 games.
+
+1. `getLibraryGames`: parse `proton_json` → `proton: { tier, steamDeck } | null` on the DTO; server route passes it through.
+2. `BoardCard.tsx` (`BoardCardFace`): after the existing source/playtime badge row, a **second badge row** rendered only when `proton` exists — Deck pill (✓ Verified green / ⚠ Playable amber / ✕ Unsupported red) + ProtonDB tier pill (color-coded per tier). Games without data (mostly Game Pass-only) show no second row.
+3. `GameDrawer.tsx`: same badges in the details panel.
+4. **Tests (first):** repo maps `proton_json` → DTO (incl. null/missing); route returns `proton`; RTL for the second row (with data, without data, both pills).
+
+#### P2.2c — False "not available" fix (swapped-title matcher bug)
+`catalogMatchesInterest` (`packages/core/src/core/xbox-gamepass.ts`) is order-sensitive substring matching. The interests file holds three entries for Hellblade II ("Senua's Saga: Hellblade II" ×2 + "Hellblade II: Senua's Saga"); the two swapped-order entries fail the match, get flagged `interest-unavailable`, and the word-sorted lookup in `persistAvailability` maps that flag onto the same DB game — flagged unavailable while sitting **in** the catalog ("Hellblade II: Senua's Saga", confirmed in `.cache/gamepass/gamepass-catalog.json`).
+
+1. `catalogMatchesInterest`: add order-insensitive equality via `wordSortedKey` (`normalize.ts`) before the edition-substring logic.
+2. Tests (`xbox-gamepass.test.ts`): swapped-order titles match; edition suffixes still match; sequel guard holds ("Modern Warfare" ≠ "Modern Warfare II").
+3. Run `pnpm sync` — the fixed matcher drops Hellblade from the unavailable list; `reconcileUnavailableReasons` clears the DB flag automatically. (Full sync incl. Notion write; no Notion cleanup — Notion stays the historical archive, counts intentionally differ.)
+
+#### P2.2 Verify
+- Board: dragging a card pins it (survives reload + `pnpm sync`); unpinned cards reflow by last played as sync updates data; unpin returns a card to the auto flow; pin indicator visible.
+- Cards show the Deck + ProtonDB second row where data exists; clean single row otherwise; drawer consistent.
+- `pnpm sync`: Hellblade II leaves the unavailable report and its DB flag clears; no other flags regress (10 → 9 unavailable).
+- `pnpm test` (core + server + web), `tsc -b`, lint all green.
+
 ### P3 — Metadata enrichment
 1. Local harvest: expand Heroic `store_cache` field usage — GOG/Amazon genres already flow; verify what `legendary_library`/`nile_library` expose beyond current mapping (Epic likely thin → IGDB covers the gap). Playnite retired — no `playnite.json` harvest
 2. Steam `fetchAppDetails` (typed, never called): genres/categories/release/dev/pub/`header_image` → fixes zero Steam covers; ~1.2s/req, resumable via `enriched_at`, `--force`
 3. IGDB: persist `igdb_id` (currently discarded); fetch genres/themes/keywords/summary/similar_games/companies (4 req/s)
 4. MS Store: keep genres/description from displaycatalog response already fetched (Xbox coverage)
-5. Fix lossy merge (`deduplicate.ts:139-141`) → genre/tag **union**; `pnpm enrich` script; FTS rebuild; manual/physical games included (IGDB by name). Migration #5 (migration #2 = P0 `game_status` trigger, #3 = `recurrent` status, #4 = P2.1 `games.unavailable_reason`): extend `games` (description, developer, publisher) and `games_fts` (currently name-only) to cover description + genres + tags
+5. Fix lossy merge (`deduplicate.ts:139-141`) → genre/tag **union**; `pnpm enrich` script; FTS rebuild; manual/physical games included (IGDB by name). Migration #6 (migration #2 = P0 `game_status` trigger, #3 = `recurrent` status, #4 = P2.1 `games.unavailable_reason`, #5 = P2.2 `game_status.pinned`): extend `games` (description, developer, publisher) and `games_fts` (currently name-only) to cover description + genres + tags
 6. **Verify:** >95% genre coverage; mapper tests; enrichment is progress-emitted (participates in UI checklist)
 
 ### P4 — Discover + directed random
@@ -310,4 +347,4 @@ Settings UI (owned-games CRUD form, overrides editor, status labels/colors); unt
 4. **Physical platforms** — `manual` source vs extending `Source` enum (switch/ps5).
 5. **Legacy JSON untrack timing** — recommend P6 after verification.
 
-_Resolved since first draft: status key list (§2), Notion defaults (§2), sync cancellation (none for now), Playnite retirement (§2), Unsorted column (dropped — Backlog is the default), progress numbers style = both (Q10.2), backlog default sort = `COALESCE(last_played_at, created_at) DESC, name ASC` (Q10.1)._
+_Resolved since first draft: status key list (§2), Notion defaults (§2), sync cancellation (none for now), Playnite retirement (§2), Unsorted column (dropped — Backlog is the default), progress numbers style = both (Q10.2), backlog default sort = `COALESCE(last_played_at, created_at) DESC, name ASC` (Q10.1), board ordering = per-card pin over live last-played auto order (P2.2, decided vs Figma reference)._
