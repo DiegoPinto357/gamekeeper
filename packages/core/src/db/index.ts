@@ -13,11 +13,12 @@ export {
   listStatuses,
   getLibraryGames,
   setGameStatus,
-  materializeBacklog,
+  unpinGame,
   UnknownStatusError,
   UnknownGameError,
   type StatusEntry,
   type LibraryGame,
   type SetStatusResult,
+  type UnpinResult,
 } from './repos/game-status';
 export { installSqliteWarningSuppression } from './suppress-warning';

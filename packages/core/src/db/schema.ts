@@ -140,4 +140,18 @@ export const MIGRATIONS: string[] = [
   -- sync availability step, keyed by canonical id (the JSON report has names only)
   ALTER TABLE games ADD COLUMN unavailable_reason TEXT;
   `,
+  `
+  -- P2.2a: per-card pin model — pinned=1 rows hold a manual-priority slot
+  -- (position = display rank); pinned=0 rows flow live by last played.
+  -- Migration #6 then unpins the pre-model materialization artifacts.
+  ALTER TABLE game_status ADD COLUMN pinned INTEGER NOT NULL DEFAULT 1;
+  `,
+  `
+  -- P2.2a data fix: rows predating the pin model were bulk-materialized by
+  -- freeze-on-first-drag (every backlog game got a row on the first reorder),
+  -- not hand-pinned. Return them to the auto flow: drop pure backlog rows
+  -- (keep rows that carry notes), unpin everything else.
+  DELETE FROM game_status WHERE status = 'backlog' AND notes IS NULL;
+  UPDATE game_status SET pinned = 0, position = NULL;
+  `,
 ];

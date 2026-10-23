@@ -1,8 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
 import type { Source } from '../../types/game';
 
-const MIN_SPACING = 1e-9;
-
 export type StatusEntry = {
   key: string;
   label: string;
@@ -19,6 +17,7 @@ export type LibraryGame = {
   ownedSources: Source[];
   status: string | null;
   position: number | null;
+  pinned: boolean;
   unavailableReason: string | null;
 };
 
@@ -26,6 +25,12 @@ export type SetStatusResult = {
   canonicalId: string;
   status: string;
   position: number;
+};
+
+export type UnpinResult = {
+  canonicalId: string;
+  status: string;
+  pinned: false;
 };
 
 export class UnknownStatusError extends Error {
@@ -51,43 +56,112 @@ export const listStatuses = (db: DatabaseSync): StatusEntry[] => {
   return rows;
 };
 
-export const getLibraryGames = (db: DatabaseSync): LibraryGame[] => {
-  const rows = db
-    .prepare(
-      `
-      SELECT
-        g.canonical_id,
-        g.name,
-        g.cover_image_url,
-        g.playtime_hours,
-        g.primary_source,
-        g.owned_sources,
-        g.unavailable_reason,
-        gs.status,
-        gs.position
-      FROM games g
-      LEFT JOIN game_status gs ON gs.canonical_id = g.canonical_id
-      ORDER BY
-        COALESCE(gs.status, 'backlog'),
-        (gs.position IS NULL),
-        gs.position,
-        COALESCE(g.last_played_at, g.created_at) DESC,
-        g.name ASC
-      `,
-    )
-    .all() as unknown as {
-    canonical_id: string;
-    name: string;
-    cover_image_url: string | null;
-    playtime_hours: number | null;
-    primary_source: Source;
-    owned_sources: string;
-    unavailable_reason: string | null;
-    status: string | null;
-    position: number | null;
-  }[];
+type BoardRow = {
+  canonical_id: string;
+  name: string;
+  cover_image_url: string | null;
+  playtime_hours: number | null;
+  primary_source: Source;
+  owned_sources: string;
+  unavailable_reason: string | null;
+  last_played_at: string | null;
+  created_at: string | null;
+  status: string | null;
+  position: number | null;
+  pinned: number;
+};
 
-  return rows.map((row) => ({
+const BOARD_SELECT = `
+  SELECT
+    g.canonical_id,
+    g.name,
+    g.cover_image_url,
+    g.playtime_hours,
+    g.primary_source,
+    g.owned_sources,
+    g.unavailable_reason,
+    g.last_played_at,
+    g.created_at,
+    gs.status,
+    gs.position,
+    gs.pinned
+  FROM games g
+  LEFT JOIN game_status gs ON gs.canonical_id = g.canonical_id
+`;
+
+const readBoardRows = (db: DatabaseSync): BoardRow[] =>
+  db.prepare(BOARD_SELECT).all() as unknown as BoardRow[];
+
+/**
+ * Merge a column's rows into display order (P2.2a).
+ *
+ * Unpinned rows flow live by `COALESCE(last_played_at, created_at) DESC,
+ * name ASC`. Pinned rows anchor at their stored display rank
+ * (`round(position)`); auto cards fill the slots around them. A pinned
+ * rank past the end of the column (or with auto cards exhausted) simply
+ * appends — merge never crashes on stale ranks.
+ */
+const mergeColumn = <T extends {
+  canonical_id: string;
+  name: string;
+  position: number | null;
+  pinned: number;
+  last_played_at?: string | null;
+  created_at?: string | null;
+}>(
+  rows: T[],
+): T[] => {
+  const auto = rows
+    .filter((row) => !row.pinned)
+    .sort((a, b) => {
+      const ka = a.last_played_at ?? a.created_at ?? '';
+      const kb = b.last_played_at ?? b.created_at ?? '';
+      if (ka !== kb) return ka < kb ? 1 : -1;
+      return a.name.localeCompare(b.name);
+    });
+  const pinnedRows = rows
+    .filter((row) => row.pinned)
+    .sort((a, b) => {
+      const pa = a.position ?? Number.MAX_SAFE_INTEGER;
+      const pb = b.position ?? Number.MAX_SAFE_INTEGER;
+      if (pa !== pb) return pa - pb;
+      return a.canonical_id.localeCompare(b.canonical_id);
+    });
+
+  const merged: T[] = [];
+  let autoIndex = 0;
+  for (const pin of pinnedRows) {
+    const want = Math.max(1, Math.round(pin.position ?? pinnedRows.length + auto.length));
+    while (merged.length + 1 < want && autoIndex < auto.length) {
+      merged.push(auto[autoIndex++]);
+    }
+    merged.push(pin);
+  }
+  while (autoIndex < auto.length) {
+    merged.push(auto[autoIndex++]);
+  }
+  return merged;
+};
+
+export const getLibraryGames = (db: DatabaseSync): LibraryGame[] => {
+  const rows = readBoardRows(db);
+
+  // merge per column; columns render independently (the client picks order
+  // per status key), so the flatten order across columns is irrelevant
+  const byColumn = new Map<string, BoardRow[]>();
+  for (const row of rows) {
+    const column = row.status ?? 'backlog';
+    const list = byColumn.get(column);
+    if (list) list.push(row);
+    else byColumn.set(column, [row]);
+  }
+
+  const ordered: BoardRow[] = [];
+  for (const columnRows of byColumn.values()) {
+    ordered.push(...mergeColumn(columnRows));
+  }
+
+  return ordered.map((row) => ({
     canonicalId: row.canonical_id,
     name: row.name,
     coverImageUrl: row.cover_image_url,
@@ -97,129 +171,59 @@ export const getLibraryGames = (db: DatabaseSync): LibraryGame[] => {
     unavailableReason: row.unavailable_reason,
     status: row.status,
     position: row.position,
+    pinned: row.pinned === 1,
   }));
 };
 
-export const materializeBacklog = (db: DatabaseSync): number => {
-  const pending = db
-    .prepare(
-      `
-      SELECT g.canonical_id
-      FROM games g
-      LEFT JOIN game_status gs ON gs.canonical_id = g.canonical_id
-      WHERE gs.canonical_id IS NULL
-      ORDER BY COALESCE(g.last_played_at, g.created_at) DESC, g.name ASC
-      `,
-    )
-    .all() as unknown as { canonical_id: string }[];
-  if (pending.length === 0) return 0;
-
-  const maxRow = db
-    .prepare(
-      "SELECT COALESCE(MAX(position), 0) AS m FROM game_status WHERE status = 'backlog'",
-    )
-    .get() as { m: number };
-
-  const insert = db.prepare(
-    "INSERT INTO game_status (canonical_id, status, position) VALUES (?, 'backlog', ?)",
-  );
-  db.exec('BEGIN');
-  try {
-    let position = maxRow.m;
-    for (const row of pending) {
-      position += 1;
-      insert.run(row.canonical_id, position);
-    }
-    db.exec('COMMIT');
-  } catch (err) {
-    db.exec('ROLLBACK');
-    throw err;
-  }
-  return pending.length;
-};
-
 const statusExists = (db: DatabaseSync, status: string): boolean => {
-  const row = db
-    .prepare('SELECT 1 FROM statuses WHERE key = ?')
-    .get(status);
+  const row = db.prepare('SELECT 1 FROM statuses WHERE key = ?').get(status);
   return row !== undefined;
 };
 
 const gameExists = (db: DatabaseSync, canonicalId: string): boolean => {
-  const row = db
-    .prepare('SELECT 1 FROM games WHERE canonical_id = ?')
-    .get(canonicalId);
+  const row = db.prepare('SELECT 1 FROM games WHERE canonical_id = ?').get(canonicalId);
   return row !== undefined;
 };
 
 const getStatusRow = (
   db: DatabaseSync,
   canonicalId: string,
-): { status: string; position: number | null } | undefined =>
+): { status: string; position: number | null; pinned: number; notes: string | null } | undefined =>
   db
-    .prepare('SELECT status, position FROM game_status WHERE canonical_id = ?')
+    .prepare(
+      'SELECT status, position, pinned, notes FROM game_status WHERE canonical_id = ?',
+    )
     .get(canonicalId) as
-    | { status: string; position: number | null }
+    | { status: string; position: number | null; pinned: number; notes: string | null }
     | undefined;
-
-const maxColumnPosition = (
-  db: DatabaseSync,
-  status: string,
-): number => {
-  const row = db
-    .prepare(
-      'SELECT COALESCE(MAX(position), 0) AS m FROM game_status WHERE status = ?',
-    )
-    .get(status) as { m: number };
-  return row.m;
-};
-
-const reindexColumn = (db: DatabaseSync, status: string): void => {
-  const rows = db
-    .prepare(
-      `
-      SELECT canonical_id FROM game_status
-      WHERE status = ?
-      ORDER BY (position IS NULL), position, canonical_id
-      `,
-    )
-    .all(status) as unknown as { canonical_id: string }[];
-  const update = db.prepare(
-    'UPDATE game_status SET position = ? WHERE canonical_id = ?',
-  );
-  db.exec('BEGIN');
-  try {
-    rows.forEach((row, index) => {
-      update.run(index + 1, row.canonical_id);
-    });
-    db.exec('COMMIT');
-  } catch (err) {
-    db.exec('ROLLBACK');
-    throw err;
-  }
-};
-
-const needsReindex = (prev: number, next: number): boolean => {
-  const mid = (prev + next) / 2;
-  return next - prev < MIN_SPACING || !(mid > prev && mid < next);
-};
 
 const upsertGameStatus = (
   db: DatabaseSync,
   canonicalId: string,
   status: string,
-  position: number,
+  position: number | null,
+  pinned: number,
 ): void => {
   db.prepare(
     `
-    INSERT INTO game_status (canonical_id, status, position) VALUES (?, ?, ?)
+    INSERT INTO game_status (canonical_id, status, position, pinned) VALUES (?, ?, ?, ?)
     ON CONFLICT(canonical_id) DO UPDATE SET
       status = excluded.status,
-      position = excluded.position
+      position = excluded.position,
+      pinned = excluded.pinned
     `,
-  ).run(canonicalId, status, position);
+  ).run(canonicalId, status, position, pinned);
 };
 
+/**
+ * Move a game to a status, pinning it at the drop slot (P2.2a).
+ *
+ * The column's current display order is computed with the moving game
+ * excluded; `beforeId`/`afterId` are interpreted as *display* neighbors
+ * (the client sends them from the rendered order). The game is inserted
+ * at the resulting slot, `pinned=1`, and every pinned row in the column
+ * is reindexed to its new display rank.
+ */
 export const setGameStatus = (
   db: DatabaseSync,
   canonicalId: string,
@@ -229,50 +233,79 @@ export const setGameStatus = (
   if (!statusExists(db, status)) throw new UnknownStatusError(status);
   if (!gameExists(db, canonicalId)) throw new UnknownGameError(canonicalId);
 
-  const current = getStatusRow(db, canonicalId);
-  if (
-    status === 'backlog' ||
-    current == null ||
-    current.status === 'backlog'
-  ) {
-    materializeBacklog(db);
-  }
+  const columnRows = readBoardRows(db).filter(
+    (row) =>
+      row.canonical_id !== canonicalId && (row.status ?? 'backlog') === status,
+  );
+  const display = mergeColumn(columnRows);
+  const rank = new Map(display.map((row, index) => [row.canonical_id, index + 1]));
 
-  const resolveNeighbor = (id: string | null | undefined) => {
-    if (!id || id === canonicalId) return null;
-    const row = getStatusRow(db, id);
-    if (!row || row.status !== status || row.position == null) return null;
-    return row.position;
-  };
+  const beforeRank =
+    neighbors.beforeId != null ? rank.get(neighbors.beforeId) : undefined;
+  const afterRank =
+    neighbors.afterId != null ? rank.get(neighbors.afterId) : undefined;
 
-  const prev = resolveNeighbor(neighbors.beforeId);
-  const next = resolveNeighbor(neighbors.afterId);
-
-  let position: number;
-  if (prev != null && next != null) {
-    if (needsReindex(prev, next)) {
-      reindexColumn(db, status);
-      const prev2 = resolveNeighbor(neighbors.beforeId);
-      const next2 = resolveNeighbor(neighbors.afterId);
-      position =
-        prev2 != null && next2 != null
-          ? (prev2 + next2) / 2
-          : prev2 != null
-            ? prev2 + 1
-            : next2 != null
-              ? next2 - 1
-              : maxColumnPosition(db, status) + 1;
-    } else {
-      position = (prev + next) / 2;
-    }
-  } else if (prev != null) {
-    position = prev + 1;
-  } else if (next != null) {
-    position = next - 1;
+  let slot: number;
+  if (beforeRank != null) {
+    slot = beforeRank + 1;
+  } else if (afterRank != null) {
+    slot = Math.max(1, afterRank - 1);
   } else {
-    position = maxColumnPosition(db, status) + 1;
+    slot = display.length + 1;
   }
 
-  upsertGameStatus(db, canonicalId, status, position);
+  const newDisplay = [...display];
+  newDisplay.splice(Math.min(slot - 1, newDisplay.length), 0, {
+    canonical_id: canonicalId,
+    position: slot,
+    pinned: 1,
+  } as BoardRow);
+  const position = newDisplay.findIndex((row) => row.canonical_id === canonicalId) + 1;
+
+  db.exec('BEGIN');
+  try {
+    upsertGameStatus(db, canonicalId, status, position, 1);
+    const updatePinned = db.prepare(
+      'UPDATE game_status SET position = ? WHERE canonical_id = ? AND pinned = 1',
+    );
+    for (let index = 0; index < newDisplay.length; index++) {
+      const row = newDisplay[index];
+      if (row.canonical_id === canonicalId) continue;
+      if (!row.pinned) continue;
+      updatePinned.run(index + 1, row.canonical_id);
+    }
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
+
   return { canonicalId, status, position };
+};
+
+/**
+ * Return a game to the auto flow (P2.2a). Backlog rows are deleted
+ * (the lazy no-row backlog order takes over, notes preserved by keeping
+ * the row unpinned); other statuses keep their row with pinned=0.
+ */
+export const unpinGame = (
+  db: DatabaseSync,
+  canonicalId: string,
+): UnpinResult => {
+  if (!gameExists(db, canonicalId)) throw new UnknownGameError(canonicalId);
+
+  const row = getStatusRow(db, canonicalId);
+  if (!row) {
+    return { canonicalId, status: 'backlog', pinned: false };
+  }
+
+  if (row.status === 'backlog' && row.notes == null) {
+    db.prepare('DELETE FROM game_status WHERE canonical_id = ?').run(canonicalId);
+  } else {
+    db.prepare(
+      'UPDATE game_status SET pinned = 0, position = NULL WHERE canonical_id = ?',
+    ).run(canonicalId);
+  }
+
+  return { canonicalId, status: row.status, pinned: false };
 };

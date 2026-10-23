@@ -139,11 +139,18 @@ describe('migrate', () => {
       ['dropped', 'Dropped', 7],
     ] as const;
     for (const [key, label, position] of old) insert.run(key, label, position, '#000000');
+    // a pre-pin-model row: materialized position, must come out unpinned
+    raw
+      .prepare(
+        "INSERT INTO game_status (canonical_id, status, position) VALUES ('steam:1', 'playing', 4)",
+      )
+      .run();
 
     const applied = migrate(raw);
 
-    // #3 (recurrent + renumber) and #4 (unavailable_reason column)
-    expect(applied).toBe(2);
+    // #3 (recurrent + renumber), #4 (unavailable_reason), #5 (pinned),
+    // #6 (un-pin pre-model materialized rows)
+    expect(applied).toBe(4);
     const rows = raw
       .prepare('SELECT key, position FROM statuses ORDER BY position')
       .all() as { key: string; position: number }[];
@@ -163,6 +170,15 @@ describe('migrate', () => {
       .prepare('PRAGMA table_info(games)')
       .all() as { name: string }[];
     expect(cols.map((c) => c.name)).toContain('unavailable_reason');
+    const statusCols = raw
+      .prepare('PRAGMA table_info(game_status)')
+      .all() as { name: string; dflt_value: string | null }[];
+    expect(statusCols.map((c) => c.name)).toContain('pinned');
+    // #6 data fix: the pre-existing row was materialized, not hand-pinned
+    const gs = raw
+      .prepare('SELECT pinned, position FROM game_status WHERE canonical_id = ?')
+      .get('steam:1') as { pinned: number; position: number | null };
+    expect(gs).toEqual({ pinned: 0, position: null });
     raw.close();
   });
 });

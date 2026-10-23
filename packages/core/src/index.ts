@@ -59,11 +59,12 @@ export {
   listStatuses,
   getLibraryGames,
   setGameStatus,
-  materializeBacklog,
+  unpinGame,
   UnknownStatusError,
   UnknownGameError,
   type StatusEntry,
   type LibraryGame,
   type SetStatusResult,
+  type UnpinResult,
   installSqliteWarningSuppression,
 } from './db/index';
