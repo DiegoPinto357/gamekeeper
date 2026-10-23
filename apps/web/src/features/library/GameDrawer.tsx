@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { ChevronDown, X } from 'lucide-react';
 import type { LibraryGame, StatusEntry } from '@gamekeeper/shared';
 import { Badge } from '@/components/ui/badge';
+import { CoverImage } from './CoverImage';
+import { SourceBadge } from './SourceBadge';
+import { UnavailableBadge } from './UnavailableBadge';
 
 export type GameDrawerProps = {
   game: LibraryGame;
@@ -47,29 +50,27 @@ export const GameDrawer = ({
         </div>
 
         <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
-          {game.coverImageUrl ? (
-            <img
-              src={game.coverImageUrl}
-              alt={game.name}
-              className="w-full rounded-lg object-cover bg-muted"
-            />
-          ) : (
-            <div className="flex aspect-3/4 max-h-64 w-full items-center justify-center rounded-lg bg-muted text-4xl font-bold text-muted-foreground">
-              {game.name.charAt(0)}
-            </div>
-          )}
+          <CoverImage
+            src={game.coverImageUrl}
+            alt={game.name}
+            className="w-full rounded-lg object-cover bg-muted"
+            fallback={
+              <div className="flex aspect-3/4 max-h-64 w-full items-center justify-center rounded-lg bg-muted text-4xl font-bold text-muted-foreground">
+                {game.name.charAt(0)}
+              </div>
+            }
+          />
 
           <div className="flex flex-wrap items-center gap-1.5">
             {game.ownedSources.map(source => (
-              <Badge key={source} variant="secondary">
-                {source}
-              </Badge>
+              <SourceBadge key={source} source={source} />
             ))}
             {game.playtimeHours != null && game.playtimeHours > 0 && (
               <Badge variant="outline">
                 {Math.round(game.playtimeHours)}h played
               </Badge>
             )}
+            {game.unavailableReason && <UnavailableBadge />}
           </div>
 
           <div className="relative">

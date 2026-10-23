@@ -4,6 +4,9 @@ import { CSS } from '@dnd-kit/utilities';
 import type { LibraryGame } from '@gamekeeper/shared';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { CoverImage } from './CoverImage';
+import { SourceBadge } from './SourceBadge';
+import { UnavailableBadge } from './UnavailableBadge';
 
 export type BoardCardProps = {
   game: LibraryGame;
@@ -20,31 +23,32 @@ export const BoardCardFace = memo(
     return (
       <div
         className={cn(
-          'flex items-center gap-2 rounded-md border bg-card p-2 shadow-sm transition-colors hover:bg-accent/40',
+          'flex flex-col gap-2 rounded-lg border bg-card p-2.5 shadow-sm transition-colors hover:bg-accent/40',
           className,
         )}
       >
-        {game.coverImageUrl ? (
-          <img
-            src={game.coverImageUrl}
-            alt=""
-            loading="lazy"
-            className="h-14 w-10 shrink-0 rounded object-cover bg-muted"
-          />
-        ) : (
-          <div
-            aria-hidden
-            className="flex h-14 w-10 shrink-0 items-center justify-center rounded bg-muted text-sm font-semibold text-muted-foreground"
-          >
-            {game.name.charAt(0)}
-          </div>
-        )}
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium leading-tight">{game.name}</p>
-          <div className="mt-1 flex flex-wrap items-center gap-1">
-            <Badge variant="secondary">{game.primarySource}</Badge>
-            {playtime && <Badge variant="outline">{playtime}</Badge>}
-          </div>
+        <CoverImage
+          src={game.coverImageUrl}
+          alt=""
+          className="aspect-video w-full rounded-md bg-muted object-cover"
+          fallback={
+            <div
+              aria-hidden
+              className="flex aspect-2/1 w-full items-center justify-center rounded-md bg-muted text-3xl font-bold text-muted-foreground"
+            >
+              {game.name.charAt(0)}
+            </div>
+          }
+        />
+        <p className="text-sm font-medium leading-snug wrap-break-words">
+          {game.name}
+        </p>
+        <div className="flex flex-wrap items-center gap-1">
+          {game.ownedSources.map(source => (
+            <SourceBadge key={source} source={source} />
+          ))}
+          {playtime && <Badge variant="outline">{playtime}</Badge>}
+          {game.unavailableReason && <UnavailableBadge />}
         </div>
       </div>
     );

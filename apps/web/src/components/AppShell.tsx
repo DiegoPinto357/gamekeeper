@@ -13,14 +13,14 @@ const navItems = [
   { to: '/gamepass', label: 'Game Pass' },
 ] as const;
 
-export function AppShell() {
+export const AppShell = () => {
   const { theme, toggle } = useTheme();
   const [syncOpen, setSyncOpen] = useState(false);
   const { state, startError, starting, start } = useSyncEvents();
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b px-6 py-4 flex items-center justify-between gap-4">
+    <div className="flex h-screen flex-col overflow-hidden bg-background text-foreground">
+      <header className="shrink-0 border-b px-6 py-4 flex items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">🎮 GameKeeper</h1>
@@ -55,7 +55,7 @@ export function AppShell() {
           </Button>
         </div>
       </header>
-      <main className="px-6 py-6">
+      <main className="min-h-0 flex-1 overflow-y-auto px-6 py-6">
         <Outlet />
       </main>
       <SyncPanel

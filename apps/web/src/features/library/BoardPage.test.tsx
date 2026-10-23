@@ -265,4 +265,62 @@ describe('BoardPage', () => {
     expect(screen.queryByText('Hades II')).not.toBeInTheDocument();
     expect(within(column('backlog')).getByTestId('column-count')).toHaveTextContent('1');
   });
+
+  it('clears the search via the clear button inside the input', async () => {
+    const user = userEvent.setup();
+    await renderWith([
+      game('steam:a', 'Hades II'),
+      game('steam:b', 'Celeste'),
+    ]);
+
+    const input = screen.getByPlaceholderText(/search games/i);
+    await user.type(input, 'Celeste');
+    expect(screen.queryByText('Hades II')).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /clear search/i }));
+
+    expect(input).toHaveValue('');
+    expect(screen.getByText('Hades II')).toBeInTheDocument();
+    expect(screen.getByText('Celeste')).toBeInTheDocument();
+  });
+
+  it('renders one colored badge per owned source', async () => {
+    await renderWith([
+      game('steam:a', 'Hades II', null, null, {
+        primarySource: 'steam',
+        ownedSources: ['steam', 'gog', 'epic'],
+      }),
+    ]);
+
+    const card = within(column('backlog')).getByText('Hades II').closest('[data-testid="board-card"]')!;
+    const badges = within(card as HTMLElement).getAllByTestId('source-badge');
+    expect(badges.map(badge => badge.getAttribute('data-source'))).toEqual([
+      'steam',
+      'gog',
+      'epic',
+    ]);
+  });
+
+  it('shows the Not available badge on the card and in the drawer', async () => {
+    const user = userEvent.setup();
+    await renderWith([
+      game('steam:a', 'Hades II'),
+      game('gp:b', 'Clair Obscur: Expedition 33', null, null, {
+        primarySource: 'gamepass',
+        ownedSources: ['gamepass'],
+        unavailableReason: 'interest-unavailable',
+      }),
+    ]);
+
+    expect(within(column('backlog')).getByTestId('unavailable-badge')).toBeInTheDocument();
+    expect(within(column('backlog')).getByText('Clair Obscur: Expedition 33')).toBeInTheDocument();
+
+    await user.click(screen.getByText('Clair Obscur: Expedition 33'));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByTestId('unavailable-badge')).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole('button', { name: /close drawer/i }));
+    expect(within(column('backlog')).queryByText('Hades II')).toBeInTheDocument();
+    expect(within(column('backlog')).getAllByTestId('board-card')).toHaveLength(2);
+  });
 });

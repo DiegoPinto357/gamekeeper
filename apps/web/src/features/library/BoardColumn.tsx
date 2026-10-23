@@ -34,10 +34,10 @@ export const BoardColumn = ({
     <section
       data-testid={`column-${status.key}`}
       aria-label={status.label}
-      className="flex w-72 shrink-0 flex-col rounded-lg border bg-muted/30"
+      className="flex w-80 max-h-full shrink-0 flex-col rounded-lg border bg-muted/30"
     >
       <div data-testid="board-column" className="flex min-h-0 flex-1 flex-col">
-        <header className="flex items-center gap-2 border-b px-3 py-2">
+        <header className="flex shrink-0 items-center gap-2 border-b px-3 py-2">
           <span
             aria-hidden
             className="size-2.5 shrink-0 rounded-full"
@@ -56,7 +56,7 @@ export const BoardColumn = ({
 
         <div
           ref={setNodeRef}
-          className="flex min-h-24 flex-1 flex-col gap-2 overflow-y-auto p-2"
+          className="flex min-h-24 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain p-2"
         >
           <SortableContext
             items={visible.map(game => game.canonicalId)}
