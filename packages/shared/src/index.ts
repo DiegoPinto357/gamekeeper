@@ -28,6 +28,8 @@ export type LibraryGame = {
   ownedSources: string[];
   status: string | null;
   position: number | null;
+  /** Manually prioritized (drag-pinned); false = flows live by last played. */
+  pinned: boolean;
   /** Reason the game left its source's catalog (e.g. 'interest-unavailable'). */
   unavailableReason?: string;
 };
@@ -41,4 +43,10 @@ export type GameStatusResult = {
   canonicalId: string;
   status: string;
   position: number;
+};
+
+export type UnpinResult = {
+  canonicalId: string;
+  status: string;
+  pinned: false;
 };

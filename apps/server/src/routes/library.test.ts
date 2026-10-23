@@ -124,12 +124,13 @@ describe('library routes', () => {
     const library = await getLibrary();
     const moved = library.games.find(g => g.canonicalId === 'steam:2');
     const untouched = library.games.find(g => g.canonicalId === 'steam:1');
-    expect(moved).toMatchObject({ status: 'playing', position: 1 });
-    // moving out of default Backlog materialized the remaining no-status games
-    expect(untouched).toMatchObject({ status: 'backlog', position: 1 });
+    expect(moved).toMatchObject({ status: 'playing', position: 1, pinned: true });
+    // the pin model never bulk-materializes: the remaining game stays in the
+    // lazy no-row backlog
+    expect(untouched).toMatchObject({ status: null, position: null, pinned: false });
   });
 
-  it('PATCH respects neighbor ids (midpoint between beforeId and afterId)', async () => {
+  it('PATCH respects neighbor ids (insert between two display neighbors)', async () => {
     upsertGames(seedDb.raw, [
       makeGame('steam:1', 'Alpha'),
       makeGame('steam:2', 'Beta'),
@@ -153,16 +154,21 @@ describe('library routes', () => {
     });
 
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toMatchObject({ status: 'playing', position: 1.5 });
+    expect(res.json()).toMatchObject({ status: 'playing', position: 2 });
 
     const library = await getLibrary();
     expect(library.games.find(g => g.canonicalId === 'steam:3')).toMatchObject({
       status: 'playing',
-      position: 1.5,
+      position: 2,
+      pinned: true,
     });
+    const playing = library.games
+      .filter(g => g.status === 'playing')
+      .map(g => g.canonicalId);
+    expect(playing).toEqual(['steam:1', 'steam:3', 'steam:2']);
   });
 
-  it('re-PATCH same status is idempotent and recomputes position', async () => {
+  it('re-PATCH same status re-pins at the new slot', async () => {
     upsertGames(seedDb.raw, [
       makeGame('steam:1', 'Alpha'),
       makeGame('steam:2', 'Beta'),
@@ -173,12 +179,25 @@ describe('library routes', () => {
     expect(first.statusCode).toBe(200);
     expect(first.json()).toMatchObject({ status: 'queued_to_play', position: 1 });
 
-    const second = await patchStatus('steam:3', {
+    const second = await patchStatus('steam:1', {
       status: 'queued_to_play',
-      beforeId: 'steam:1',
+      beforeId: 'steam:3',
     });
     expect(second.statusCode).toBe(200);
     expect(second.json()).toMatchObject({ status: 'queued_to_play', position: 2 });
+
+    const third = await patchStatus('steam:3', {
+      status: 'queued_to_play',
+      beforeId: 'steam:1',
+    });
+    expect(third.statusCode).toBe(200);
+    expect(third.json()).toMatchObject({ status: 'queued_to_play', position: 2 });
+
+    const library = await getLibrary();
+    const queued = library.games
+      .filter(g => g.status === 'queued_to_play')
+      .map(g => g.canonicalId);
+    expect(queued).toEqual(['steam:1', 'steam:3']);
   });
 
   it('PATCH unknown game returns 404', async () => {
@@ -222,5 +241,55 @@ describe('library routes', () => {
       .get('steam:1') as { updated_at: string };
     expect(after.updated_at).toBeTruthy();
     expect(after.updated_at > before.updated_at).toBe(true);
+  });
+
+  const unpin = (id: string) =>
+    app.inject({
+      method: 'POST',
+      url: `/api/library/games/${encodeURIComponent(id)}/unpin`,
+    });
+
+  it('POST /api/library/games/:id/unpin clears the pin for a non-backlog status', async () => {
+    upsertGames(seedDb.raw, [makeGame('steam:1', 'Alpha')]);
+    await patchStatus('steam:1', { status: 'playing' });
+
+    const res = await unpin('steam:1');
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({
+      canonicalId: 'steam:1',
+      status: 'playing',
+      pinned: false,
+    });
+
+    const library = await getLibrary();
+    expect(library.games.find(g => g.canonicalId === 'steam:1')).toMatchObject({
+      status: 'playing',
+      pinned: false,
+      position: null,
+    });
+  });
+
+  it('POST /api/library/games/:id/unpin removes a backlog row (lazy auto flow)', async () => {
+    upsertGames(seedDb.raw, [makeGame('steam:1', 'Alpha')]);
+    await patchStatus('steam:1', { status: 'backlog', beforeId: null });
+
+    const res = await unpin('steam:1');
+    expect(res.statusCode).toBe(200);
+
+    const rows = seedDb.raw
+      .prepare('SELECT COUNT(*) AS c FROM game_status')
+      .get() as { c: number };
+    expect(rows.c).toBe(0);
+
+    const library = await getLibrary();
+    expect(library.games.find(g => g.canonicalId === 'steam:1')).toMatchObject({
+      status: null,
+      pinned: false,
+    });
+  });
+
+  it('POST /api/library/games/:id/unpin unknown game returns 404', async () => {
+    const res = await unpin('steam:999');
+    expect(res.statusCode).toBe(404);
   });
 });

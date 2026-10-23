@@ -3,11 +3,17 @@ import {
   getLibraryGames,
   listStatuses,
   setGameStatus,
+  unpinGame,
   UnknownGameError,
   UnknownStatusError,
   type Db,
 } from '@gamekeeper/core';
-import type { LibraryGame, LibraryResponse, GameStatusResult } from '@gamekeeper/shared';
+import type {
+  LibraryGame,
+  LibraryResponse,
+  GameStatusResult,
+  UnpinResult,
+} from '@gamekeeper/shared';
 
 export type LibraryRouteOptions = {
   db: Db;
@@ -28,6 +34,7 @@ const toLibraryGame = (game: {
   ownedSources: string[];
   status: string | null;
   position: number | null;
+  pinned: boolean;
   unavailableReason: string | null;
 }): LibraryGame => ({
   canonicalId: game.canonicalId,
@@ -38,6 +45,7 @@ const toLibraryGame = (game: {
   ownedSources: game.ownedSources,
   status: game.status,
   position: game.position,
+  pinned: game.pinned,
   unavailableReason: game.unavailableReason ?? undefined,
 });
 
@@ -97,6 +105,22 @@ export const registerLibraryRoutes = (
           return reply
             .status(400)
             .send({ error: `unknown status: ${body.status}` });
+        }
+        throw err;
+      }
+    },
+  );
+
+  app.post<{ Params: { id: string } }>(
+    '/api/library/games/:id/unpin',
+    async (req, reply) => {
+      const { id } = req.params;
+      try {
+        const result: UnpinResult = unpinGame(db.raw, id);
+        return reply.send(result);
+      } catch (err) {
+        if (err instanceof UnknownGameError) {
+          return reply.status(404).send({ error: `unknown game: ${id}` });
         }
         throw err;
       }
