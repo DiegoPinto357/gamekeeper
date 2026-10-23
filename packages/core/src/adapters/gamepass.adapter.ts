@@ -14,6 +14,10 @@ export type GamePassGame = {
   releaseDate?: string;
   firstSeenAt?: string;
   catalogPosition?: number;
+  description?: string;
+  genres?: string[];
+  developer?: string;
+  publisher?: string;
 };
 
 /**
@@ -74,19 +78,25 @@ const writeCache = async (
 export const mapProduct = (product: any): GamePassGame | null => {
   const title: string = product.LocalizedProperties?.[0]?.ProductTitle || '';
   if (!title) return null;
-  const images: any[] = product.LocalizedProperties?.[0]?.Images ?? [];
+  const localized = product.LocalizedProperties?.[0];
+  const images: any[] = localized?.Images ?? [];
   const boxArt = images.find((img: any) => img.ImagePurpose === 'BoxArt');
   const poster = images.find((img: any) => img.ImagePurpose === 'Poster');
   const imageEntry = boxArt ?? poster;
   const coverImageUrl = imageEntry?.Uri ? `https:${imageEntry.Uri}` : undefined;
   const releaseDate: string | undefined =
     product.MarketProperties?.[0]?.OriginalReleaseDate ?? undefined;
+  const categories: string[] | undefined = product.Properties?.Categories;
   return {
     id: product.ProductId || title.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
     title,
     available: true,
     coverImageUrl,
     releaseDate,
+    description: localized?.ProductDescription ?? localized?.ShortDescription,
+    genres: categories?.length ? categories : undefined,
+    developer: localized?.DeveloperName,
+    publisher: localized?.PublisherName,
   };
 };
 

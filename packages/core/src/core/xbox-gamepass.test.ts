@@ -363,6 +363,34 @@ describe('xbox-gamepass', () => {
       expect(result[0].name).toBe('Call of Duty: Modern Warfare');
     });
 
+    it('carries catalog description/genres/developer/publisher into RawGameData', async () => {
+      vi.mocked(fs.readFile).mockResolvedValue(
+        JSON.stringify({ wantToPlay: ['Starfield'] }),
+      );
+
+      const catalog = [
+        {
+          id: 'starfield-id',
+          title: 'Starfield',
+          available: true,
+          description: 'Space RPG.',
+          genres: ['Role-playing (RPG)'],
+          developer: 'Bethesda Game Studios',
+          publisher: 'Bethesda Softworks',
+        },
+      ];
+      const result = await getInterestGamesToSync(catalog, []);
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        name: 'Starfield',
+        description: 'Space RPG.',
+        genres: ['Role-playing (RPG)'],
+        developer: 'Bethesda Game Studios',
+        publisher: 'Bethesda Softworks',
+      });
+    });
+
     it('deduplicates interests that normalize to the same name', async () => {
       vi.mocked(fs.readFile).mockResolvedValue(
         JSON.stringify({

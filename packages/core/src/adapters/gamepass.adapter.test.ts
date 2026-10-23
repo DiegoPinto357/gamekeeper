@@ -93,4 +93,35 @@ describe('gamepass.adapter — mapProduct', () => {
     const result = mapProduct({ ProductId: 'PROD123' });
     expect(result).toBeNull();
   });
+
+  it('extracts description/genres(Categories)/developer/publisher', () => {
+    const result = mapProduct(
+      makeProduct({
+        lp: {
+          ProductDescription: 'A thrilling sci-fi adventure.',
+          DeveloperName: 'Signal Loop',
+          PublisherName: 'Fellow Traveller',
+        },
+        root: { Properties: { Categories: ['Adventure', 'Indie'] } },
+      }),
+    );
+
+    expect(result).toMatchObject({
+      description: 'A thrilling sci-fi adventure.',
+      genres: ['Adventure', 'Indie'],
+      developer: 'Signal Loop',
+      publisher: 'Fellow Traveller',
+    });
+  });
+
+  it('falls back to ShortDescription and omits absent metadata', () => {
+    const result = mapProduct(
+      makeProduct({ lp: { ShortDescription: 'Short desc.' } }),
+    );
+
+    expect(result?.description).toBe('Short desc.');
+    expect(result?.genres).toBeUndefined();
+    expect(result?.developer).toBeUndefined();
+    expect(result?.publisher).toBeUndefined();
+  });
 });

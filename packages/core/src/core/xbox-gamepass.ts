@@ -329,6 +329,10 @@ export const selectInterestGames = async (
       externalId: `gamepass-interest-${catalogGame.id}`,
       playtimeHours: wasPlayed ? undefined : 0,
       coverImageUrl: catalogGame.coverImageUrl,
+      description: catalogGame.description,
+      genres: catalogGame.genres,
+      developer: catalogGame.developer,
+      publisher: catalogGame.publisher,
     });
   }
 
