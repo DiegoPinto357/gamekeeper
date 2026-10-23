@@ -28,6 +28,8 @@ export type LibraryGame = {
   ownedSources: string[];
   status: string | null;
   position: number | null;
+  /** Reason the game left its source's catalog (e.g. 'interest-unavailable'). */
+  unavailableReason?: string;
 };
 
 export type LibraryResponse = {

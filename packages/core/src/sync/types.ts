@@ -121,6 +121,13 @@ export interface SyncIO {
     gamePassCatalog: GamePassGame[],
   ): Promise<{ unavailable: UnavailableGame[]; returned: string[] }>;
   saveUnavailableGames(unavailable: UnavailableGame[]): Promise<void>;
+  /**
+   * Reconcile games.unavailable_reason against the current snapshot
+   * (name-matched to canonical ids inside the implementation).
+   */
+  persistAvailability(
+    unavailable: UnavailableGame[],
+  ): Promise<{ flagged: number; cleared: number }>;
 }
 
 export type SyncDeps = {

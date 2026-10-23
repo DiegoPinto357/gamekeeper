@@ -55,6 +55,7 @@ type Harness = {
     writeGamesToDb: ReturnType<typeof vi.fn>;
     processGamePassAvailability: ReturnType<typeof vi.fn>;
     saveUnavailableGames: ReturnType<typeof vi.fn>;
+    persistAvailability: ReturnType<typeof vi.fn>;
   };
 };
 
@@ -125,6 +126,7 @@ const makeHarness = (overrides: Partial<SyncIO> = {}): Harness => {
       returned: ['hades'],
     }),
     saveUnavailableGames: vi.fn().mockResolvedValue(undefined),
+    persistAvailability: vi.fn().mockResolvedValue({ flagged: 1, cleared: 0 }),
   };
 
   const io: SyncIO = { ...ioSpies, ...overrides } as SyncIO;
@@ -287,6 +289,37 @@ describe('runSync', () => {
     // interest-games still runs (interests are loaded independently)
     expect(eventKeys(h.events)).toContain('step:done:interest-games');
     expect(eventKeys(h.events).at(-1)).toBe('summary');
+    // availability is skipped (libraryOk=false) — never touch DB flags
+    expect(eventKeys(h.events)).toContain('step:skip:availability');
+    expect(h.ioSpies.persistAvailability).not.toHaveBeenCalled();
+  });
+
+  it('persists availability to the DB keyed by canonical id (even when empty)', async () => {
+    const h = makeHarness();
+    await run(h);
+
+    expect(h.ioSpies.persistAvailability).toHaveBeenCalledTimes(1);
+    expect(h.ioSpies.persistAvailability).toHaveBeenCalledWith([
+      { name: 'Old Game', reason: 'left-catalog' },
+    ]);
+    expect(h.ioSpies.saveUnavailableGames).toHaveBeenCalledWith([
+      { name: 'Old Game', reason: 'left-catalog' },
+    ]);
+  });
+
+  it('clears DB availability flags when everything is available again', async () => {
+    const h = makeHarness({
+      processGamePassAvailability: vi.fn().mockResolvedValue({
+        unavailable: [],
+        returned: ['hades'],
+      }),
+    });
+    h.ioSpies.persistAvailability.mockResolvedValue({ flagged: 0, cleared: 3 });
+
+    await run(h);
+
+    expect(h.ioSpies.persistAvailability).toHaveBeenCalledWith([]);
+    expect(h.ioSpies.saveUnavailableGames).not.toHaveBeenCalled();
   });
 
   it('aborts on Notion verify failure: step:error, summary emitted, then throws', async () => {

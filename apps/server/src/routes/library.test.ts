@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import type { FastifyInstance } from 'fastify';
-import { openDb, upsertGames, type Db } from '@gamekeeper/core';
+import { openDb, upsertGames, reconcileUnavailableReasons, type Db } from '@gamekeeper/core';
 import type { LibraryResponse, GameStatusResult } from '@gamekeeper/shared';
 import { buildApp } from '../app';
 
@@ -88,6 +88,22 @@ describe('library routes', () => {
       status: null,
       position: null,
     });
+  });
+
+  it('GET /api/library exposes unavailableReason and omits it when available', async () => {
+    upsertGames(seedDb.raw, [
+      makeGame('steam:1', 'Alpha'),
+      makeGame('gp:1', 'Beta'),
+    ]);
+    reconcileUnavailableReasons(seedDb.raw, [
+      { canonicalId: 'gp:1', reason: 'interest-unavailable' },
+    ]);
+
+    const library = await getLibrary();
+    const alpha = library.games.find(g => g.canonicalId === 'steam:1');
+    const beta = library.games.find(g => g.canonicalId === 'gp:1');
+    expect(beta?.unavailableReason).toBe('interest-unavailable');
+    expect(alpha?.unavailableReason).toBeUndefined();
   });
 
   it('PATCH /api/games/:id/status moves the game and shows it in the new column on refetch', async () => {

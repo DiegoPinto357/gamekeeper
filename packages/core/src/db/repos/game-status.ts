@@ -19,6 +19,7 @@ export type LibraryGame = {
   ownedSources: Source[];
   status: string | null;
   position: number | null;
+  unavailableReason: string | null;
 };
 
 export type SetStatusResult = {
@@ -61,6 +62,7 @@ export const getLibraryGames = (db: DatabaseSync): LibraryGame[] => {
         g.playtime_hours,
         g.primary_source,
         g.owned_sources,
+        g.unavailable_reason,
         gs.status,
         gs.position
       FROM games g
@@ -80,6 +82,7 @@ export const getLibraryGames = (db: DatabaseSync): LibraryGame[] => {
     playtime_hours: number | null;
     primary_source: Source;
     owned_sources: string;
+    unavailable_reason: string | null;
     status: string | null;
     position: number | null;
   }[];
@@ -91,6 +94,7 @@ export const getLibraryGames = (db: DatabaseSync): LibraryGame[] => {
     playtimeHours: row.playtime_hours,
     primarySource: row.primary_source,
     ownedSources: JSON.parse(row.owned_sources) as Source[],
+    unavailableReason: row.unavailable_reason,
     status: row.status,
     position: row.position,
   }));

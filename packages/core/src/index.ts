@@ -54,6 +54,8 @@ export {
   getGame,
   listGames,
   rebuildGamesFts,
+  reconcileUnavailableReasons,
+  type UnavailableFlag,
   listStatuses,
   getLibraryGames,
   setGameStatus,

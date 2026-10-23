@@ -101,6 +101,57 @@ export const upsertGames = (
   return games.length;
 };
 
+export type UnavailableFlag = {
+  canonicalId: string;
+  reason: string;
+};
+
+/**
+ * Reconcile the games.unavailable_reason column against the current
+ * availability snapshot: flag the given games, clear every other flag.
+ * The snapshot is authoritative — an empty list clears all flags.
+ */
+export const reconcileUnavailableReasons = (
+  db: DatabaseSync,
+  flagged: UnavailableFlag[],
+): { flagged: number; cleared: number } => {
+  const setStmt = db.prepare(
+    `
+    UPDATE games SET unavailable_reason = ?
+    WHERE canonical_id = ?
+      AND COALESCE(unavailable_reason, '') != ?
+    `,
+  );
+  const clearStmt = db.prepare(
+    'UPDATE games SET unavailable_reason = NULL WHERE unavailable_reason IS NOT NULL',
+  );
+  const clearExcludedStmt = db.prepare(
+    `UPDATE games SET unavailable_reason = NULL
+     WHERE unavailable_reason IS NOT NULL
+       AND canonical_id NOT IN (${flagged.map(() => '?').join(', ')})`,
+  );
+
+  db.exec('BEGIN');
+  try {
+    const cleared = Number(
+      (flagged.length > 0
+        ? clearExcludedStmt.run(...flagged.map((flag) => flag.canonicalId))
+        : clearStmt.run()
+      ).changes,
+    );
+    let flagCount = 0;
+    for (const flag of flagged) {
+      const result = setStmt.run(flag.reason, flag.canonicalId, flag.reason);
+      flagCount += Number(result.changes);
+    }
+    db.exec('COMMIT');
+    return { flagged: flagCount, cleared };
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
+};
+
 export const getGame = (
   db: DatabaseSync,
   canonicalId: string,

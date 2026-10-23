@@ -142,7 +142,8 @@ describe('migrate', () => {
 
     const applied = migrate(raw);
 
-    expect(applied).toBe(1);
+    // #3 (recurrent + renumber) and #4 (unavailable_reason column)
+    expect(applied).toBe(2);
     const rows = raw
       .prepare('SELECT key, position FROM statuses ORDER BY position')
       .all() as { key: string; position: number }[];
@@ -158,6 +159,10 @@ describe('migrate', () => {
       'dropped',
     ]);
     expect(rows.map((r) => r.position)).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+    const cols = raw
+      .prepare('PRAGMA table_info(games)')
+      .all() as { name: string }[];
+    expect(cols.map((c) => c.name)).toContain('unavailable_reason');
     raw.close();
   });
 });

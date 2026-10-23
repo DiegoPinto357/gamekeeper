@@ -28,6 +28,7 @@ const toLibraryGame = (game: {
   ownedSources: string[];
   status: string | null;
   position: number | null;
+  unavailableReason: string | null;
 }): LibraryGame => ({
   canonicalId: game.canonicalId,
   name: game.name,
@@ -37,6 +38,7 @@ const toLibraryGame = (game: {
   ownedSources: game.ownedSources,
   status: game.status,
   position: game.position,
+  unavailableReason: game.unavailableReason ?? undefined,
 });
 
 const optionalId = (value: unknown): string | null | undefined => {

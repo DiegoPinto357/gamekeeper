@@ -135,4 +135,9 @@ export const MIGRATIONS: string[] = [
     'playing', 'paused', 'completed', 'dropped'
   );
   `,
+  `
+  -- P2.1: catalog-availability flag (e.g. left Game Pass), written by the
+  -- sync availability step, keyed by canonical id (the JSON report has names only)
+  ALTER TABLE games ADD COLUMN unavailable_reason TEXT;
+  `,
 ];

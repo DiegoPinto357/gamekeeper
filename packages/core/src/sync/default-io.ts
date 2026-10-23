@@ -16,7 +16,8 @@ import { createProtonDBAdapter } from '../adapters/protondb.adapter';
 import { createGamePassAdapter } from '../adapters/gamepass.adapter';
 import { igdbAdapter } from '../adapters/igdb.adapter';
 import { createNotionClient } from '../notion/notion.client';
-import { openDb, upsertGames } from '../db/index';
+import { openDb, upsertGames, reconcileUnavailableReasons } from '../db/index';
+import { normalizeGameName, wordSortedKey } from '../core/normalize';
 import { log } from '../logger';
 import type { Config, RawGameData, UnifiedGame } from '../types/game';
 import type { GamePassGame } from '../adapters/gamepass.adapter';
@@ -201,4 +202,35 @@ export const defaultSyncIO: SyncIO = {
 
   saveUnavailableGames: (unavailable: UnavailableGame[]) =>
     saveAvailabilityReport(unavailable),
+
+  persistAvailability: (unavailable: UnavailableGame[]) => {
+    const db = openDb();
+    try {
+      const rows = db.raw
+        .prepare('SELECT canonical_id, name FROM games')
+        .all() as { canonical_id: string; name: string }[];
+      // Two lookup keys per game: exact normalized name, plus a
+      // word-sorted key so swapped subtitle orders still match
+      // ("Senua's Saga: Hellblade II" ↔ "Hellblade II: Senua's Saga").
+      const byName = new Map<string, string>();
+      const addKey = (key: string, canonicalId: string) => {
+        if (!byName.has(key)) byName.set(key, canonicalId);
+      };
+      for (const row of rows) {
+        addKey(normalizeGameName(row.name), row.canonical_id);
+        addKey(wordSortedKey(row.name), row.canonical_id);
+      }
+      const findCanonicalId = (name: string): string | undefined =>
+        byName.get(normalizeGameName(name)) ?? byName.get(wordSortedKey(name));
+      const flagged = unavailable.flatMap(entry => {
+        const canonicalId = findCanonicalId(entry.name);
+        return canonicalId
+          ? [{ canonicalId, reason: entry.reason }]
+          : [];
+      });
+      return Promise.resolve(reconcileUnavailableReasons(db.raw, flagged));
+    } finally {
+      db.close();
+    }
+  },
 };

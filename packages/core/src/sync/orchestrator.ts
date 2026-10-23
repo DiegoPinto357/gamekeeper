@@ -437,6 +437,15 @@ export const runSync = async (
       } else {
         deps.logger.info('✅ All played/interest games are available');
       }
+      // The JSON report is name-keyed only; persist a canonical-id-keyed
+      // copy into the DB so the board can render "not available" badges.
+      // Always runs (even when empty) so recovered games clear their flag.
+      const persisted = await io.persistAvailability(unavailable);
+      if (persisted.flagged > 0 || persisted.cleared > 0) {
+        deps.logger.info(
+          `🗄️  Availability persisted: ${persisted.flagged} flagged, ${persisted.cleared} cleared`,
+        );
+      }
       return {
         value: { unavailable, returned },
         detail: unavailable.length

@@ -6,6 +6,8 @@ export {
   getGame,
   listGames,
   rebuildGamesFts,
+  reconcileUnavailableReasons,
+  type UnavailableFlag,
 } from './repos/games';
 export {
   listStatuses,

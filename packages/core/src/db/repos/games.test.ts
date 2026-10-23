@@ -9,6 +9,7 @@ import {
   getGame,
   listGames,
   rebuildGamesFts,
+  reconcileUnavailableReasons,
 } from './games';
 
 const makeGame = (overrides: Partial<UnifiedGame> = {}): UnifiedGame => ({
@@ -156,5 +157,72 @@ describe('games', () => {
     expect(getGame(db.raw, 'steam:3')).toBeUndefined();
     expect(listGames(db.raw).map((g) => g.canonicalId)).toEqual(['steam:1']);
     expect(searchFts(db.raw, 'good')).toEqual([]);
+  });
+
+  describe('reconcileUnavailableReasons', () => {
+    const reasons = (raw: Db['raw']): Record<string, string | null> => {
+      const rows = raw
+        .prepare('SELECT canonical_id, unavailable_reason FROM games')
+        .all() as { canonical_id: string; unavailable_reason: string | null }[];
+      return Object.fromEntries(
+        rows.map((row) => [row.canonical_id, row.unavailable_reason]),
+      );
+    };
+
+    it('flags games and clears flags for games absent from the snapshot', () => {
+      upsertGames(db.raw, [
+        makeGame({ canonicalId: 'gp:1', name: 'Clair Obscur: Expedition 33' }),
+        makeGame({ canonicalId: 'gp:2', name: 'Pacific Drive' }),
+        makeGame({ canonicalId: 'steam:1', name: 'Hades II' }),
+      ]);
+
+      reconcileUnavailableReasons(db.raw, [
+        { canonicalId: 'gp:1', reason: 'interest-unavailable' },
+      ]);
+      expect(reasons(db.raw)).toEqual({
+        'gp:1': 'interest-unavailable',
+        'gp:2': null,
+        'steam:1': null,
+      });
+
+      // next sync: gp:1 returned, gp:2 dropped — snapshot is authoritative
+      const result = reconcileUnavailableReasons(db.raw, [
+        { canonicalId: 'gp:2', reason: 'interest-unavailable' },
+      ]);
+      expect(result).toEqual({ flagged: 1, cleared: 1 });
+      expect(reasons(db.raw)).toEqual({
+        'gp:1': null,
+        'gp:2': 'interest-unavailable',
+        'steam:1': null,
+      });
+    });
+
+    it('an empty snapshot clears every flag', () => {
+      upsertGames(db.raw, [
+        makeGame({ canonicalId: 'gp:1' }),
+        makeGame({ canonicalId: 'gp:2' }),
+      ]);
+      reconcileUnavailableReasons(db.raw, [
+        { canonicalId: 'gp:1', reason: 'left-catalog' },
+        { canonicalId: 'gp:2', reason: 'left-catalog' },
+      ]);
+
+      const result = reconcileUnavailableReasons(db.raw, []);
+      expect(result).toEqual({ flagged: 0, cleared: 2 });
+      expect(reasons(db.raw)).toEqual({ 'gp:1': null, 'gp:2': null });
+    });
+
+    it('is idempotent: re-flagging the same reason reports no change', () => {
+      upsertGames(db.raw, [makeGame({ canonicalId: 'gp:1' })]);
+      reconcileUnavailableReasons(db.raw, [
+        { canonicalId: 'gp:1', reason: 'left-catalog' },
+      ]);
+
+      const result = reconcileUnavailableReasons(db.raw, [
+        { canonicalId: 'gp:1', reason: 'left-catalog' },
+      ]);
+      expect(result).toEqual({ flagged: 0, cleared: 0 });
+      expect(reasons(db.raw)['gp:1']).toBe('left-catalog');
+    });
   });
 });
