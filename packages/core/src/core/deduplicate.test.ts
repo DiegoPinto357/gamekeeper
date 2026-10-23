@@ -116,6 +116,25 @@ describe('deduplicate', () => {
       expect(unified.coverImageUrl).toBe('epic-cover.jpg');
     });
 
+    it('carries description/developer/publisher, falling back to siblings', () => {
+      const games: RawGameData[] = [
+        createGame('Test Game', 'epic', {
+          description: 'An epic tale.',
+          developer: 'Epic Studio',
+        }),
+        createGame('Test Game', 'steam', {
+          steamAppId: 12345,
+          publisher: 'Steam Pub',
+        }),
+      ];
+
+      const unified = mergeGameGroup(games);
+
+      expect(unified.description).toBe('An epic tale.');
+      expect(unified.developer).toBe('Epic Studio');
+      expect(unified.publisher).toBe('Steam Pub');
+    });
+
     it('tracks all owned sources', () => {
       const games: RawGameData[] = [
         createGame('Multi-Platform Game', 'steam', { steamAppId: 12345 }),

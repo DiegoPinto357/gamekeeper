@@ -305,6 +305,8 @@ Data already exists: `games.proton_json` has `tier` (platinum/gold/silver/bronze
 
 ### P3 — Metadata enrichment
 1. Local harvest: expand Heroic `store_cache` field usage — GOG/Amazon genres already flow; verify what `legendary_library`/`nile_library` expose beyond current mapping (Epic likely thin → IGDB covers the gap). Playnite retired — no `playnite.json` harvest
+
+   _Done. Heroic adapter now harvests: **GOG** — description (`extra.about.description`) + genres/developer/publisher/releaseDate merged from `gog_api_info.json` (localized `name['*']`, keyed `gog_<app_name>`, timestamp keys skipped, file optional); **Epic** — `developer` + `extra.about.description` (all 288 games; genres remain IGDB's job); **Amazon** — `description` + `developer`. `RawGameData`/`UnifiedGame` gain `description`/`developer`/`publisher`; dedupe merge carries them (primary ?? first populated sibling, like covers; genre/tag union still item 5). Real-data yield: 352 Heroic games — description 352, developer 351, publisher 61, genres 83, release 81._
 2. Steam `fetchAppDetails` (typed, never called): genres/categories/release/dev/pub/`header_image` → fixes zero Steam covers; ~1.2s/req, resumable via `enriched_at`, `--force`
 3. IGDB: persist `igdb_id` (currently discarded); fetch genres/themes/keywords/summary/similar_games/companies (4 req/s)
 4. MS Store: keep genres/description from displaycatalog response already fetched (Xbox coverage)

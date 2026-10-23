@@ -91,6 +91,9 @@ export const UnifiedGameSchema = z.object({
   coverImageUrl: z.string().optional(),
   releaseDate: z.date().optional(),
   genres: z.array(z.string()).optional(),
+  description: z.string().optional(),
+  developer: z.string().optional(),
+  publisher: z.string().optional(),
 
   // Tracking
   createdAt: z.date(),
@@ -112,6 +115,9 @@ export type RawGameData = {
   coverImageUrl?: string;
   releaseDate?: Date;
   genres?: string[];
+  description?: string;
+  developer?: string;
+  publisher?: string;
 };
 
 /**

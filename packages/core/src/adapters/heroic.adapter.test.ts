@@ -22,6 +22,9 @@ const makeEpicLibrary = (games: object[]) =>
 const makeAmazonLibrary = (games: object[]) =>
   JSON.stringify({ library: games, __timestamp: 0 });
 
+const makeGogApiInfo = (entries: Record<string, unknown>) =>
+  JSON.stringify({ ...entries, __timestamp: 0 });
+
 const gogGame = (overrides = {}) => ({
   app_name: 'gog-123',
   title: 'Fallout 2',
@@ -59,10 +62,12 @@ const mockLibraries = ({
   gog = [gogGame()],
   epic = [epicGame()],
   amazon = [amazonGame()],
+  gogApiInfo,
 }: {
   gog?: object[];
   epic?: object[];
   amazon?: object[];
+  gogApiInfo?: Record<string, unknown>;
 } = {}) => {
   mockReadFile.mockImplementation((filePath: string) => {
     if (filePath.endsWith('gog_library.json'))
@@ -71,6 +76,12 @@ const mockLibraries = ({
       return Promise.resolve(makeEpicLibrary(epic));
     if (filePath.endsWith('nile_library.json'))
       return Promise.resolve(makeAmazonLibrary(amazon));
+    if (filePath.endsWith('gog_api_info.json'))
+      return gogApiInfo !== undefined
+        ? Promise.resolve(makeGogApiInfo(gogApiInfo))
+        : Promise.reject(
+            Object.assign(new Error('Not found'), { code: 'ENOENT' }),
+          );
     return Promise.reject(
       Object.assign(new Error('Not found'), { code: 'ENOENT' }),
     );
@@ -159,6 +170,109 @@ describe('heroicAdapter', () => {
         expect(game.playtimeHours).toBeUndefined();
         expect(game.lastPlayedAt).toBeUndefined();
       }
+    });
+  });
+
+  describe('local metadata harvest (P3.1)', () => {
+    it('maps GOG description from extra.about.description', async () => {
+      mockLibraries({
+        gog: [
+          gogGame({
+            extra: {
+              about: { description: 'A turn-based tactical Western RPG.' },
+            },
+          }),
+        ],
+        epic: [],
+        amazon: [],
+      });
+
+      const games = await heroicAdapter.loadAllLibraries(CACHE_PATH);
+
+      expect(games[0].description).toBe('A turn-based tactical Western RPG.');
+    });
+
+    it('merges GOG genres/developer/publisher/releaseDate from gog_api_info by id', async () => {
+      mockLibraries({
+        gog: [gogGame({ extra: {} })],
+        epic: [],
+        amazon: [],
+        gogApiInfo: {
+          'gog_gog-123': {
+            first_release_date: '1998-09-30T00:00:00+0000',
+            game: {
+              genres: [
+                { name: { '*': 'Role-playing (RPG)', 'en-US': 'Role-playing (RPG)' } },
+              ],
+              developers: [{ name: 'Black Isle Studios' }],
+              publishers: [{ name: 'Interplay Entertainment' }],
+            },
+          },
+          '__timestamp.gog_gog-123': 123,
+        },
+      });
+
+      const games = await heroicAdapter.loadAllLibraries(CACHE_PATH);
+
+      expect(games[0].genres).toEqual(['Role-playing (RPG)']);
+      expect(games[0].developer).toBe('Black Isle Studios');
+      expect(games[0].publisher).toBe('Interplay Entertainment');
+      expect(games[0].releaseDate).toBeInstanceOf(Date);
+      expect(games[0].releaseDate?.getFullYear()).toBe(1998);
+    });
+
+    it('falls back to library extra.genres when gog_api_info is absent', async () => {
+      mockLibraries({
+        gog: [gogGame({ extra: { genres: ['RPG'] } })],
+        epic: [],
+        amazon: [],
+      });
+
+      const games = await heroicAdapter.loadAllLibraries(CACHE_PATH);
+
+      expect(games[0].genres).toEqual(['RPG']);
+      expect(games[0].developer).toBeUndefined();
+    });
+
+    it('maps Epic developer and description from extra.about', async () => {
+      mockLibraries({
+        gog: [],
+        epic: [
+          epicGame({
+            developer: 'Moon Studios',
+            extra: {
+              about: {
+                description: 'A fast-action isometric roguelike.',
+                shortDescription: '',
+              },
+            },
+          }),
+        ],
+        amazon: [],
+      });
+
+      const games = await heroicAdapter.loadAllLibraries(CACHE_PATH);
+
+      expect(games[0].developer).toBe('Moon Studios');
+      expect(games[0].description).toBe('A fast-action isometric roguelike.');
+    });
+
+    it('maps Amazon description and developer', async () => {
+      mockLibraries({
+        gog: [],
+        epic: [],
+        amazon: [
+          amazonGame({
+            description: 'A hand-drawn action-adventure.',
+            developer: 'Team Cherry',
+          }),
+        ],
+      });
+
+      const games = await heroicAdapter.loadAllLibraries(CACHE_PATH);
+
+      expect(games[0].description).toBe('A hand-drawn action-adventure.');
+      expect(games[0].developer).toBe('Team Cherry');
     });
   });
 
