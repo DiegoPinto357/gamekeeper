@@ -286,6 +286,8 @@ Data already exists: `games.proton_json` has `tier` (platinum/gold/silver/bronze
 3. `GameDrawer.tsx`: same badges in the details panel.
 4. **Tests (first):** repo maps `proton_json` → DTO (incl. null/missing); route returns `proton`; RTL for the second row (with data, without data, both pills).
 
+   _Done. Implementation: `GameCompatibility` type in shared (`ProtonTier`/`SteamDeckStatus` string unions) + `proton?: GameCompatibility` on `LibraryGame` (omitted, not null, over the wire); core parses `proton_json` with `ProtonInfoSchema.safeParse` (missing/malformed → null); new `CompatibilityBadges` component shared by `BoardCardFace` and `GameDrawer`. Deck `unknown` renders no Deck pill (tier pill only)._
+
 #### P2.2c — False "not available" fix (swapped-title matcher bug)
 `catalogMatchesInterest` (`packages/core/src/core/xbox-gamepass.ts`) is order-sensitive substring matching. The interests file holds three entries for Hellblade II ("Senua's Saga: Hellblade II" ×2 + "Hellblade II: Senua's Saga"); the two swapped-order entries fail the match, get flagged `interest-unavailable`, and the word-sorted lookup in `persistAvailability` maps that flag onto the same DB game — flagged unavailable while sitting **in** the catalog ("Hellblade II: Senua's Saga", confirmed in `.cache/gamepass/gamepass-catalog.json`).
 

@@ -66,5 +66,6 @@ export {
   type LibraryGame,
   type SetStatusResult,
   type UnpinResult,
+  type GameCompatibility,
   installSqliteWarningSuppression,
 } from './db/index';

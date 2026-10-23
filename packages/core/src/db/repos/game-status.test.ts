@@ -182,6 +182,55 @@ describe('game-status repo', () => {
 
       expect(boardOrder(db, 'backlog')).toEqual(['steam:a', 'steam:z']);
     });
+
+    it('maps proton_json into the proton DTO (tier + steamDeck)', () => {
+      seedGames(db, [
+        makeGame({
+          canonicalId: 'steam:1',
+          name: 'A',
+          proton: { tier: 'gold', steamDeck: 'verified' },
+        }),
+      ]);
+
+      const [game] = getLibraryGames(db.raw);
+      expect(game.proton).toEqual({ tier: 'gold', steamDeck: 'verified' });
+    });
+
+    it('proton is null when missing or malformed', () => {
+      seedGames(db, [makeGame({ canonicalId: 'steam:1', name: 'A' })]);
+      expect(getLibraryGames(db.raw)[0].proton).toBeNull();
+
+      db.raw
+        .prepare("UPDATE games SET proton_json = 'not-json' WHERE canonical_id = 'steam:1'")
+        .run();
+      expect(getLibraryGames(db.raw)[0].proton).toBeNull();
+
+      db.raw
+        .prepare("UPDATE games SET proton_json = '{\"tier\":\"nope\"}' WHERE canonical_id = 'steam:1'")
+        .run();
+      expect(getLibraryGames(db.raw)[0].proton).toBeNull();
+    });
+
+    it('parses real-world proton_json with ISO-string lastUpdated (regression)', () => {
+      seedGames(db, [makeGame({ canonicalId: 'steam:1', name: 'A' })]);
+      db.raw
+        .prepare(
+          "UPDATE games SET proton_json = ? WHERE canonical_id = 'steam:1'",
+        )
+        .run(
+          JSON.stringify({
+            tier: 'platinum',
+            steamDeck: 'verified',
+            trendingTier: 'platinum',
+            lastUpdated: '2026-10-02T03:06:02.444Z',
+          }),
+        );
+
+      expect(getLibraryGames(db.raw)[0].proton).toEqual({
+        tier: 'platinum',
+        steamDeck: 'verified',
+      });
+    });
   });
 
   describe('merge order (pinned anchored + auto flows around)', () => {

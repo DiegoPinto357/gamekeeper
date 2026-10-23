@@ -346,6 +346,52 @@ describe('BoardPage', () => {
     expect(within(column('backlog')).getAllByTestId('board-card')).toHaveLength(2);
   });
 
+  it('shows compatibility badges (deck + ProtonDB tier) on the card and in the drawer', async () => {
+    const user = userEvent.setup();
+    await renderWith([
+      game('steam:a', 'Hades II', null, null, {
+        proton: { tier: 'platinum', steamDeck: 'verified' },
+      }),
+    ]);
+
+    const card = within(column('backlog'))
+      .getByText('Hades II')
+      .closest('[data-testid="board-card"]')!;
+    const badges = within(card as HTMLElement);
+    expect(badges.getByTestId('deck-badge')).toHaveAttribute('data-status', 'verified');
+    expect(badges.getByTestId('proton-tier-badge')).toHaveAttribute('data-tier', 'platinum');
+
+    await user.click(screen.getByText('Hades II'));
+    const dialog = await screen.findByRole('dialog');
+    const drawer = within(dialog);
+    expect(drawer.getByTestId('deck-badge')).toHaveAttribute('data-status', 'verified');
+    expect(drawer.getByTestId('proton-tier-badge')).toHaveAttribute('data-tier', 'platinum');
+  });
+
+  it('omits the Deck badge for unknown status and shows no compat row without proton data', async () => {
+    await renderWith([
+      game('steam:a', 'With Unknown Deck', null, null, {
+        proton: { tier: 'gold', steamDeck: 'unknown' },
+      }),
+      game('steam:b', 'No Proton'),
+    ]);
+
+    const unknownCard = within(column('backlog'))
+      .getByText('With Unknown Deck')
+      .closest('[data-testid="board-card"]')!;
+    expect(within(unknownCard as HTMLElement).queryByTestId('deck-badge')).not.toBeInTheDocument();
+    expect(
+      within(unknownCard as HTMLElement).getByTestId('proton-tier-badge'),
+    ).toHaveAttribute('data-tier', 'gold');
+
+    const noProtonCard = within(column('backlog'))
+      .getByText('No Proton')
+      .closest('[data-testid="board-card"]')!;
+    expect(
+      within(noProtonCard as HTMLElement).queryByTestId('compat-badges'),
+    ).not.toBeInTheDocument();
+  });
+
   it('shows a pin indicator on pinned cards only', async () => {
     await renderWith([
       game('steam:a', 'Pinned Game', 'playing', 1, { pinned: true }),

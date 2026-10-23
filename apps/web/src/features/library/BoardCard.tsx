@@ -5,6 +5,7 @@ import { Pin } from 'lucide-react';
 import type { LibraryGame } from '@gamekeeper/shared';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { CompatibilityBadges } from './CompatibilityBadges';
 import { SourceBadge } from './SourceBadge';
 import { UnavailableBadge } from './UnavailableBadge';
 
@@ -47,6 +48,7 @@ export const BoardCardFace = memo(
             </span>
           )}
         </div>
+        {game.proton && <CompatibilityBadges proton={game.proton} />}
       </div>
     );
   },

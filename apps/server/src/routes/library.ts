@@ -36,6 +36,7 @@ const toLibraryGame = (game: {
   position: number | null;
   pinned: boolean;
   unavailableReason: string | null;
+  proton: { tier: string; steamDeck: string } | null;
 }): LibraryGame => ({
   canonicalId: game.canonicalId,
   name: game.name,
@@ -47,6 +48,7 @@ const toLibraryGame = (game: {
   position: game.position,
   pinned: game.pinned,
   unavailableReason: game.unavailableReason ?? undefined,
+  proton: game.proton ?? undefined,
 });
 
 const optionalId = (value: unknown): string | null | undefined => {

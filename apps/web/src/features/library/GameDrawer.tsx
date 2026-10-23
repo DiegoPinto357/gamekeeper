@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ChevronDown, PinOff, X } from 'lucide-react';
 import type { LibraryGame, StatusEntry } from '@gamekeeper/shared';
 import { Badge } from '@/components/ui/badge';
+import { CompatibilityBadges } from './CompatibilityBadges';
 import { CoverImage } from './CoverImage';
 import { SourceBadge } from './SourceBadge';
 import { UnavailableBadge } from './UnavailableBadge';
@@ -74,6 +75,8 @@ export const GameDrawer = ({
             )}
             {game.unavailableReason && <UnavailableBadge />}
           </div>
+
+          {game.proton && <CompatibilityBadges proton={game.proton} />}
 
           <div className="relative">
             <button

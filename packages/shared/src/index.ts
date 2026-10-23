@@ -19,6 +19,14 @@ export type StatusEntry = {
   position: number;
 };
 
+export type ProtonTier = 'platinum' | 'gold' | 'silver' | 'bronze' | 'borked';
+export type SteamDeckStatus = 'verified' | 'playable' | 'unsupported' | 'unknown';
+
+export type GameCompatibility = {
+  tier: ProtonTier;
+  steamDeck: SteamDeckStatus;
+};
+
 export type LibraryGame = {
   canonicalId: string;
   name: string;
@@ -32,6 +40,8 @@ export type LibraryGame = {
   pinned: boolean;
   /** Reason the game left its source's catalog (e.g. 'interest-unavailable'). */
   unavailableReason?: string;
+  /** ProtonDB tier + Steam Deck status when known (mostly Steam games). */
+  proton?: GameCompatibility;
 };
 
 export type LibraryResponse = {

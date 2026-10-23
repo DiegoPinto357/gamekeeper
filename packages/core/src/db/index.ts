@@ -20,5 +20,6 @@ export {
   type LibraryGame,
   type SetStatusResult,
   type UnpinResult,
+  type GameCompatibility,
 } from './repos/game-status';
 export { installSqliteWarningSuppression } from './suppress-warning';

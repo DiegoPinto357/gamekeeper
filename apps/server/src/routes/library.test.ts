@@ -7,13 +7,18 @@ import { openDb, upsertGames, reconcileUnavailableReasons, type Db } from '@game
 import type { LibraryResponse, GameStatusResult } from '@gamekeeper/shared';
 import { buildApp } from '../app';
 
-const makeGame = (canonicalId: string, name: string) => ({
+const makeGame = (
+  canonicalId: string,
+  name: string,
+  proton?: { tier: 'platinum' | 'gold' | 'silver' | 'bronze' | 'borked'; steamDeck: 'verified' | 'playable' | 'unsupported' | 'unknown' },
+) => ({
   canonicalId,
   name,
   primarySource: 'steam' as const,
   ownedSources: ['steam' as const],
   createdAt: new Date('2026-01-01T00:00:00.000Z'),
   updatedAt: new Date('2026-01-01T00:00:00.000Z'),
+  proton,
 });
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -104,6 +109,20 @@ describe('library routes', () => {
     const beta = library.games.find(g => g.canonicalId === 'gp:1');
     expect(beta?.unavailableReason).toBe('interest-unavailable');
     expect(alpha?.unavailableReason).toBeUndefined();
+  });
+
+  it('GET /api/library exposes proton (tier + steamDeck) and omits it when unknown', async () => {
+    upsertGames(seedDb.raw, [
+      makeGame('steam:1', 'Alpha', { tier: 'platinum', steamDeck: 'verified' }),
+      makeGame('steam:2', 'Beta'),
+    ]);
+
+    const library = await getLibrary();
+    expect(library.games.find(g => g.canonicalId === 'steam:1')?.proton).toEqual({
+      tier: 'platinum',
+      steamDeck: 'verified',
+    });
+    expect(library.games.find(g => g.canonicalId === 'steam:2')?.proton).toBeUndefined();
   });
 
   it('PATCH /api/games/:id/status moves the game and shows it in the new column on refetch', async () => {

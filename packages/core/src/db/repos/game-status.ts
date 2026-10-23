@@ -1,11 +1,17 @@
 import type { DatabaseSync } from 'node:sqlite';
 import type { Source } from '../../types/game';
+import { ProtonTierSchema, SteamDeckStatusSchema } from '../../types/game';
 
 export type StatusEntry = {
   key: string;
   label: string;
   color: string;
   position: number;
+};
+
+export type GameCompatibility = {
+  tier: 'platinum' | 'gold' | 'silver' | 'bronze' | 'borked';
+  steamDeck: 'verified' | 'playable' | 'unsupported' | 'unknown';
 };
 
 export type LibraryGame = {
@@ -19,6 +25,7 @@ export type LibraryGame = {
   position: number | null;
   pinned: boolean;
   unavailableReason: string | null;
+  proton: GameCompatibility | null;
 };
 
 export type SetStatusResult = {
@@ -67,6 +74,7 @@ type BoardRow = {
   unavailable_reason: string | null;
   last_played_at: string | null;
   created_at: string | null;
+  proton_json: string | null;
   status: string | null;
   position: number | null;
   pinned: number;
@@ -83,6 +91,7 @@ const BOARD_SELECT = `
     g.unavailable_reason,
     g.last_played_at,
     g.created_at,
+    g.proton_json,
     gs.status,
     gs.position,
     gs.pinned
@@ -92,6 +101,22 @@ const BOARD_SELECT = `
 
 const readBoardRows = (db: DatabaseSync): BoardRow[] =>
   db.prepare(BOARD_SELECT).all() as unknown as BoardRow[];
+
+const parseProton = (json: string | null): GameCompatibility | null => {
+  if (!json) return null;
+  try {
+    // Validate tier/steamDeck directly — ProtonInfoSchema's lastUpdated is
+    // z.date(), but proton_json stores it as an ISO string, so safeParse
+    // against the full schema fails on every real row.
+    const raw = JSON.parse(json) as { tier?: unknown; steamDeck?: unknown };
+    const tier = ProtonTierSchema.safeParse(raw.tier);
+    const steamDeck = SteamDeckStatusSchema.safeParse(raw.steamDeck);
+    if (!tier.success || !steamDeck.success) return null;
+    return { tier: tier.data, steamDeck: steamDeck.data };
+  } catch {
+    return null;
+  }
+};
 
 /**
  * Merge a column's rows into display order (P2.2a).
@@ -173,6 +198,7 @@ export const getLibraryGames = (db: DatabaseSync): LibraryGame[] => {
     status: row.status,
     position: row.position,
     pinned: row.pinned === 1,
+    proton: parseProton(row.proton_json),
   }));
 };
 
