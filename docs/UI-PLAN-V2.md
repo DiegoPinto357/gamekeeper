@@ -267,7 +267,7 @@ Matches the reference board (Figma): live last-played ordering with manual-prior
 #### P2.2a — Per-card pin ordering (manual priority > auto by last played)
 *Semantics:* every column defaults to the live auto order (`COALESCE(last_played_at, created_at) DESC, name ASC`). Dragging a card **pins** it at the exact display slot where it was dropped; pinned slots are anchored while unpinned (auto) cards flow around them by last played. Unpinning returns the card to the auto flow. `materializeBacklog`'s freeze-on-first-drag is removed.
 
-1. **Migration #5** (`packages/core/src/db/schema.ts`): `ALTER TABLE game_status ADD COLUMN pinned INTEGER NOT NULL DEFAULT 1` — existing rows were all manual drags, so default 1 is correct.
+1. **Migration #5** (`packages/core/src/db/schema.ts`): `ALTER TABLE game_status ADD COLUMN pinned INTEGER NOT NULL DEFAULT 1` — existing rows were all manual drags, so default 1 is correct. **Migration #6 (data fix):** pre-pin-model rows were bulk-materialized by freeze-on-first-drag, not hand-pinned — delete pure backlog rows (keep rows with notes) and unpin everything else, so existing libraries open on the auto flow.
 2. **Shared merge function** (`packages/core/src/db/repos/game-status.ts`): per column, merge pinned cards (ordered by `position`) with auto cards (ordered by `COALESCE(last_played_at, created_at) DESC, name ASC`); the *i*-th pinned card anchors at its stored slot index (rounded display rank), auto cards fill the remaining slots in order. One function, used by both the read path and write-reindex.
 3. `getLibraryGames`: return rows in merged order (JS-side merge; 707 rows — trivial). `LibraryGame` gains `pinned: boolean`.
 4. `setGameStatus`: on any move set `pinned=1`; position = fractional insert among pinned slots (reuse `needsReindex`/`reindexColumn`); **drop the `materializeBacklog` call and export** — no bulk snapshot anymore.
@@ -275,6 +275,8 @@ Matches the reference board (Figma): live last-played ordering with manual-prior
 6. **Server:** keep the existing `PATCH .../status` contract; add `POST /api/library/games/:id/unpin`.
 7. **Web:** `board-store.ts` — optimistic unpin + `unpinGame` mutation (move path unchanged); `BoardCard.tsx` — subtle pin indicator on pinned cards + "Unpin" action in the card's hover/context menu.
 8. **Tests (first):** merge order (pinned anchored, auto reflow after `last_played` change, new game arrives between pins); pin-on-drag; unpin per status; route tests for the new endpoint; web store + RTL for indicator/unpin.
+
+   _Deltas from plan: the web state layer is `hooks/useLibrary.ts` (there is no `board-store.ts`); Unpin lives in the game drawer (next to Move-to) rather than a card context menu, with a pin icon indicator on the card; positions are reindexed to integer display ranks on every move (fractional-midpoint machinery removed — slots are display ranks under the pin model)._
 
 #### P2.2b — ProtonDB + Steam Deck badges (dedicated second row)
 Data already exists: `games.proton_json` has `tier` (platinum/gold/silver/bronze/borked) and `steamDeck` (verified/playable/unsupported/unknown) for ~551/707 games.
@@ -302,7 +304,7 @@ Data already exists: `games.proton_json` has `tier` (platinum/gold/silver/bronze
 2. Steam `fetchAppDetails` (typed, never called): genres/categories/release/dev/pub/`header_image` → fixes zero Steam covers; ~1.2s/req, resumable via `enriched_at`, `--force`
 3. IGDB: persist `igdb_id` (currently discarded); fetch genres/themes/keywords/summary/similar_games/companies (4 req/s)
 4. MS Store: keep genres/description from displaycatalog response already fetched (Xbox coverage)
-5. Fix lossy merge (`deduplicate.ts:139-141`) → genre/tag **union**; `pnpm enrich` script; FTS rebuild; manual/physical games included (IGDB by name). Migration #6 (migration #2 = P0 `game_status` trigger, #3 = `recurrent` status, #4 = P2.1 `games.unavailable_reason`, #5 = P2.2 `game_status.pinned`): extend `games` (description, developer, publisher) and `games_fts` (currently name-only) to cover description + genres + tags
+5. Fix lossy merge (`deduplicate.ts:139-141`) → genre/tag **union**; `pnpm enrich` script; FTS rebuild; manual/physical games included (IGDB by name). Migration #7 (migration #2 = P0 `game_status` trigger, #3 = `recurrent` status, #4 = P2.1 `games.unavailable_reason`, #5 = P2.2 `game_status.pinned`, #6 = P2.2a un-pin data fix): extend `games` (description, developer, publisher) and `games_fts` (currently name-only) to cover description + genres + tags
 6. **Verify:** >95% genre coverage; mapper tests; enrichment is progress-emitted (participates in UI checklist)
 
 ### P4 — Discover + directed random
