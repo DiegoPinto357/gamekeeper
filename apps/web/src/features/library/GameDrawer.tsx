@@ -53,7 +53,7 @@ export const GameDrawer = ({
           <CoverImage
             src={game.coverImageUrl}
             alt={game.name}
-            className="w-full rounded-lg object-cover bg-muted"
+            className="w-full rounded-lg bg-muted"
             fallback={
               <div className="flex aspect-3/4 max-h-64 w-full items-center justify-center rounded-lg bg-muted text-4xl font-bold text-muted-foreground">
                 {game.name.charAt(0)}

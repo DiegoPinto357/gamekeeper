@@ -4,7 +4,6 @@ import { CSS } from '@dnd-kit/utilities';
 import type { LibraryGame } from '@gamekeeper/shared';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { CoverImage } from './CoverImage';
 import { SourceBadge } from './SourceBadge';
 import { UnavailableBadge } from './UnavailableBadge';
 
@@ -23,26 +22,11 @@ export const BoardCardFace = memo(
     return (
       <div
         className={cn(
-          'flex flex-col gap-2 rounded-lg border bg-card p-2.5 shadow-sm transition-colors hover:bg-accent/40',
+          'flex flex-col gap-1.5 rounded-lg border bg-card p-2.5 shadow-sm transition-colors hover:bg-accent/40',
           className,
         )}
       >
-        <CoverImage
-          src={game.coverImageUrl}
-          alt=""
-          className="aspect-video w-full rounded-md bg-muted object-cover"
-          fallback={
-            <div
-              aria-hidden
-              className="flex aspect-2/1 w-full items-center justify-center rounded-md bg-muted text-3xl font-bold text-muted-foreground"
-            >
-              {game.name.charAt(0)}
-            </div>
-          }
-        />
-        <p className="text-sm font-medium leading-snug wrap-break-words">
-          {game.name}
-        </p>
+        <p className="text-sm font-medium leading-snug break-words">{game.name}</p>
         <div className="flex flex-wrap items-center gap-1">
           {game.ownedSources.map(source => (
             <SourceBadge key={source} source={source} />
