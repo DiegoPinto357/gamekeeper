@@ -22,20 +22,25 @@ type SteamOwnedGamesResponse = {
   };
 };
 
+type SteamAppData = {
+  name: string;
+  steam_appid: number;
+  header_image?: string;
+  short_description?: string;
+  developers?: string[];
+  publishers?: string[];
+  release_date?: {
+    coming_soon: boolean;
+    date: string;
+  };
+  genres?: Array<{ description: string }>;
+  categories?: Array<{ description: string }>;
+};
+
 type SteamAppDetails = {
   [appId: string]: {
     success: boolean;
-    data?: {
-      name: string;
-      steam_appid: number;
-      header_image?: string;
-      release_date?: {
-        coming_soon: boolean;
-        date: string;
-      };
-      genres?: Array<{ description: string }>;
-      categories?: Array<{ description: string }>;
-    };
+    data?: SteamAppData;
   };
 };
 
@@ -113,7 +118,7 @@ const fetchOwnedGames = async (
  */
 const fetchAppDetails = async (
   appId: number
-): Promise<SteamAppDetails['0']['data'] | null> => {
+): Promise<SteamAppData | null> => {
   try {
     const url = `${STEAM_STORE_URL}/appdetails`;
     const params = { appids: appId };

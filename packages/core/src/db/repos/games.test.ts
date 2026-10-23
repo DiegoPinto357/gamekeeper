@@ -101,6 +101,43 @@ describe('games', () => {
     expect(listGames(db.raw)).toHaveLength(1);
   });
 
+  it('persists description/developer/publisher and preserves them when a later upsert omits them', () => {
+    upsertGames(db.raw, [
+      makeGame({ description: 'A rogue-like action RPG.', developer: 'Supergiant', publisher: 'Supergiant' }),
+    ]);
+
+    expect(getGame(db.raw, 'steam:1145350')).toMatchObject({
+      description: 'A rogue-like action RPG.',
+      developer: 'Supergiant',
+      publisher: 'Supergiant',
+    });
+
+    // sync resend without metadata must not clobber enrichment
+    upsertGames(db.raw, [makeGame()]);
+
+    expect(getGame(db.raw, 'steam:1145350')).toMatchObject({
+      description: 'A rogue-like action RPG.',
+      developer: 'Supergiant',
+      publisher: 'Supergiant',
+    });
+
+    // a new non-null value still updates
+    upsertGames(db.raw, [makeGame({ description: 'Updated description.' })]);
+
+    expect(getGame(db.raw, 'steam:1145350')?.description).toBe(
+      'Updated description.',
+    );
+  });
+
+  it('preserves release_date when a later upsert omits it', () => {
+    upsertGames(db.raw, [makeGame()]); // has releaseDate
+    upsertGames(db.raw, [makeGame({ releaseDate: undefined })]);
+
+    expect(getGame(db.raw, 'steam:1145350')?.releaseDate).toEqual(
+      new Date('2024-05-06T00:00:00.000Z'),
+    );
+  });
+
   it('upsert does NOT clobber enrichment columns (igdb_id, enriched_at, meta_source)', () => {
     const game = makeGame();
     upsertGames(db.raw, [game]);

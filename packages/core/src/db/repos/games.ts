@@ -19,6 +19,9 @@ type GameRow = {
   igdb_id: number | null;
   meta_source: string | null;
   enriched_at: string | null;
+  description: string | null;
+  developer: string | null;
+  publisher: string | null;
 };
 
 const toRow = (game: UnifiedGame): (string | number | null)[] => [
@@ -35,6 +38,9 @@ const toRow = (game: UnifiedGame): (string | number | null)[] => [
   game.proton ? JSON.stringify(game.proton) : null,
   game.createdAt.toISOString(),
   game.updatedAt.toISOString(),
+  game.description ?? null,
+  game.developer ?? null,
+  game.publisher ?? null,
 ];
 
 const fromRow = (row: GameRow): UnifiedGame => {
@@ -57,17 +63,24 @@ const fromRow = (row: GameRow): UnifiedGame => {
     releaseDate: row.release_date ? new Date(row.release_date) : undefined,
     interest: (row.interest as UnifiedGame['interest']) ?? undefined,
     proton,
+    description: row.description ?? undefined,
+    developer: row.developer ?? undefined,
+    publisher: row.publisher ?? undefined,
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
   };
 };
 
+// Metadata columns use COALESCE(excluded, existing): a sync resend without
+// the field must not clobber enrichment (Steam appdetails / local harvest);
+// a new non-null value still updates.
 const UPSERT_SQL = `
   INSERT INTO games (
     canonical_id, name, primary_source, owned_sources, steam_app_id,
     playtime_hours, last_played_at, cover_image_url, release_date,
-    interest, proton_json, created_at, updated_at
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    interest, proton_json, created_at, updated_at,
+    description, developer, publisher
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   ON CONFLICT(canonical_id) DO UPDATE SET
     name = excluded.name,
     primary_source = excluded.primary_source,
@@ -76,9 +89,12 @@ const UPSERT_SQL = `
     playtime_hours = excluded.playtime_hours,
     last_played_at = excluded.last_played_at,
     cover_image_url = excluded.cover_image_url,
-    release_date = excluded.release_date,
+    release_date = COALESCE(excluded.release_date, games.release_date),
     interest = excluded.interest,
     proton_json = excluded.proton_json,
+    description = COALESCE(excluded.description, games.description),
+    developer = COALESCE(excluded.developer, games.developer),
+    publisher = COALESCE(excluded.publisher, games.publisher),
     updated_at = excluded.updated_at
 `;
 

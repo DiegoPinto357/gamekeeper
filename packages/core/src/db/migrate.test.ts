@@ -149,8 +149,8 @@ describe('migrate', () => {
     const applied = migrate(raw);
 
     // #3 (recurrent + renumber), #4 (unavailable_reason), #5 (pinned),
-    // #6 (un-pin pre-model materialized rows)
-    expect(applied).toBe(4);
+    // #6 (un-pin pre-model materialized rows), #7 (metadata columns)
+    expect(applied).toBe(5);
     const rows = raw
       .prepare('SELECT key, position FROM statuses ORDER BY position')
       .all() as { key: string; position: number }[];
@@ -170,6 +170,9 @@ describe('migrate', () => {
       .prepare('PRAGMA table_info(games)')
       .all() as { name: string }[];
     expect(cols.map((c) => c.name)).toContain('unavailable_reason');
+    expect(cols.map((c) => c.name)).toEqual(
+      expect.arrayContaining(['description', 'developer', 'publisher']),
+    );
     const statusCols = raw
       .prepare('PRAGMA table_info(game_status)')
       .all() as { name: string; dflt_value: string | null }[];

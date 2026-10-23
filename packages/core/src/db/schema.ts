@@ -154,4 +154,12 @@ export const MIGRATIONS: string[] = [
   DELETE FROM game_status WHERE status = 'backlog' AND notes IS NULL;
   UPDATE game_status SET pinned = 0, position = NULL;
   `,
+  `
+  -- P3: metadata enrichment columns (description/developer/publisher).
+  -- FTS extension to description + genres + tags lands with the enrich
+  -- pipeline (P3.5) once genre/tag rows exist.
+  ALTER TABLE games ADD COLUMN description TEXT;
+  ALTER TABLE games ADD COLUMN developer TEXT;
+  ALTER TABLE games ADD COLUMN publisher TEXT;
+  `,
 ];

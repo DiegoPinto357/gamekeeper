@@ -9,6 +9,13 @@ export {
 } from './logger';
 export { runSync } from './sync/orchestrator';
 export { defaultSyncIO } from './sync/default-io';
+export {
+  enrichSteamMetadata,
+  getSteamEnrichmentCandidates,
+  type SteamEnrichOptions,
+  type SteamEnrichResult,
+  type SteamAppMetadata,
+} from './sync/steam-enrich';
 export type {
   SyncEvent,
   SyncSummary,
