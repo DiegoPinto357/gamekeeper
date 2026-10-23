@@ -162,6 +162,7 @@ export const applyMove = (
     ...data.games[index],
     status,
     position: estimatePosition(data.games, { beforeId, afterId }),
+    pinned: true,
   };
   const rest = data.games.filter((_, i) => i !== index);
 

@@ -1,6 +1,7 @@
 import { memo } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { Pin } from 'lucide-react';
 import type { LibraryGame } from '@gamekeeper/shared';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -26,13 +27,25 @@ export const BoardCardFace = memo(
           className,
         )}
       >
-        <p className="text-sm font-medium leading-snug break-words">{game.name}</p>
+        <p className="text-sm font-medium leading-snug wrap-break-words">
+          {game.name}
+        </p>
         <div className="flex flex-wrap items-center gap-1">
           {game.ownedSources.map(source => (
             <SourceBadge key={source} source={source} />
           ))}
           {playtime && <Badge variant="outline">{playtime}</Badge>}
           {game.unavailableReason && <UnavailableBadge />}
+          {game.pinned && (
+            <span
+              data-testid="pin-indicator"
+              title="Manually prioritized"
+              className="ml-auto text-muted-foreground"
+            >
+              <Pin className="size-3" aria-hidden />
+              <span className="sr-only">Manually prioritized</span>
+            </span>
+          )}
         </div>
       </div>
     );

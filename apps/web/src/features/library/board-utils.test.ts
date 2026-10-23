@@ -28,6 +28,7 @@ const g = (
   ownedSources: ['steam'],
   status,
   position,
+  pinned: position != null,
   ...extra,
 });
 
@@ -194,7 +195,18 @@ describe('applyMove', () => {
     expect(next.games.find(game => game.canonicalId === 'a')).toMatchObject({
       status: 'playing',
       position: 2,
+      pinned: true,
     });
+  });
+
+  it('pins the moved game (drag = manual priority)', () => {
+    const next = applyMove(base, {
+      id: 'a',
+      status: 'playing',
+      beforeId: 'b',
+      afterId: null,
+    });
+    expect(next.games.find(game => game.canonicalId === 'a')?.pinned).toBe(true);
   });
 
   it('prepends (afterId only): moves before the anchor', () => {

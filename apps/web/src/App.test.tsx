@@ -51,6 +51,7 @@ function stubCatalogFetch() {
               ownedSources: ['steam'],
               status: null,
               position: null,
+              pinned: false,
             },
           ],
         }),

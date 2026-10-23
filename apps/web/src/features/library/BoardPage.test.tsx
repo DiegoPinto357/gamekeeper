@@ -25,6 +25,7 @@ const game = (
   ownedSources: ['steam'],
   status,
   position,
+  pinned: position != null,
   ...extra,
 });
 
@@ -33,6 +34,7 @@ type StubOptions = { patch?: 'ok' | 'fail' | 'deferred' };
 const stubLibrary = (initialGames: LibraryGame[], options: StubOptions = {}) => {
   const state: LibraryResponse = { statuses, games: [...initialGames] };
   const patches: Array<{ url: string; body: Record<string, unknown> }> = [];
+  const unpins: string[] = [];
   let releaseDeferred: (() => void) | null = null;
   const deferred = new Promise<void>(resolve => {
     releaseDeferred = resolve;
@@ -40,6 +42,19 @@ const stubLibrary = (initialGames: LibraryGame[], options: StubOptions = {}) => 
 
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
+    if (init?.method === 'POST' && url.includes('/unpin')) {
+      unpins.push(url);
+      const id = decodeURIComponent(
+        url.split('/api/library/games/')[1].split('/unpin')[0],
+      );
+      state.games = state.games.map(g =>
+        g.canonicalId === id ? { ...g, pinned: false } : g,
+      );
+      return new Response(
+        JSON.stringify({ canonicalId: id, status: 'backlog', pinned: false }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
     if (init?.method === 'PATCH') {
       const body = JSON.parse(String(init.body)) as Record<string, unknown>;
       patches.push({ url, body });
@@ -72,7 +87,7 @@ const stubLibrary = (initialGames: LibraryGame[], options: StubOptions = {}) => 
   });
 
   vi.stubGlobal('fetch', fetchMock);
-  return { fetchMock, patches, state, release: () => releaseDeferred?.() };
+  return { fetchMock, patches, unpins, state, release: () => releaseDeferred?.() };
 };
 
 const renderPage = () => {
@@ -322,5 +337,57 @@ describe('BoardPage', () => {
     await user.click(within(dialog).getByRole('button', { name: /close drawer/i }));
     expect(within(column('backlog')).queryByText('Hades II')).toBeInTheDocument();
     expect(within(column('backlog')).getAllByTestId('board-card')).toHaveLength(2);
+  });
+
+  it('shows a pin indicator on pinned cards only', async () => {
+    await renderWith([
+      game('steam:a', 'Pinned Game', 'playing', 1, { pinned: true }),
+      game('steam:b', 'Auto Game'),
+    ]);
+
+    const pinnedCard = within(column('playing'))
+      .getByText('Pinned Game')
+      .closest('[data-testid="board-card"]')!;
+    expect(within(pinnedCard as HTMLElement).getByTestId('pin-indicator')).toBeInTheDocument();
+
+    const autoCard = within(column('backlog'))
+      .getByText('Auto Game')
+      .closest('[data-testid="board-card"]')!;
+    expect(
+      within(autoCard as HTMLElement).queryByTestId('pin-indicator'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('unpins a game from the drawer: POST /unpin + optimistic indicator removal', async () => {
+    const user = userEvent.setup();
+    const { stub } = await renderWith([
+      game('steam:a', 'Pinned Game', 'playing', 1, { pinned: true }),
+    ]);
+
+    await user.click(screen.getByText('Pinned Game'));
+    const dialog = await screen.findByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: /unpin/i }));
+
+    await waitFor(() => expect(stub.unpins).toHaveLength(1));
+    expect(decodeURIComponent(stub.unpins[0])).toContain(
+      '/api/library/games/steam:a/unpin',
+    );
+    // optimistic: indicator gone while the board still shows the card
+    expect(screen.queryByTestId('pin-indicator')).not.toBeInTheDocument();
+
+    await waitFor(() =>
+      expect(within(column('playing')).getByText('Pinned Game')).toBeInTheDocument(),
+    );
+  });
+
+  it('hides the Unpin button for auto (unpinned) games', async () => {
+    const user = userEvent.setup();
+    await renderWith([game('steam:a', 'Auto Game', 'playing', 1, { pinned: false })]);
+
+    await user.click(screen.getByText('Auto Game'));
+    const dialog = await screen.findByRole('dialog');
+    expect(
+      within(dialog).queryByRole('button', { name: /unpin/i }),
+    ).not.toBeInTheDocument();
   });
 });

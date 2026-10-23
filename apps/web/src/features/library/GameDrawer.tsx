@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, X } from 'lucide-react';
+import { ChevronDown, PinOff, X } from 'lucide-react';
 import type { LibraryGame, StatusEntry } from '@gamekeeper/shared';
 import { Badge } from '@/components/ui/badge';
 import { CoverImage } from './CoverImage';
@@ -11,6 +11,7 @@ export type GameDrawerProps = {
   statuses: StatusEntry[];
   onClose: () => void;
   onMove: (statusKey: string) => void;
+  onUnpin: () => void;
 };
 
 export const GameDrawer = ({
@@ -18,6 +19,7 @@ export const GameDrawer = ({
   statuses,
   onClose,
   onMove,
+  onUnpin,
 }: GameDrawerProps) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const targets = statuses.filter(status => status.key !== game.status);
@@ -109,6 +111,17 @@ export const GameDrawer = ({
               </div>
             )}
           </div>
+
+          {game.pinned && (
+            <button
+              type="button"
+              onClick={onUnpin}
+              className="flex w-full items-center justify-center gap-2 rounded-md border px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent/40"
+            >
+              <PinOff className="size-4" aria-hidden />
+              Unpin (back to auto order)
+            </button>
+          )}
 
           <div>
             <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">

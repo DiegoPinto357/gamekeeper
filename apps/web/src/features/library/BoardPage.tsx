@@ -14,7 +14,7 @@ import { BoardCardFace } from './BoardCard';
 import { BoardColumn } from './BoardColumn';
 import { BoardToolbar } from './BoardToolbar';
 import { GameDrawer } from './GameDrawer';
-import { useLibrary, useMoveGame } from '@/hooks/useLibrary';
+import { useLibrary, useMoveGame, useUnpinGame } from '@/hooks/useLibrary';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 
 const FILTERS_KEY = 'gamekeeper.library.filters';
@@ -26,6 +26,7 @@ export const BoardPage = () => {
     source: '',
   });
   const moveGame = useMoveGame();
+  const unpinMutation = useUnpinGame();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -137,6 +138,7 @@ export const BoardPage = () => {
           statuses={statuses}
           onClose={() => setSelectedId(null)}
           onMove={handleMoveTo}
+          onUnpin={() => unpinMutation.mutate(selectedGame.canonicalId)}
         />
       )}
     </div>
