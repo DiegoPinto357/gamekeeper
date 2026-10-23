@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { type RawGameData } from '../types/game';
-import { normalizeGameName } from './normalize';
+import { normalizeGameName, wordSortedKey } from './normalize';
 import { type GamePassGame } from '../adapters/gamepass.adapter';
 import { log } from '../logger';
 
@@ -46,6 +46,12 @@ const catalogMatchesInterest = (
   interestName: string,
 ): boolean => {
   if (catalogName === interestName) return true;
+  // Order-insensitive equality: the interests file holds swapped
+  // subtitle/main-title orders ("Senua's Saga: Hellblade II" vs the
+  // catalog's "Hellblade II: Senua's Saga"). Word-sorted keys compare
+  // word multisets, so sequels still differ ("ii modern warfare" ≠
+  // "modern warfare").
+  if (wordSortedKey(catalogName) === wordSortedKey(interestName)) return true;
   if (interestName.length < MIN_MATCH_LENGTH) return false;
 
   const idx = catalogName.indexOf(interestName);

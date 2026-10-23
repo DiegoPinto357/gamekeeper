@@ -125,6 +125,37 @@ describe('xbox-gamepass', () => {
 
       expect(await isAvailableOnGamePass('Hi Fi RUSH', catalog)).toBe(true);
     });
+
+    it('matches swapped subtitle/main-title order (word-sorted equality)', async () => {
+      const catalog = [createGamePassGame("Hellblade II: Senua's Saga")];
+
+      expect(
+        await isAvailableOnGamePass("Senua's Saga: Hellblade II", catalog),
+      ).toBe(true);
+      expect(
+        await isAvailableOnGamePass("Hellblade II: Senua's Saga", catalog),
+      ).toBe(true);
+    });
+
+    it('still matches edition suffixes after word-sorted equality', async () => {
+      const catalog = [
+        createGamePassGame(
+          'Call of Duty®: Modern Warfare® - Digital Standard Edition (Windows)',
+        ),
+      ];
+
+      expect(
+        await isAvailableOnGamePass('Call of Duty: Modern Warfare', catalog),
+      ).toBe(true);
+    });
+
+    it('does not match sequels via word-sorted equality', async () => {
+      const catalog = [createGamePassGame('Call of Duty: Modern Warfare II')];
+
+      expect(
+        await isAvailableOnGamePass('Call of Duty: Modern Warfare', catalog),
+      ).toBe(false);
+    });
   });
 
   describe('resolveXboxSource', () => {

@@ -286,7 +286,7 @@ Data already exists: `games.proton_json` has `tier` (platinum/gold/silver/bronze
 3. `GameDrawer.tsx`: same badges in the details panel.
 4. **Tests (first):** repo maps `proton_json` → DTO (incl. null/missing); route returns `proton`; RTL for the second row (with data, without data, both pills).
 
-   _Done. Implementation: `GameCompatibility` type in shared (`ProtonTier`/`SteamDeckStatus` string unions) + `proton?: GameCompatibility` on `LibraryGame` (omitted, not null, over the wire); core parses `proton_json` with `ProtonInfoSchema.safeParse` (missing/malformed → null); new `CompatibilityBadges` component shared by `BoardCardFace` and `GameDrawer`. Deck `unknown` renders no Deck pill (tier pill only)._
+   _Done. Implementation: `GameCompatibility` type in shared (`ProtonTier`/`SteamDeckStatus` string unions) + `proton?: GameCompatibility` on `LibraryGame` (omitted, not null, over the wire); core parses `proton_json` by validating `tier`/`steamDeck` against their enums directly — `ProtonInfoSchema` rejects real rows because its `lastUpdated` is `z.date()` while stored JSON has ISO strings; missing/malformed → null. New `CompatibilityBadges` component shared by `BoardCardFace` and `GameDrawer`. Deck `unknown` renders no Deck pill (tier pill only)._
 
 #### P2.2c — False "not available" fix (swapped-title matcher bug)
 `catalogMatchesInterest` (`packages/core/src/core/xbox-gamepass.ts`) is order-sensitive substring matching. The interests file holds three entries for Hellblade II ("Senua's Saga: Hellblade II" ×2 + "Hellblade II: Senua's Saga"); the two swapped-order entries fail the match, get flagged `interest-unavailable`, and the word-sorted lookup in `persistAvailability` maps that flag onto the same DB game — flagged unavailable while sitting **in** the catalog ("Hellblade II: Senua's Saga", confirmed in `.cache/gamepass/gamepass-catalog.json`).
@@ -294,6 +294,8 @@ Data already exists: `games.proton_json` has `tier` (platinum/gold/silver/bronze
 1. `catalogMatchesInterest`: add order-insensitive equality via `wordSortedKey` (`normalize.ts`) before the edition-substring logic.
 2. Tests (`xbox-gamepass.test.ts`): swapped-order titles match; edition suffixes still match; sequel guard holds ("Modern Warfare" ≠ "Modern Warfare II").
 3. Run `pnpm sync` — the fixed matcher drops Hellblade from the unavailable list; `reconcileUnavailableReasons` clears the DB flag automatically. (Full sync incl. Notion write; no Notion cleanup — Notion stays the historical archive, counts intentionally differ.)
+
+   _Done. Word-sorted equality added before the length guard in `catalogMatchesInterest`; edition-suffix and sequel guards unchanged (tests cover both). Sync: Hellblade returned to Game Pass, both DB rows' flags cleared, report 10 → 9 with no other regressions._
 
 #### P2.2 Verify
 - Board: dragging a card pins it (survives reload + `pnpm sync`); unpinned cards reflow by last played as sync updates data; unpin returns a card to the auto flow; pin indicator visible.
