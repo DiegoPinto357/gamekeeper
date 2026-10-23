@@ -1,5 +1,6 @@
 node_modules/
 dist/
+*.tsbuildinfo
 .env
 *.log
 .DS_Store
@@ -9,3 +10,6 @@ data/gamepass-unavailable.json
 data/library.json
 data/gamekeeper.db
 logs/sync-*.json
+
+# cwd/data fallback created when core scripts/tests run from packages/core
+packages/core/data/
