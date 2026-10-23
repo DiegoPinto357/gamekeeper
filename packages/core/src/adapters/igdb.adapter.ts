@@ -488,9 +488,131 @@ const clearCache = async (): Promise<void> => {
   await saveSteamAppIdCache();
 };
 
+// ── Metadata enrichment (P3.3) ────────────────────────────────────────────────
+
+export type IgdbMatch = {
+  igdbId: number;
+  name: string;
+};
+
+export type IgdbGameDetails = {
+  igdbId: number;
+  name: string;
+  summary?: string;
+  genres: string[];
+  themes: string[];
+  keywords: string[];
+  similarGameIds: number[];
+  developers: string[];
+  publishers: string[];
+};
+
+const igdbHeaders = (token: string) => ({
+  'Client-ID': TWITCH_CLIENT_ID,
+  Authorization: `Bearer ${token}`,
+});
+
+/**
+ * Resolve the IGDB game id for a Steam app via external_games
+ * (category 1 = Steam, uid = appid).
+ */
+const fetchGameBySteamAppId = async (
+  steamAppId: number,
+): Promise<IgdbMatch | null> => {
+  try {
+    const token = await authenticate();
+
+    const externalResponse = await axios.post<Array<{ id: number; game: number }>>(
+      `${IGDB_API_URL}/external_games`,
+      `where uid = "${steamAppId}" & category = 1; fields id, game; limit 1;`,
+      { headers: igdbHeaders(token) },
+    );
+    const external = externalResponse.data?.[0];
+    if (!external?.game) return null;
+
+    const gameResponse = await axios.post<Array<{ id: number; name: string }>>(
+      `${IGDB_API_URL}/games`,
+      `where id = ${external.game}; fields id, name; limit 1;`,
+      { headers: igdbHeaders(token) },
+    );
+    const game = gameResponse.data?.[0];
+    if (!game) return null;
+
+    return { igdbId: game.id, name: game.name };
+  } catch (error) {
+    log.warn(
+      `[IGDB] Steam lookup failed for app ${steamAppId}:`,
+      error instanceof Error ? error.message : error,
+    );
+    return null;
+  }
+};
+
+/**
+ * Fetch full metadata for an IGDB game id: summary, genres, themes,
+ * keywords, similar game ids, and involved companies.
+ */
+const fetchGameDetails = async (
+  igdbId: number,
+): Promise<IgdbGameDetails | null> => {
+  try {
+    const token = await authenticate();
+
+    const response = await axios.post<
+      Array<{
+        id: number;
+        name: string;
+        summary?: string;
+        genres?: Array<{ name: string }>;
+        themes?: Array<{ name: string }>;
+        keywords?: Array<{ name: string }>;
+        similar_games?: Array<{ id: number }>;
+        involved_companies?: Array<{
+          company: { name: string };
+          developer?: boolean;
+          publisher?: boolean;
+        }>;
+      }>
+    >(
+      `${IGDB_API_URL}/games`,
+      `where id = ${igdbId}; fields name, summary, genres.name, themes.name, keywords.name, similar_games.id, involved_companies.company.name, involved_companies.developer, involved_companies.publisher; limit 1;`,
+      { headers: igdbHeaders(token) },
+    );
+
+    const game = response.data?.[0];
+    if (!game) return null;
+
+    return {
+      igdbId: game.id,
+      name: game.name,
+      summary: game.summary,
+      genres: (game.genres ?? []).map((g) => g.name).filter(Boolean),
+      themes: (game.themes ?? []).map((t) => t.name).filter(Boolean),
+      keywords: (game.keywords ?? []).map((k) => k.name).filter(Boolean),
+      similarGameIds: (game.similar_games ?? []).map((s) => s.id),
+      developers: (game.involved_companies ?? [])
+        .filter((c) => c.developer)
+        .map((c) => c.company.name)
+        .filter(Boolean),
+      publishers: (game.involved_companies ?? [])
+        .filter((c) => c.publisher)
+        .map((c) => c.company.name)
+        .filter(Boolean),
+    };
+  } catch (error) {
+    log.warn(
+      `[IGDB] Details fetch failed for game ${igdbId}:`,
+      error instanceof Error ? error.message : error,
+    );
+    return null;
+  }
+};
+
 export const igdbAdapter = {
   initialize,
   findSteamAppId,
   getCacheStats,
   clearCache,
+  fetchGameBySteamAppId,
+  fetchGameDetails,
 };

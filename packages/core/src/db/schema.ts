@@ -162,4 +162,9 @@ export const MIGRATIONS: string[] = [
   ALTER TABLE games ADD COLUMN developer TEXT;
   ALTER TABLE games ADD COLUMN publisher TEXT;
   `,
+  `
+  -- P3.3: separate IGDB enrichment stamp (shared enriched_at tracks the
+  -- Steam appdetails pass; the two passes are independent and resumable).
+  ALTER TABLE games ADD COLUMN igdb_enriched_at TEXT;
+  `,
 ];

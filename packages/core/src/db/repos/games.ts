@@ -19,6 +19,7 @@ type GameRow = {
   igdb_id: number | null;
   meta_source: string | null;
   enriched_at: string | null;
+  igdb_enriched_at: string | null;
   description: string | null;
   developer: string | null;
   publisher: string | null;

@@ -16,6 +16,14 @@ export {
   type SteamEnrichResult,
   type SteamAppMetadata,
 } from './sync/steam-enrich';
+export {
+  enrichIgdbMetadata,
+  getIgdbEnrichmentCandidates,
+  type IgdbEnrichOptions,
+  type IgdbEnrichResult,
+  type IgdbApi,
+  type IgdbGameDetails,
+} from './sync/igdb-enrich';
 export type {
   SyncEvent,
   SyncSummary,
