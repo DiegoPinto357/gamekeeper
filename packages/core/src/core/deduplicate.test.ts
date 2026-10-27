@@ -135,6 +135,30 @@ describe('deduplicate', () => {
       expect(unified.publisher).toBe('Steam Pub');
     });
 
+    it('unions genres across sources (primary first, case-insensitive dedupe)', () => {
+      const games: RawGameData[] = [
+        createGame('Test Game', 'epic', { genres: ['Action', 'indie'] }),
+        createGame('Test Game', 'steam', {
+          steamAppId: 12345,
+          genres: ['RPG', 'Action'],
+        }),
+        createGame('Test Game', 'gog', { genres: ['Puzzle'] }),
+      ];
+
+      const unified = mergeGameGroup(games);
+
+      expect(unified.genres).toEqual(['RPG', 'Action', 'indie', 'Puzzle']);
+    });
+
+    it('genres stay undefined when no source has any', () => {
+      const games: RawGameData[] = [
+        createGame('Test Game', 'epic'),
+        createGame('Test Game', 'steam', { steamAppId: 12345 }),
+      ];
+
+      expect(mergeGameGroup(games).genres).toBeUndefined();
+    });
+
     it('tracks all owned sources', () => {
       const games: RawGameData[] = [
         createGame('Multi-Platform Game', 'steam', { steamAppId: 12345 }),

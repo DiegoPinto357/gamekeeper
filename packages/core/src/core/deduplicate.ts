@@ -133,9 +133,22 @@ export const mergeGameGroup = (games: RawGameData[]): UnifiedGame => {
     sorted.find(game => game.coverImageUrl != null)?.coverImageUrl;
 
   // New metadata scalars: primary source wins, first populated sibling fills
-  // gaps (genre/tag union across sources lands with the enrich pipeline).
+  // gaps (genre union across sources lands here too).
   const pickFromSiblings = <K extends keyof RawGameData>(key: K) =>
     primary[key] ?? sorted.find(game => game[key] != null)?.[key];
+
+  // Genre union across all sources in the group: primary's order first,
+  // then siblings; deduped case-insensitively (casing variants collapse).
+  const seenGenres = new Set<string>();
+  const genres: string[] = [];
+  for (const game of sorted) {
+    for (const genre of game.genres ?? []) {
+      const key = genre.toLowerCase();
+      if (seenGenres.has(key)) continue;
+      seenGenres.add(key);
+      genres.push(genre);
+    }
+  }
 
   const unified: UnifiedGame = {
     canonicalId,
@@ -147,7 +160,7 @@ export const mergeGameGroup = (games: RawGameData[]): UnifiedGame => {
     lastPlayedAt,
     coverImageUrl,
     releaseDate: primary.releaseDate,
-    genres: primary.genres,
+    genres: genres.length > 0 ? genres : undefined,
     description: pickFromSiblings('description'),
     developer: pickFromSiblings('developer'),
     publisher: pickFromSiblings('publisher'),
