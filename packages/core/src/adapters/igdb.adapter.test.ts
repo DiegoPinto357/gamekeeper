@@ -46,7 +46,7 @@ describe('igdbAdapter metadata', () => {
   });
 
   describe('fetchGameBySteamAppId', () => {
-    it('resolves the IGDB game id via external_games (category 1, uid)', async () => {
+    it('resolves the IGDB game id via external_games (source 1, uid)', async () => {
       mockedAxios.post.mockImplementation((url: string, body?: unknown) => {
         if (url.includes('oauth2/token'))
           return Promise.resolve({
@@ -54,7 +54,7 @@ describe('igdbAdapter metadata', () => {
           });
         if (url.includes('/external_games')) {
           expect(body).toContain('uid = "1145350"');
-          expect(body).toContain('category = 1');
+          expect(body).toContain('external_game_source = 1');
           return Promise.resolve({ data: [{ id: 9001, game: 5502 }] });
         }
         if (url.includes('/games')) {
@@ -78,6 +78,63 @@ describe('igdbAdapter metadata', () => {
       });
 
       expect(await igdbAdapter.fetchGameBySteamAppId(1)).toBeNull();
+    });
+  });
+
+  describe('findByName', () => {
+    const searchResults = [
+      { id: 5502, name: 'Hades II' },
+      { id: 100, name: 'Hades II: Soundtrack' },
+    ];
+
+    it('returns the exact normalized match', async () => {
+      mockedAxios.post.mockImplementation((url: string) => {
+        if (url.includes('oauth2/token'))
+          return Promise.resolve({
+            data: { access_token: 'tok', expires_in: 3600, token_type: 'bearer' },
+          });
+        if (url.includes('/games'))
+          return Promise.resolve({ data: searchResults });
+        return Promise.resolve({ data: [] });
+      });
+
+      expect(await igdbAdapter.findByName('hades ii')).toEqual({
+        igdbId: 5502,
+        name: 'Hades II',
+      });
+    });
+
+    it('matches through edition-suffix stripping', async () => {
+      mockedAxios.post.mockImplementation((url: string) => {
+        if (url.includes('oauth2/token'))
+          return Promise.resolve({
+            data: { access_token: 'tok', expires_in: 3600, token_type: 'bearer' },
+          });
+        if (url.includes('/games'))
+          return Promise.resolve({
+            data: [{ id: 700, name: 'Hades II - Digital Deluxe Edition' }],
+          });
+        return Promise.resolve({ data: [] });
+      });
+
+      expect(await igdbAdapter.findByName('Hades II')).toEqual({
+        igdbId: 700,
+        name: 'Hades II - Digital Deluxe Edition',
+      });
+    });
+
+    it('returns null when nothing matches', async () => {
+      mockedAxios.post.mockImplementation((url: string) => {
+        if (url.includes('oauth2/token'))
+          return Promise.resolve({
+            data: { access_token: 'tok', expires_in: 3600, token_type: 'bearer' },
+          });
+        if (url.includes('/games'))
+          return Promise.resolve({ data: [{ id: 1, name: 'Unrelated Game' }] });
+        return Promise.resolve({ data: [] });
+      });
+
+      expect(await igdbAdapter.findByName('Some Unknown Title')).toBeNull();
     });
   });
 

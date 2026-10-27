@@ -20,7 +20,7 @@ interface IGDBGame {
   id: number;
   name: string;
   external_games?: Array<{
-    category: number; // 1 = Steam
+    external_game_source: number; // 1 = Steam (replaced the removed `category` field)
     uid: string; // Steam App ID
   }>;
   websites?: Array<{
@@ -283,10 +283,10 @@ const findSteamAppId = async (gameName: string): Promise<number | null> => {
       try {
         // Fetch all external_games for these games in one request
         const externalResponse = await axios.post<
-          Array<{ game: number; category: number; uid: string }>
+          Array<{ game: number; external_game_source: number; uid: string }>
         >(
           `${IGDB_API_URL}/external_games`,
-          `fields game, category, uid; where game = (${gameIds}) & category = 1;`,
+          `fields game, external_game_source, uid; where game = (${gameIds}) & external_game_source = 1;`,
           {
             headers: {
               'Client-ID': TWITCH_CLIENT_ID,
@@ -298,7 +298,7 @@ const findSteamAppId = async (gameName: string): Promise<number | null> => {
         // Map external_games back to their games
         const externalGamesMap = new Map<
           number,
-          Array<{ category: number; uid: string }>
+          Array<{ external_game_source: number; uid: string }>
         >();
         for (const ext of externalResponse.data) {
           if (!externalGamesMap.has(ext.game)) {
@@ -306,7 +306,7 @@ const findSteamAppId = async (gameName: string): Promise<number | null> => {
           }
           externalGamesMap
             .get(ext.game)!
-            .push({ category: ext.category, uid: ext.uid });
+            .push({ external_game_source: ext.external_game_source, uid: ext.uid });
         }
 
         // Attach to games
@@ -343,9 +343,9 @@ const findSteamAppId = async (gameName: string): Promise<number | null> => {
         const isCoreMatch = gameNameWithoutEdition === searchWithoutEdition;
 
         if (isExactMatch || isCloseMatch || isCoreMatch) {
-          // Try external_games first (category 1 = Steam)
+          // Try external_games first (source 1 = Steam)
           const steamExternal = game.external_games?.find(
-            eg => eg.category === 1
+            eg => eg.external_game_source === 1
           );
 
           if (steamExternal) {
@@ -385,7 +385,7 @@ const findSteamAppId = async (gameName: string): Promise<number | null> => {
       for (const game of response.data) {
         // Try external_games
         const steamExternal = game.external_games?.find(
-          eg => eg.category === 1
+          eg => eg.external_game_source === 1
         );
 
         if (steamExternal) {
@@ -514,7 +514,7 @@ const igdbHeaders = (token: string) => ({
 
 /**
  * Resolve the IGDB game id for a Steam app via external_games
- * (category 1 = Steam, uid = appid).
+ * (external_game_source 1 = Steam, uid = appid).
  */
 const fetchGameBySteamAppId = async (
   steamAppId: number,
@@ -524,7 +524,7 @@ const fetchGameBySteamAppId = async (
 
     const externalResponse = await axios.post<Array<{ id: number; game: number }>>(
       `${IGDB_API_URL}/external_games`,
-      `where uid = "${steamAppId}" & category = 1; fields id, game; limit 1;`,
+      `where uid = "${steamAppId}" & external_game_source = 1; fields id, game; limit 1;`,
       { headers: igdbHeaders(token) },
     );
     const external = externalResponse.data?.[0];
@@ -608,6 +608,51 @@ const fetchGameDetails = async (
   }
 };
 
+/**
+ * Resolve an IGDB game id by exact-ish name: search, then match on the
+ * normalized name (or edition-stripped forms). No first-result fallback —
+ * misattached metadata is worse than a skipped game; force retries.
+ */
+const stripAllEditions = (name: string): string => {
+  let current = name;
+  for (;;) {
+    const next = removeEditionSuffix(current);
+    if (next === current) return current;
+    current = next;
+  }
+};
+
+const findByName = async (name: string): Promise<IgdbMatch | null> => {
+  try {
+    const token = await authenticate();
+
+    const response = await axios.post<Array<{ id: number; name: string }>>(
+      `${IGDB_API_URL}/games`,
+      `search "${name.replace(/"/g, '')}"; fields id, name; limit 10;`,
+      { headers: igdbHeaders(token) },
+    );
+    const results = response.data ?? [];
+    if (results.length === 0) return null;
+
+    const target = normalizeForMatching(name);
+    const targetCore = normalizeForMatching(stripAllEditions(name));
+    const match =
+      results.find((g) => normalizeForMatching(g.name) === target) ??
+      results.find(
+        (g) =>
+          normalizeForMatching(stripAllEditions(g.name)) === targetCore,
+      );
+
+    return match ? { igdbId: match.id, name: match.name } : null;
+  } catch (error) {
+    log.warn(
+      `[IGDB] Name lookup failed for "${name}":`,
+      error instanceof Error ? error.message : error,
+    );
+    return null;
+  }
+};
+
 export const igdbAdapter = {
   initialize,
   findSteamAppId,
@@ -615,4 +660,5 @@ export const igdbAdapter = {
   clearCache,
   fetchGameBySteamAppId,
   fetchGameDetails,
+  findByName,
 };
