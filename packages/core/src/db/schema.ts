@@ -167,4 +167,31 @@ export const MIGRATIONS: string[] = [
   -- Steam appdetails pass; the two passes are independent and resumable).
   ALTER TABLE games ADD COLUMN igdb_enriched_at TEXT;
   `,
+  `
+  -- P3.5: FTS beyond name-only — description + genres + tags. FTS5 virtual
+  -- tables cannot gain columns via ALTER, so re-create and repopulate from
+  -- the (already enriched) games + junction tables in the same migration.
+  DROP TABLE games_fts;
+  CREATE VIRTUAL TABLE games_fts USING fts5(
+    canonical_id UNINDEXED,
+    name,
+    description,
+    genres,
+    tags,
+    tokenize = 'porter unicode61'
+  );
+  INSERT INTO games_fts (canonical_id, name, description, genres, tags)
+  SELECT g.canonical_id, g.name, COALESCE(g.description, ''),
+    COALESCE((
+      SELECT group_concat(gr.name, ' ')
+      FROM game_genres gg JOIN genres gr ON gr.id = gg.genre_id
+      WHERE gg.canonical_id = g.canonical_id
+    ), ''),
+    COALESCE((
+      SELECT group_concat(t.name, ' ')
+      FROM game_tags gt JOIN tags t ON t.id = gt.tag_id
+      WHERE gt.canonical_id = g.canonical_id
+    ), '')
+  FROM games g;
+  `,
 ];

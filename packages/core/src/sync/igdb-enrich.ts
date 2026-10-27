@@ -6,6 +6,7 @@ export type { IgdbGameDetails };
 
 export type IgdbApi = {
   findBySteamAppId: (steamAppId: number) => Promise<IgdbMatch | null>;
+  findByName: (name: string) => Promise<IgdbMatch | null>;
   fetchDetails: (igdbId: number) => Promise<IgdbGameDetails | null>;
 };
 
@@ -28,7 +29,7 @@ export type IgdbEnrichResult = {
 export type IgdbEnrichCandidate = {
   canonicalId: string;
   name: string;
-  steamAppId: number;
+  steamAppId: number | null;
   igdbId: number | null;
   description: string | null;
   developer: string | null;
@@ -41,9 +42,7 @@ export const getIgdbEnrichmentCandidates = (
   db: DatabaseSync,
   opts: { force?: boolean } = {},
 ): IgdbEnrichCandidate[] => {
-  const where = opts.force
-    ? 'steam_app_id IS NOT NULL'
-    : 'steam_app_id IS NOT NULL AND igdb_enriched_at IS NULL';
+  const where = opts.force ? '1 = 1' : 'igdb_enriched_at IS NULL';
   const rows = db
     .prepare(
       `SELECT canonical_id, name, steam_app_id, igdb_id, description, developer, publisher
@@ -54,7 +53,7 @@ export const getIgdbEnrichmentCandidates = (
     .all() as Array<{
     canonical_id: string;
     name: string;
-    steam_app_id: number;
+    steam_app_id: number | null;
     igdb_id: number | null;
     description: string | null;
     developer: string | null;
@@ -132,16 +131,17 @@ const applyDetails = (
 };
 
 /**
- * Enrich Steam games via IGDB: resolve igdb_id by Steam appid (external_games),
- * then pull summary/genres/themes/keywords/companies. Resumable via
+ * Enrich all games via IGDB: Steam games resolve by appid (external_games),
+ * everything else by exact-ish name (manual/physical included). Then pull
+ * summary/genres/themes/keywords/companies. Resumable via
  * `igdb_enriched_at`; failures stay unstamped and retry next run.
- * Non-Steam/manual games join by name in a later pass (P3.5).
  */
 export const enrichIgdbMetadata = async (
   db: DatabaseSync,
   opts: IgdbEnrichOptions = {},
   api: IgdbApi = {
     findBySteamAppId: igdbAdapter.fetchGameBySteamAppId,
+    findByName: igdbAdapter.findByName,
     fetchDetails: igdbAdapter.fetchGameDetails,
   },
 ): Promise<IgdbEnrichResult> => {
@@ -162,7 +162,9 @@ export const enrichIgdbMetadata = async (
   for (const candidate of selected) {
     let igdbId = candidate.igdbId;
     if (igdbId === null) {
-      const match = await api.findBySteamAppId(candidate.steamAppId);
+      const match = candidate.steamAppId
+        ? await api.findBySteamAppId(candidate.steamAppId)
+        : await api.findByName(candidate.name);
       igdbId = match?.igdbId ?? null;
     }
 

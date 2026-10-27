@@ -150,8 +150,8 @@ describe('migrate', () => {
 
     // #3 (recurrent + renumber), #4 (unavailable_reason), #5 (pinned),
     // #6 (un-pin pre-model materialized rows), #7 (metadata columns),
-    // #8 (igdb_enriched_at)
-    expect(applied).toBe(6);
+    // #8 (igdb_enriched_at), #9 (FTS re-created with description/genres/tags)
+    expect(applied).toBe(7);
     const rows = raw
       .prepare('SELECT key, position FROM statuses ORDER BY position')
       .all() as { key: string; position: number }[];
@@ -178,6 +178,13 @@ describe('migrate', () => {
         'publisher',
         'igdb_enriched_at',
       ]),
+    );
+    // #9: FTS covers description + genres + tags beyond name-only
+    const ftsCols = raw
+      .prepare('PRAGMA table_info(games_fts)')
+      .all() as { name: string }[];
+    expect(ftsCols.map((c) => c.name)).toEqual(
+      expect.arrayContaining(['canonical_id', 'name', 'description', 'genres', 'tags']),
     );
     const statusCols = raw
       .prepare('PRAGMA table_info(game_status)')

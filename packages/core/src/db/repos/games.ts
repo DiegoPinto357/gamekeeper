@@ -104,10 +104,26 @@ export const upsertGames = (
   games: UnifiedGame[],
 ): number => {
   const stmt = db.prepare(UPSERT_SQL);
+  const insertGenre = db.prepare(
+    'INSERT INTO genres (name) VALUES (?) ON CONFLICT(name) DO NOTHING',
+  );
+  const linkGenre = db.prepare(
+    `INSERT INTO game_genres (canonical_id, genre_id)
+     SELECT ?, id FROM genres WHERE name = ?
+     ON CONFLICT(canonical_id, genre_id) DO NOTHING`,
+  );
   db.exec('BEGIN');
   try {
     for (const game of games) {
       stmt.run(...toRow(game));
+      // Genres union in: sync never removes rows — enrichment (IGDB/Steam)
+      // writes stay across resends.
+      for (const genre of game.genres ?? []) {
+        const name = genre.trim();
+        if (!name) continue;
+        insertGenre.run(name);
+        linkGenre.run(game.canonicalId, name);
+      }
     }
     rebuildGamesFts(db);
   } catch (err) {
@@ -189,7 +205,19 @@ export const listGames = (db: DatabaseSync): UnifiedGame[] => {
 export const rebuildGamesFts = (db: DatabaseSync): number => {
   db.exec('DELETE FROM games_fts');
   db.exec(
-    'INSERT INTO games_fts (canonical_id, name) SELECT canonical_id, name FROM games',
+    `INSERT INTO games_fts (canonical_id, name, description, genres, tags)
+     SELECT g.canonical_id, g.name, COALESCE(g.description, ''),
+       COALESCE((
+         SELECT group_concat(gr.name, ' ')
+         FROM game_genres gg JOIN genres gr ON gr.id = gg.genre_id
+         WHERE gg.canonical_id = g.canonical_id
+       ), ''),
+       COALESCE((
+         SELECT group_concat(t.name, ' ')
+         FROM game_tags gt JOIN tags t ON t.id = gt.tag_id
+         WHERE gt.canonical_id = g.canonical_id
+       ), '')
+     FROM games g`,
   );
   const row = db.prepare('SELECT COUNT(*) AS c FROM games').get() as {
     c: number;

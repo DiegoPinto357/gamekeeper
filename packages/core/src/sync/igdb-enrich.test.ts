@@ -43,6 +43,7 @@ const makeApi = (
   overrides: Partial<IgdbApi> = {},
 ): IgdbApi => ({
   findBySteamAppId: async () => ({ igdbId: 5502, name: 'Hades II' }),
+  findByName: async () => ({ igdbId: 5502, name: 'Hades II' }),
   fetchDetails: async () => details(),
   ...overrides,
 });
@@ -80,24 +81,28 @@ describe('igdb-enrich', () => {
   });
 
   describe('getIgdbEnrichmentCandidates', () => {
-    it('selects Steam games not yet IGDB-enriched', () => {
+    it('selects any game not yet IGDB-enriched (Steam and non-Steam)', () => {
       upsertGames(db.raw, [
         makeGame({ canonicalId: 'steam:1', steamAppId: 1 }),
-        makeGame({ canonicalId: 'steam:2', steamAppId: 2 }),
         makeGame({
-          canonicalId: 'gog:x',
+          canonicalId: 'switch:2',
           steamAppId: undefined,
-          primarySource: 'gog',
-          ownedSources: ['gog'],
+          name: 'Physical Switch Game',
+          primarySource: 'manual',
+          ownedSources: ['manual'],
         }),
+        makeGame({ canonicalId: 'steam:3', steamAppId: 3 }),
       ]);
       db.raw
-        .prepare("UPDATE games SET igdb_enriched_at = '2026-01-02T00:00:00.000Z' WHERE canonical_id = 'steam:2'")
+        .prepare("UPDATE games SET igdb_enriched_at = '2026-01-02T00:00:00.000Z' WHERE canonical_id = 'steam:3'")
         .run();
 
       const candidates = getIgdbEnrichmentCandidates(db.raw);
 
-      expect(candidates.map((c) => c.canonicalId)).toEqual(['steam:1']);
+      expect(candidates.map((c) => c.canonicalId).sort()).toEqual([
+        'steam:1',
+        'switch:2',
+      ]);
     });
 
     it('force includes already-enriched games', () => {
@@ -197,6 +202,43 @@ describe('igdb-enrich', () => {
       const row = readGame(db.raw, 'steam:1145350');
       expect(row.igdb_id).toBe(999);
       expect(row.description).toBe('Battle beyond the Underworld.');
+    });
+
+    it('routes Steam games through findBySteamAppId and the rest through findByName', async () => {
+      upsertGames(db.raw, [
+        makeGame({ canonicalId: 'steam:1', steamAppId: 111, name: 'Steam Game' }),
+        makeGame({
+          canonicalId: 'manual:2',
+          steamAppId: undefined,
+          name: 'Physical Switch Game',
+          primarySource: 'manual',
+          ownedSources: ['manual'],
+        }),
+      ]);
+      const steamLookups: number[] = [];
+      const nameLookups: string[] = [];
+
+      await enrichIgdbMetadata(
+        db.raw,
+        { delayMs: 0 },
+        makeApi({
+          findBySteamAppId: async (appId) => {
+            steamLookups.push(appId);
+            return { igdbId: 1, name: 'Steam Game' };
+          },
+          findByName: async (name) => {
+            nameLookups.push(name);
+            return { igdbId: 2, name: 'Physical Switch Game' };
+          },
+        }),
+      );
+
+      expect(steamLookups).toEqual([111]);
+      expect(nameLookups).toEqual(['Physical Switch Game']);
+      expect(readGame(db.raw, 'manual:2').igdb_id).toBe(2);
+      expect(readGame(db.raw, 'manual:2').description).toBe(
+        'Battle beyond the Underworld.',
+      );
     });
 
     it('respects limit and reports progress', async () => {

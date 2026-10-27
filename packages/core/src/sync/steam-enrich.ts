@@ -34,6 +34,8 @@ export type SteamEnrichResult = {
 
 export type SteamEnrichCandidate = {
   canonicalId: string;
+  /** Authoritative store appid — canonical ids are name slugs, not steam:<id>. */
+  steamAppId: number;
   name: string;
   description: string | null;
   developer: string | null;
@@ -53,7 +55,7 @@ export const getSteamEnrichmentCandidates = (
     : 'steam_app_id IS NOT NULL AND enriched_at IS NULL';
   const rows = db
     .prepare(
-      `SELECT canonical_id, name, description, developer, publisher,
+      `SELECT canonical_id, steam_app_id, name, description, developer, publisher,
               cover_image_url, release_date
        FROM games
        WHERE ${where}
@@ -61,6 +63,7 @@ export const getSteamEnrichmentCandidates = (
     )
     .all() as Array<{
     canonical_id: string;
+    steam_app_id: number;
     name: string;
     description: string | null;
     developer: string | null;
@@ -71,6 +74,7 @@ export const getSteamEnrichmentCandidates = (
 
   return rows.map((row) => ({
     canonicalId: row.canonical_id,
+    steamAppId: row.steam_app_id,
     name: row.name,
     description: row.description,
     developer: row.developer,
@@ -153,7 +157,7 @@ export const enrichSteamMetadata = async (
   log.info(`Steam enrichment: ${total} games`);
   let done = 0;
   for (const candidate of selected) {
-    const appId = Number(candidate.canonicalId.replace(/^steam:/, ''));
+    const appId = candidate.steamAppId;
     const details = Number.isInteger(appId)
       ? await fetchDetails(appId)
       : null;

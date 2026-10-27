@@ -138,6 +138,55 @@ describe('games', () => {
     );
   });
 
+  it('upsert unions genres into game_genres without clobbering existing rows', () => {
+    upsertGames(db.raw, [makeGame({ genres: ['RPG'] })]);
+
+    db.raw.prepare("INSERT INTO genres (name) VALUES ('Existing')").run();
+    db.raw
+      .prepare(
+        `INSERT INTO game_genres (canonical_id, genre_id)
+         SELECT 'steam:1145350', id FROM genres WHERE name = 'Existing'`,
+      )
+      .run();
+
+    upsertGames(db.raw, [makeGame({ genres: ['RPG', 'Action'] })]);
+
+    const names = (
+      db.raw
+        .prepare(
+          `SELECT g.name FROM genres g
+           JOIN game_genres gg ON gg.genre_id = g.id
+           WHERE gg.canonical_id = 'steam:1145350' ORDER BY g.name`,
+        )
+        .all() as { name: string }[]
+    ).map((r) => r.name);
+    expect(names).toEqual(['Action', 'Existing', 'RPG']);
+  });
+
+  it('FTS indexes name, description, genres, and tags (P3.5)', () => {
+    upsertGames(db.raw, [
+      makeGame({
+        name: 'Hades II',
+        description: 'Battle beyond the Underworld.',
+        genres: ['Roguelike'],
+      }),
+    ]);
+    db.raw.prepare("INSERT INTO tags (name) VALUES ('isometric')").run();
+    db.raw
+      .prepare(
+        `INSERT INTO game_tags (canonical_id, tag_id)
+         SELECT 'steam:1145350', id FROM tags WHERE name = 'isometric'`,
+      )
+      .run();
+    rebuildGamesFts(db.raw);
+
+    expect(searchFts(db.raw, 'underworld')).toEqual(['steam:1145350']);
+    expect(searchFts(db.raw, 'roguelike')).toEqual(['steam:1145350']);
+    expect(searchFts(db.raw, 'isometric')).toEqual(['steam:1145350']);
+    expect(searchFts(db.raw, 'hades')).toEqual(['steam:1145350']);
+    expect(searchFts(db.raw, 'nonexistentterm')).toEqual([]);
+  });
+
   it('upsert does NOT clobber enrichment columns (igdb_id, enriched_at, meta_source)', () => {
     const game = makeGame();
     upsertGames(db.raw, [game]);
