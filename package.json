@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "sync": "pnpm --filter @gamekeeper/cli run sync",
+    "enrich": "pnpm --filter @gamekeeper/cli run enrich",
     "sync:dry-run": "pnpm --filter @gamekeeper/cli run sync:dry-run",
     "build": "pnpm --filter @gamekeeper/shared run build && pnpm --filter @gamekeeper/core run build && pnpm --filter @gamekeeper/cli run build",
     "start": "pnpm --filter @gamekeeper/cli run start",
