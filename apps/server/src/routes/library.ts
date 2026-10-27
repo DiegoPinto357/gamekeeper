@@ -7,6 +7,7 @@ import {
   UnknownGameError,
   UnknownStatusError,
   type Db,
+  type LibraryGame as CoreLibraryGame,
 } from '@gamekeeper/core';
 import type {
   LibraryGame,
@@ -25,19 +26,8 @@ type PatchBody = {
   afterId?: unknown;
 };
 
-const toLibraryGame = (game: {
-  canonicalId: string;
-  name: string;
-  coverImageUrl: string | null;
-  playtimeHours: number | null;
-  primarySource: string;
-  ownedSources: string[];
-  status: string | null;
-  position: number | null;
-  pinned: boolean;
-  unavailableReason: string | null;
-  proton: { tier: string; steamDeck: string } | null;
-}): LibraryGame => ({
+/** Bridge core's row-shaped LibraryGame (nullable) to shared's API shape. */
+const toLibraryGame = (game: CoreLibraryGame): LibraryGame => ({
   canonicalId: game.canonicalId,
   name: game.name,
   coverImageUrl: game.coverImageUrl ?? undefined,
