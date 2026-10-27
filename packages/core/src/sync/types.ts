@@ -23,6 +23,8 @@ export type SyncStepKey =
   | 'notion'
   | 'snapshot'
   | 'db-write'
+  | 'steam-enrich'
+  | 'igdb-enrich'
   | 'availability';
 
 export type SyncStepInfo = {
@@ -51,7 +53,15 @@ export type SyncEvent =
 export type SyncOptions = {
   dryRun?: boolean;
   skipNotion?: boolean;
+  /** Skip the steam-enrich / igdb-enrich steps (metadata enrichment). */
+  skipEnrich?: boolean;
   logLevel?: 'debug' | 'info';
+};
+
+export type EnrichMetadataResult = {
+  enriched: number;
+  failed: number;
+  total: number;
 };
 
 export type NotionProgress = {
@@ -128,6 +138,14 @@ export interface SyncIO {
   persistAvailability(
     unavailable: UnavailableGame[],
   ): Promise<{ flagged: number; cleared: number }>;
+  /** Steam store appdetails pass; resumable via games.enriched_at. */
+  enrichSteamMetadata(
+    onProgress?: (current: number, total: number) => void,
+  ): Promise<EnrichMetadataResult>;
+  /** IGDB lookup + details pass; resumable via games.igdb_enriched_at. */
+  enrichIgdbMetadata(
+    onProgress?: (current: number, total: number) => void,
+  ): Promise<EnrichMetadataResult>;
 }
 
 export type SyncDeps = {

@@ -25,6 +25,9 @@ const progressEventLabel = (key: string): string => {
       return 'non-Steam games checked';
     case 'protondb':
       return 'games enriched';
+    case 'steam-enrich':
+    case 'igdb-enrich':
+      return 'games enriched';
     default:
       return key;
   }
@@ -79,10 +82,14 @@ const render = (event: SyncEvent): void => {
 const main = async (): Promise<void> => {
   const dryRun = process.argv.includes('--dry-run');
   const skipNotion = process.argv.includes('--skip-notion');
+  const skipEnrich = process.argv.includes('--skip-enrich');
 
   console.log('🎮 GameKeeper - Starting sync...\n');
 
-  await runSync({ dryRun, skipNotion }, { logger: consoleLogger, emit: render });
+  await runSync(
+    { dryRun, skipNotion, skipEnrich },
+    { logger: consoleLogger, emit: render },
+  );
 
   console.log('\n✅ GameKeeper sync completed successfully!');
 };

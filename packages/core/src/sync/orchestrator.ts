@@ -414,7 +414,52 @@ export const runSync = async (
       };
     });
 
-    // 17. Game Pass availability report
+    // 17. Steam store metadata enrichment (resumable via enriched_at;
+    // failures stay unstamped and retry the next run)
+    const EMPTY_ENRICH = { enriched: 0, failed: 0, total: 0 };
+    const runEnrichStep = async (
+      key: 'steam-enrich' | 'igdb-enrich',
+      label: string,
+      run: (
+        onProgress?: (current: number, total: number) => void,
+      ) => Promise<{ enriched: number; failed: number; total: number }>,
+    ): Promise<void> => {
+      await step(
+        key,
+        label,
+        async () => {
+          if (options.skipEnrich) {
+            return { value: EMPTY_ENRICH, skipped: true, detail: 'skipped' };
+          }
+          try {
+            const result = await run((current, total) =>
+              emit({ type: 'progress', key, current, total }),
+            );
+            return {
+              value: result,
+              skipped: result.total === 0,
+              detail:
+                result.total === 0
+                  ? 'nothing to do'
+                  : `${result.enriched} enriched, ${result.failed} failed`,
+            };
+          } catch (error) {
+            // best-effort: a failed enrichment pass must not kill the sync
+            return { value: EMPTY_ENRICH, error };
+          }
+        },
+        { fatal: false },
+      );
+    };
+
+    await runEnrichStep('steam-enrich', 'Steam metadata enrichment', onProgress =>
+      io.enrichSteamMetadata(onProgress),
+    );
+    await runEnrichStep('igdb-enrich', 'IGDB metadata enrichment', onProgress =>
+      io.enrichIgdbMetadata(onProgress),
+    );
+
+    // 18. Game Pass availability report
     await step('availability', 'Availability report', async () => {
       if (!gamePassCatalog || !libraryOk) {
         return {

@@ -56,6 +56,8 @@ type Harness = {
     processGamePassAvailability: ReturnType<typeof vi.fn>;
     saveUnavailableGames: ReturnType<typeof vi.fn>;
     persistAvailability: ReturnType<typeof vi.fn>;
+    enrichSteamMetadata: ReturnType<typeof vi.fn>;
+    enrichIgdbMetadata: ReturnType<typeof vi.fn>;
   };
 };
 
@@ -127,6 +129,22 @@ const makeHarness = (overrides: Partial<SyncIO> = {}): Harness => {
     }),
     saveUnavailableGames: vi.fn().mockResolvedValue(undefined),
     persistAvailability: vi.fn().mockResolvedValue({ flagged: 1, cleared: 0 }),
+    enrichSteamMetadata: vi
+      .fn()
+      .mockImplementation(
+        async (onProgress?: (current: number, total: number) => void) => {
+          onProgress?.(3, 3);
+          return { enriched: 3, failed: 0, total: 3 };
+        },
+      ),
+    enrichIgdbMetadata: vi
+      .fn()
+      .mockImplementation(
+        async (onProgress?: (current: number, total: number) => void) => {
+          onProgress?.(3, 3);
+          return { enriched: 3, failed: 1, total: 4 };
+        },
+      ),
   };
 
   const io: SyncIO = { ...ioSpies, ...overrides } as SyncIO;
@@ -199,6 +217,12 @@ describe('runSync', () => {
       'step:done:snapshot',
       'step:start:db-write',
       'step:done:db-write',
+      'step:start:steam-enrich',
+      'progress:steam-enrich',
+      'step:done:steam-enrich',
+      'step:start:igdb-enrich',
+      'progress:igdb-enrich',
+      'step:done:igdb-enrich',
       'step:start:availability',
       'step:done:availability',
       'summary',
@@ -252,6 +276,72 @@ describe('runSync', () => {
     expect(h.adapters.notion.syncGames).not.toHaveBeenCalled();
     expect(summary.removed).toBe(0);
     expect(summary.skipped).toBe(0);
+  });
+
+  it('skipEnrich skips both enrichment steps and never calls them', async () => {
+    const h = makeHarness();
+    await run(h, { skipEnrich: true });
+
+    const skips = h.events.filter(e => e.type === 'step:skip');
+    expect(skips.map(e => ('key' in e ? e.key : ''))).toEqual([
+      'steam-enrich',
+      'igdb-enrich',
+    ]);
+    expect(h.ioSpies.enrichSteamMetadata).not.toHaveBeenCalled();
+    expect(h.ioSpies.enrichIgdbMetadata).not.toHaveBeenCalled();
+  });
+
+  it('runs enrichment after db-write, before availability, with progress and details', async () => {
+    const h = makeHarness();
+    await run(h);
+
+    expect(h.ioSpies.enrichSteamMetadata).toHaveBeenCalledTimes(1);
+    expect(h.ioSpies.enrichIgdbMetadata).toHaveBeenCalledTimes(1);
+
+    const keys = eventKeys(h.events);
+    expect(keys.indexOf('step:done:db-write')).toBeLessThan(
+      keys.indexOf('step:start:steam-enrich'),
+    );
+    expect(keys.indexOf('step:done:steam-enrich')).toBeLessThan(
+      keys.indexOf('step:start:igdb-enrich'),
+    );
+    expect(keys.indexOf('step:done:igdb-enrich')).toBeLessThan(
+      keys.indexOf('step:start:availability'),
+    );
+
+    expect(findStep(h.events, 'step:done', 'steam-enrich')?.detail).toBe(
+      '3 enriched, 0 failed',
+    );
+    expect(findStep(h.events, 'step:done', 'igdb-enrich')?.detail).toBe(
+      '3 enriched, 1 failed',
+    );
+    expect(
+      h.events.filter(e => e.type === 'progress' && e.key === 'steam-enrich'),
+    ).toContainEqual({ type: 'progress', key: 'steam-enrich', current: 3, total: 3 });
+  });
+
+  it('enrichment failures are non-fatal and do not block availability', async () => {
+    const h = makeHarness();
+    h.ioSpies.enrichSteamMetadata.mockRejectedValue(new Error('steam store down'));
+
+    const summary = await run(h);
+
+    expect(findStep(h.events, 'step:error', 'steam-enrich')).toBeDefined();
+    expect(summary.errors).toBe(1);
+    expect(findStep(h.events, 'step:done', 'igdb-enrich')).toBeDefined();
+    expect(eventKeys(h.events)).toContain('step:done:availability');
+    expect(eventKeys(h.events).at(-1)).toBe('summary');
+  });
+
+  it('enrichment steps skip as "nothing to do" when all games are stamped', async () => {
+    const h = makeHarness({
+      enrichSteamMetadata: vi.fn().mockResolvedValue({ enriched: 0, failed: 0, total: 0 }),
+      enrichIgdbMetadata: vi.fn().mockResolvedValue({ enriched: 0, failed: 0, total: 0 }),
+    });
+    await run(h);
+
+    expect(findStep(h.events, 'step:skip', 'steam-enrich')?.detail).toBe('nothing to do');
+    expect(findStep(h.events, 'step:skip', 'igdb-enrich')?.detail).toBe('nothing to do');
   });
 
   it('passes dryRun through to adapters via config', async () => {

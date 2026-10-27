@@ -16,7 +16,9 @@ import { createProtonDBAdapter } from '../adapters/protondb.adapter';
 import { createGamePassAdapter } from '../adapters/gamepass.adapter';
 import { igdbAdapter } from '../adapters/igdb.adapter';
 import { createNotionClient } from '../notion/notion.client';
-import { openDb, upsertGames, reconcileUnavailableReasons } from '../db/index';
+import { openDb, upsertGames, reconcileUnavailableReasons, rebuildGamesFts } from '../db/index';
+import { enrichSteamMetadata as runSteamEnrich } from './steam-enrich';
+import { enrichIgdbMetadata as runIgdbEnrich } from './igdb-enrich';
 import { normalizeGameName, wordSortedKey } from '../core/normalize';
 import { log } from '../logger';
 import type { Config, RawGameData, UnifiedGame } from '../types/game';
@@ -192,6 +194,32 @@ export const defaultSyncIO: SyncIO = {
       }
       upsertGames(db.raw, games);
       return Promise.resolve({ path: db.path, added, updated });
+    } finally {
+      db.close();
+    }
+  },
+
+  enrichSteamMetadata: async onProgress => {
+    const db = openDb();
+    try {
+      const result = await runSteamEnrich(db.raw, {
+        onProgress: (current, total) => onProgress?.(current, total),
+      });
+      if (result.enriched > 0) rebuildGamesFts(db.raw);
+      return result;
+    } finally {
+      db.close();
+    }
+  },
+
+  enrichIgdbMetadata: async onProgress => {
+    const db = openDb();
+    try {
+      const result = await runIgdbEnrich(db.raw, {
+        onProgress: (current, total) => onProgress?.(current, total),
+      });
+      if (result.enriched > 0) rebuildGamesFts(db.raw);
+      return result;
     } finally {
       db.close();
     }
