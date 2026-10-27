@@ -136,6 +136,97 @@ describe('igdbAdapter metadata', () => {
 
       expect(await igdbAdapter.findByName('Some Unknown Title')).toBeNull();
     });
+
+    it('retries with a cleaned search term when special characters yield no results', async () => {
+      mockedAxios.post.mockImplementation((url: string, body?: unknown) => {
+        if (url.includes('oauth2/token'))
+          return Promise.resolve({
+            data: { access_token: 'tok', expires_in: 3600, token_type: 'bearer' },
+          });
+        if (url.includes('/games')) {
+          // IGDB's search returns [] for queries containing ™®©
+          if (String(body).includes('Darkest Dungeon®'))
+            return Promise.resolve({ data: [] });
+          return Promise.resolve({
+            data: [
+              { id: 5, name: 'Darkest Dungeon II' },
+              { id: 4, name: 'Darkest Dungeon' },
+            ],
+          });
+        }
+        return Promise.resolve({ data: [] });
+      });
+
+      expect(await igdbAdapter.findByName('Darkest Dungeon®')).toEqual({
+        igdbId: 4,
+        name: 'Darkest Dungeon',
+      });
+    });
+
+    it('matches through trailing parenthetical stripping', async () => {
+      mockedAxios.post.mockImplementation((url: string, body?: unknown) => {
+        if (url.includes('oauth2/token'))
+          return Promise.resolve({
+            data: { access_token: 'tok', expires_in: 3600, token_type: 'bearer' },
+          });
+        if (url.includes('/games')) {
+          if (String(body).includes('Mafia II (Classic)'))
+            return Promise.resolve({ data: [] });
+          return Promise.resolve({ data: [{ id: 9, name: 'Mafia II' }] });
+        }
+        return Promise.resolve({ data: [] });
+      });
+
+      expect(await igdbAdapter.findByName('Mafia II (Classic)')).toEqual({
+        igdbId: 9,
+        name: 'Mafia II',
+      });
+    });
+
+    it('matches curly apostrophes against IGDB straight ones', async () => {
+      mockedAxios.post.mockImplementation((url: string) => {
+        if (url.includes('oauth2/token'))
+          return Promise.resolve({
+            data: { access_token: 'tok', expires_in: 3600, token_type: 'bearer' },
+          });
+        if (url.includes('/games'))
+          return Promise.resolve({
+            data: [
+              {
+                id: 1081,
+                name: "Tom Clancy's Ghost Recon: Breakpoint",
+              },
+            ],
+          });
+        return Promise.resolve({ data: [] });
+      });
+
+      expect(
+        await igdbAdapter.findByName('Tom Clancy’s Ghost Recon® Breakpoint'),
+      ).toEqual({ igdbId: 1081, name: "Tom Clancy's Ghost Recon: Breakpoint" });
+    });
+
+    it('folds trailing sequel numerals (2 vs II)', async () => {
+      mockedAxios.post.mockImplementation((url: string) => {
+        if (url.includes('oauth2/token'))
+          return Promise.resolve({
+            data: { access_token: 'tok', expires_in: 3600, token_type: 'bearer' },
+          });
+        if (url.includes('/games'))
+          return Promise.resolve({
+            data: [
+              { id: 249154, name: 'Alan Wake II' },
+              { id: 249155, name: 'Alan Wake II: Deluxe Edition' },
+            ],
+          });
+        return Promise.resolve({ data: [] });
+      });
+
+      expect(await igdbAdapter.findByName('Alan Wake 2')).toEqual({
+        igdbId: 249154,
+        name: 'Alan Wake II',
+      });
+    });
   });
 
   describe('fetchGameDetails', () => {

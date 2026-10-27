@@ -183,9 +183,34 @@ const normalizeForMatching = (name: string): string => {
   return name
     .toLowerCase()
     .replace(/[™®©]/g, '') // Remove trademark symbols
+    .replace(/[‘’‚]/g, "'") // Curly apostrophes → straight (DB vs IGDB casing)
     .replace(/[:\-–—]/g, ' ') // Replace punctuation with spaces
     .replace(/\s+/g, ' ') // Normalize whitespace
     .trim();
+};
+
+/**
+ * Canonicalize a trailing roman/arabic sequel numeral ("II" / "2") to
+ * arabic so "Alan Wake 2" matches IGDB's "Alan Wake II". Single-char
+ * tokens (I, X) are excluded — too easy to confuse with real words.
+ */
+const ROMAN_NUMERALS: Record<string, string> = {
+  ii: '2',
+  iii: '3',
+  iv: '4',
+  v: '5',
+  vi: '6',
+  vii: '7',
+  viii: '8',
+  ix: '9',
+};
+
+const foldTrailingNumeral = (normalized: string): string => {
+  const match = normalized.match(/^(.*\s)([a-z]+|\d{1,2})$/);
+  if (!match) return normalized;
+  const [, base, token] = match;
+  const arabic = ROMAN_NUMERALS[token] ?? (/^\d{1,2}$/.test(token) ? token : null);
+  return arabic ? base + arabic : normalized;
 };
 
 /**
@@ -609,14 +634,22 @@ const fetchGameDetails = async (
 };
 
 /**
+ * Drop trailing parenthetical qualifiers — "(Windows)", "(Game Preview)",
+ * "(Classic)" — which IGDB names never carry.
+ */
+const removeTrailingParens = (name: string): string =>
+  name.replace(/\s*\([^)]*\)\s*$/, '').trim();
+
+/**
  * Resolve an IGDB game id by exact-ish name: search, then match on the
- * normalized name (or edition-stripped forms). No first-result fallback —
- * misattached metadata is worse than a skipped game; force retries.
+ * normalized name (or edition/paren-stripped forms). No first-result
+ * fallback — misattached metadata is worse than a skipped game; force
+ * retries.
  */
 const stripAllEditions = (name: string): string => {
   let current = name;
   for (;;) {
-    const next = removeEditionSuffix(current);
+    const next = removeEditionSuffix(removeTrailingParens(current));
     if (next === current) return current;
     current = next;
   }
@@ -626,24 +659,41 @@ const findByName = async (name: string): Promise<IgdbMatch | null> => {
   try {
     const token = await authenticate();
 
-    const response = await axios.post<Array<{ id: number; name: string }>>(
-      `${IGDB_API_URL}/games`,
-      `search "${name.replace(/"/g, '')}"; fields id, name; limit 10;`,
-      { headers: igdbHeaders(token) },
+    // IGDB's search returns no results for queries containing ™®© or
+    // parentheses, so retry with the cleaned form before giving up.
+    const cleaned = normalizeForMatching(stripAllEditions(name));
+    const searchTerms = [...new Set([name, cleaned])].filter(t =>
+      t.trim().length > 0,
     );
-    const results = response.data ?? [];
-    if (results.length === 0) return null;
 
     const target = normalizeForMatching(name);
     const targetCore = normalizeForMatching(stripAllEditions(name));
-    const match =
-      results.find((g) => normalizeForMatching(g.name) === target) ??
-      results.find(
-        (g) =>
-          normalizeForMatching(stripAllEditions(g.name)) === targetCore,
-      );
+    const targetFolded = foldTrailingNumeral(target);
 
-    return match ? { igdbId: match.id, name: match.name } : null;
+    for (const term of searchTerms) {
+      const response = await axios.post<Array<{ id: number; name: string }>>(
+        `${IGDB_API_URL}/games`,
+        `search "${term.replace(/"/g, '')}"; fields id, name; limit 10;`,
+        { headers: igdbHeaders(token) },
+      );
+      const results = response.data ?? [];
+      if (results.length === 0) continue;
+
+      const match =
+        results.find((g) => normalizeForMatching(g.name) === target) ??
+        results.find(
+          (g) =>
+            normalizeForMatching(stripAllEditions(g.name)) === targetCore,
+        ) ??
+        results.find(
+          (g) =>
+            foldTrailingNumeral(normalizeForMatching(g.name)) ===
+            targetFolded,
+        );
+      if (match) return { igdbId: match.id, name: match.name };
+    }
+
+    return null;
   } catch (error) {
     log.warn(
       `[IGDB] Name lookup failed for "${name}":`,
