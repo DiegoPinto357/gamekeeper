@@ -39,6 +39,7 @@ const toLibraryGame = (game: CoreLibraryGame): LibraryGame => ({
   pinned: game.pinned,
   unavailableReason: game.unavailableReason ?? undefined,
   proton: game.proton ?? undefined,
+  steamAppId: game.steamAppId ?? undefined,
 });
 
 const optionalId = (value: unknown): string | null | undefined => {

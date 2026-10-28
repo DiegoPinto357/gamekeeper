@@ -26,6 +26,8 @@ export type LibraryGame = {
   pinned: boolean;
   unavailableReason: string | null;
   proton: GameCompatibility | null;
+  /** Steam app id when known; drives store + ProtonDB links. */
+  steamAppId: number | null;
 };
 
 export type SetStatusResult = {
@@ -71,6 +73,7 @@ type BoardRow = {
   playtime_hours: number | null;
   primary_source: Source;
   owned_sources: string;
+  steam_app_id: number | null;
   unavailable_reason: string | null;
   last_played_at: string | null;
   created_at: string | null;
@@ -88,6 +91,7 @@ const BOARD_SELECT = `
     g.playtime_hours,
     g.primary_source,
     g.owned_sources,
+    g.steam_app_id,
     g.unavailable_reason,
     g.last_played_at,
     g.created_at,
@@ -199,6 +203,7 @@ export const getLibraryGames = (db: DatabaseSync): LibraryGame[] => {
     position: row.position,
     pinned: row.pinned === 1,
     proton: parseProton(row.proton_json),
+    steamAppId: row.steam_app_id,
   }));
 };
 

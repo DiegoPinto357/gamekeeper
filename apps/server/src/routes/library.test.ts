@@ -125,6 +125,17 @@ describe('library routes', () => {
     expect(library.games.find(g => g.canonicalId === 'steam:2')?.proton).toBeUndefined();
   });
 
+  it('GET /api/library exposes steamAppId when known and omits it otherwise', async () => {
+    upsertGames(seedDb.raw, [
+      { ...makeGame('steam:1', 'Alpha'), steamAppId: 123 },
+      makeGame('steam:2', 'Beta'),
+    ]);
+
+    const library = await getLibrary();
+    expect(library.games.find(g => g.canonicalId === 'steam:1')?.steamAppId).toBe(123);
+    expect(library.games.find(g => g.canonicalId === 'steam:2')?.steamAppId).toBeUndefined();
+  });
+
   it('PATCH /api/games/:id/status moves the game and shows it in the new column on refetch', async () => {
     upsertGames(seedDb.raw, [
       makeGame('steam:1', 'Alpha'),

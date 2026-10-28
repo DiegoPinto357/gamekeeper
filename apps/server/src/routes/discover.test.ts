@@ -30,6 +30,7 @@ describe('discover routes', () => {
         ...base,
         canonicalId: 'hades-ii',
         name: 'Hades II',
+        steamAppId: 1145350,
         genres: ['Action', 'Roguelike'],
         playtimeHours: 12.5,
         releaseDate: new Date('2024-05-06T00:00:00.000Z'),
@@ -86,6 +87,8 @@ describe('discover routes', () => {
       genres: ['Platformer'],
       ownedSources: ['gog', 'steam'],
     });
+    expect(body.games[0].steamAppId).toBeUndefined();
+    expect(body.games.find((g) => g.name === 'Hades II')?.steamAppId).toBe(1145350);
   });
 
   it('GET /api/games applies filter params', async () => {

@@ -36,6 +36,7 @@ const toDrawerGame = (game: DiscoverGame): LibraryGame => ({
   position: null,
   pinned: false,
   unavailableReason: game.unavailableReason,
+  steamAppId: game.steamAppId,
   proton: game.protonTier
     ? { tier: game.protonTier, steamDeck: game.deck ?? 'unknown' }
     : undefined,

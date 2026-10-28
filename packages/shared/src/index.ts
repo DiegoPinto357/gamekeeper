@@ -22,6 +22,22 @@ export type StatusEntry = {
 export type ProtonTier = 'platinum' | 'gold' | 'silver' | 'bronze' | 'borked';
 export type SteamDeckStatus = 'verified' | 'playable' | 'unsupported' | 'unknown';
 
+export type Source = 'steam' | 'xbox' | 'epic' | 'gog' | 'amazon' | 'gamepass' | 'manual';
+
+/**
+ * Usual precedence for picking a game's store link (lower = preferred).
+ * Mirrors PLATFORM_PRIORITY in @gamekeeper/core — keep in sync.
+ */
+export const PLATFORM_PRIORITY: Record<Source, number> = {
+  steam: 1,
+  xbox: 2,
+  gamepass: 2,
+  epic: 3,
+  gog: 4,
+  amazon: 5,
+  manual: 6,
+};
+
 export type GameCompatibility = {
   tier: ProtonTier;
   steamDeck: SteamDeckStatus;
@@ -42,6 +58,8 @@ export type LibraryGame = {
   unavailableReason?: string;
   /** ProtonDB tier + Steam Deck status when known (mostly Steam games). */
   proton?: GameCompatibility;
+  /** Steam app id when known; drives store + ProtonDB links. */
+  steamAppId?: number;
 };
 
 export type LibraryResponse = {
@@ -66,6 +84,8 @@ export type DiscoverGame = {
   deck?: SteamDeckStatus;
   protonTier?: ProtonTier;
   unavailableReason?: string;
+  /** Steam app id when known; drives store + ProtonDB links. */
+  steamAppId?: number;
 };
 
 export type FacetCount = { value: string; count: number };

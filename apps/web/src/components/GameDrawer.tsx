@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { ChevronDown, PinOff, X } from 'lucide-react';
+import { ChevronDown, ExternalLink, PinOff, X } from 'lucide-react';
 import type { LibraryGame, StatusEntry } from '@gamekeeper/shared';
 import { Badge } from '@/components/ui/badge';
+import { gameLinks } from '@/lib/game-links';
 import { CompatibilityBadges } from './CompatibilityBadges';
 import { CoverImage } from './CoverImage';
 import { SourceBadge } from './SourceBadge';
@@ -29,6 +30,7 @@ export const GameDrawer = ({
 }: GameDrawerProps) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const targets = statuses.filter(status => status.key !== game.status);
+  const links = gameLinks(game);
 
   return (
     <>
@@ -82,6 +84,24 @@ export const GameDrawer = ({
           </div>
 
           {game.proton && <CompatibilityBadges proton={game.proton} />}
+
+          {links.length > 0 && (
+            <div className="flex flex-wrap gap-1.5" data-testid="drawer-links">
+              {links.map(link => (
+                <a
+                  key={link.key}
+                  href={link.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-testid={`game-link-${link.key}`}
+                  className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-accent/40"
+                >
+                  <ExternalLink className="size-3" aria-hidden />
+                  {link.label}
+                </a>
+              ))}
+            </div>
+          )}
 
           <div className="relative">
             <button

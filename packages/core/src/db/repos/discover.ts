@@ -33,6 +33,8 @@ export type DiscoverGame = {
   deck?: SteamDeckStatus;
   protonTier?: ProtonTier;
   unavailableReason?: string;
+  /** Steam app id when known; drives store + ProtonDB links. */
+  steamAppId?: number;
 };
 
 export type FacetCount = { value: string; count: number };
@@ -240,6 +242,7 @@ type GameRow = {
   playtime_hours: number | null;
   primary_source: Source;
   owned_sources: string;
+  steam_app_id: number | null;
   status: string;
   release_date: string | null;
   last_played_at: string | null;
@@ -281,6 +284,7 @@ const toDiscoverGame = (db: DatabaseSync, row: GameRow): DiscoverGame => {
     playtimeHours: row.playtime_hours ?? undefined,
     primarySource: row.primary_source,
     ownedSources: JSON.parse(row.owned_sources) as Source[],
+    steamAppId: row.steam_app_id ?? undefined,
     status: row.status,
     releaseDate: row.release_date ?? undefined,
     year: row.release_date
@@ -312,7 +316,7 @@ export const queryGames = (
   const rows = db
     .prepare(
       `SELECT g.canonical_id, g.name, g.cover_image_url, g.playtime_hours,
-              g.primary_source, g.owned_sources, g.release_date,
+              g.primary_source, g.owned_sources, g.steam_app_id, g.release_date,
               g.last_played_at, g.unavailable_reason, g.proton_json,
               COALESCE(gs.status, 'backlog') AS status
        ${BASE_FROM} ${whereSql}
