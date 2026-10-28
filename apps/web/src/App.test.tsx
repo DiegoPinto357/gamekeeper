@@ -18,6 +18,21 @@ function renderApp() {
 function stubCatalogFetch() {
   const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
+    if (url.includes('/api/games')) {
+      return new Response(
+        JSON.stringify({ games: [], total: 0 }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+    if (url.includes('/api/facets')) {
+      return new Response(
+        JSON.stringify({
+          genres: [], tags: [], sources: [], statuses: [],
+          decks: [], protonTiers: [], years: [],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
     if (url.endsWith('/api/catalog')) {
       return new Response(
         JSON.stringify([
@@ -103,14 +118,14 @@ describe('App', () => {
     );
   });
 
-  it('renders the discover placeholder when navigating to /discover', async () => {
+  it('renders the discover page when navigating to /discover', async () => {
     stubCatalogFetch();
     const user = userEvent.setup();
 
     renderApp();
     await user.click(screen.getByRole('link', { name: 'Discover' }));
 
-    expect(screen.getByRole('heading', { name: 'Discover' })).toBeInTheDocument();
-    expect(screen.queryByText('Hades II')).not.toBeInTheDocument();
+    expect(screen.getByTestId('discover-page')).toBeInTheDocument();
+    expect(screen.getByLabelText('Search games')).toBeInTheDocument();
   });
 });
