@@ -12,7 +12,12 @@ export type GameDrawerProps = {
   statuses: StatusEntry[];
   onClose: () => void;
   onMove: (statusKey: string) => void;
-  onUnpin: () => void;
+  /**
+   * Unpin is opt-in per page: the library passes this callback (shown only for
+   * pinned games); pages that don't support pinning (discover) omit it and the
+   * button never renders.
+   */
+  onUnpin?: () => void;
 };
 
 export const GameDrawer = ({
@@ -115,7 +120,7 @@ export const GameDrawer = ({
             )}
           </div>
 
-          {game.pinned && (
+          {game.pinned && onUnpin && (
             <button
               type="button"
               onClick={onUnpin}

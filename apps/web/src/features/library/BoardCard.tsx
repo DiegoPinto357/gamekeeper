@@ -5,9 +5,9 @@ import { Pin } from 'lucide-react';
 import type { LibraryGame } from '@gamekeeper/shared';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { CompatibilityBadges } from './CompatibilityBadges';
-import { SourceBadge } from './SourceBadge';
-import { UnavailableBadge } from './UnavailableBadge';
+import { CompatibilityBadges } from '@/components/CompatibilityBadges';
+import { SourceBadge } from '@/components/SourceBadge';
+import { UnavailableBadge } from '@/components/UnavailableBadge';
 
 export type BoardCardProps = {
   game: LibraryGame;

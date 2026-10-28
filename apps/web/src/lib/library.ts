@@ -1,9 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type {
-  GameStatusResult,
-  LibraryResponse,
-  UnpinResult,
-} from '@gamekeeper/shared';
+import type { GameStatusResult, LibraryResponse, UnpinResult } from '@gamekeeper/shared';
 import { applyMove, type MoveRequest } from '@/features/library/board-utils';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3010';

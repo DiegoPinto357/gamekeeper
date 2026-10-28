@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -95,9 +95,31 @@ const filterServer = (url: URL): DiscoverResponse => {
 
 const stubDiscover = () => {
   const calls: string[] = [];
-  const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+  const patches: Array<{ url: string; body: Record<string, unknown> }> = [];
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(String(input));
     calls.push(url.pathname + url.search);
+    if (init?.method === 'PATCH') {
+      const body = JSON.parse(String(init.body)) as Record<string, unknown>;
+      patches.push({ url: url.pathname, body });
+      return new Response(
+        JSON.stringify({ canonicalId: url.pathname.split('/').at(-2), status: body.status, position: 1 }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
+    if (url.pathname === '/api/library') {
+      return new Response(
+        JSON.stringify({
+          statuses: [
+            { key: 'backlog', label: 'Backlog', color: '#64748b', position: 0 },
+            { key: 'want_to_play', label: 'Want to Play', color: '#eab308', position: 1 },
+            { key: 'playing', label: 'Playing', color: '#22c55e', position: 5 },
+          ],
+          games: [],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      );
+    }
     if (url.pathname === '/api/games') {
       return new Response(JSON.stringify(filterServer(url)), {
         status: 200,
@@ -113,7 +135,7 @@ const stubDiscover = () => {
     return new Response('Not found', { status: 404 });
   });
   vi.stubGlobal('fetch', fetchMock);
-  return { fetchMock, calls };
+  return { fetchMock, calls, patches };
 };
 
 const renderPage = (initialEntry = '/discover') => {
@@ -221,15 +243,60 @@ describe('DiscoverPage', () => {
     expect(screen.getByTestId('facet-statuses-playing')).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('clears all filters via the Clear all button', async () => {
+  it('keeps Clear all visible but disabled with no filters, enabled otherwise', async () => {
     const user = userEvent.setup();
-    renderPage('/discover?genre=Action');
+    renderPage();
+    await waitForCards('Hades II', 'Celeste');
+
+    const clearAll = screen.getByRole('button', { name: /clear all filters/i });
+    expect(clearAll).toBeDisabled();
+
+    await user.click(screen.getByTestId('facet-genres-Action'));
+    await waitFor(() => expect(clearAll).toBeEnabled());
+
+    await user.click(clearAll);
+    await waitForCards('Hades II', 'Celeste');
+    expect(clearAll).toBeDisabled();
+  });
+
+  it('shows owned-source badges and rounded playtime on the card', async () => {
+    renderPage();
+    await waitForCards('Celeste');
+
+    const celeste = screen.getByText('Celeste').closest('[data-testid="discover-card"]')!;
+    const sources = within(celeste as HTMLElement).getAllByTestId('source-badge');
+    expect(sources.map(badge => badge.getAttribute('data-source'))).toEqual(['gog', 'steam']);
+    expect(within(celeste as HTMLElement).getByText('3h')).toBeInTheDocument();
+
+    const hades = screen.getByText('Hades II').closest('[data-testid="discover-card"]')!;
+    expect(within(hades as HTMLElement).getByText('13h')).toBeInTheDocument(); // 12.5 rounds
+    expect(within(hades as HTMLElement).getByText(/2024/)).toBeInTheDocument();
+  });
+
+  it('opens the shared game drawer on card click and moves via the menu', async () => {
+    const user = userEvent.setup();
+    const { patches } = stubDiscover();
+    renderPage();
     await waitForCards('Hades II');
 
-    await user.click(screen.getByRole('button', { name: /clear all filters/i }));
+    await user.click(screen.getByText('Hades II'));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByRole('heading', { name: 'Hades II' })).toBeInTheDocument();
+    // platform row + playtime rendered in the drawer
+    expect(within(dialog).getAllByTestId('source-badge')[0]).toBeInTheDocument();
+    expect(within(dialog).getByText('13h played')).toBeInTheDocument();
+    // discover games are never pinned → no unpin action
+    expect(within(dialog).queryByRole('button', { name: /unpin/i })).not.toBeInTheDocument();
 
-    await waitForCards('Hades II', 'Celeste');
-    expect(screen.queryByRole('button', { name: /clear all filters/i })).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: /move to/i }));
+    await user.click(within(dialog).getByRole('button', { name: 'Backlog' }));
+
+    await waitFor(() => expect(patches).toHaveLength(1));
+    expect(patches[0].url).toBe('/api/games/hades-ii/status');
+    expect(patches[0].body).toMatchObject({ status: 'backlog', beforeId: null, afterId: null });
+
+    await user.click(within(dialog).getByRole('button', { name: /close drawer/i }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 
   it('collapses a filter section and keeps the active-count badge visible', async () => {

@@ -13,8 +13,8 @@ import { BACKLOG_KEY, applyFilters, groupGames, moveToEndNeighbors, resolveDrop,
 import { BoardCardFace } from './BoardCard';
 import { BoardColumn } from './BoardColumn';
 import { BoardToolbar } from './BoardToolbar';
-import { GameDrawer } from './GameDrawer';
-import { useLibrary, useMoveGame, useUnpinGame } from '@/hooks/useLibrary';
+import { GameDrawer } from '@/components/GameDrawer';
+import { useLibrary, useMoveGame, useUnpinGame } from '@/lib/library';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 
 const FILTERS_KEY = 'gamekeeper.library.filters';

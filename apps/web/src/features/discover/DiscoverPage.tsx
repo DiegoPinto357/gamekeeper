@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { GameDrawer } from '@/components/GameDrawer';
 import { useDiscoverFacets, useDiscoverGames } from '@/hooks/useDiscover';
+import { useLibrary, useMoveGame } from '@/lib/library';
 import { DiscoverCard } from './DiscoverCard';
 import { FacetChips } from './FacetChips';
+import type { DiscoverGame, LibraryGame } from '@gamekeeper/shared';
 import {
   EMPTY_SELECTION,
   SORT_LABELS,
@@ -21,6 +25,22 @@ import {
 
 const DEBOUNCE_MS = 300;
 
+const toDrawerGame = (game: DiscoverGame): LibraryGame => ({
+  canonicalId: game.canonicalId,
+  name: game.name,
+  coverImageUrl: game.coverImageUrl,
+  playtimeHours: game.playtimeHours,
+  primarySource: game.primarySource,
+  ownedSources: game.ownedSources,
+  status: game.status,
+  position: null,
+  pinned: false,
+  unavailableReason: game.unavailableReason,
+  proton: game.protonTier
+    ? { tier: game.protonTier, steamDeck: game.deck ?? 'unknown' }
+    : undefined,
+});
+
 export function DiscoverPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const selection = useMemo(() => parseSelection(searchParams), [searchParams]);
@@ -28,9 +48,13 @@ export function DiscoverPage() {
 
   const { data: results, isPending, isError } = useDiscoverGames(qs);
   const { data: facets } = useDiscoverFacets(qs);
+  const { data: library } = useLibrary();
+  const moveGame = useMoveGame();
+  const queryClient = useQueryClient();
 
   const [sort, setSort] = useState<SortKey>('name');
   const [qInput, setQInput] = useState(selection.q);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const update = (next: DiscoverSelection) => {
     setSearchParams(new URLSearchParams(selectionToQueryString(next)));
@@ -61,19 +85,40 @@ export function DiscoverPage() {
     [results, sort],
   );
 
+  const statuses = library?.statuses ?? [];
+  const selectedGame = selectedId
+    ? (results?.games.find(game => game.canonicalId === selectedId) ?? null)
+    : null;
+
+  const handleMoveTo = (statusKey: string) => {
+    if (!selectedGame) return;
+    moveGame.mutate(
+      {
+        id: selectedGame.canonicalId,
+        status: statusKey,
+        beforeId: null,
+        afterId: null,
+      },
+      {
+        onSettled: () => {
+          void queryClient.invalidateQueries({ queryKey: ['discover'] });
+        },
+      },
+    );
+  };
+
   return (
     <div data-testid="discover-page" className="flex h-full min-h-0 gap-6">
       <aside className="w-60 shrink-0 overflow-y-auto pb-4 pr-2">
-        {hasActiveFilters(selection) && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="mb-4 w-full"
-            onClick={() => update(EMPTY_SELECTION)}
-          >
-            Clear all filters
-          </Button>
-        )}
+        <Button
+          variant="outline"
+          size="sm"
+          className="mb-4 w-full"
+          disabled={!hasActiveFilters(selection)}
+          onClick={() => update(EMPTY_SELECTION)}
+        >
+          Clear all filters
+        </Button>
         <FacetChips
           dim="statuses"
           title="Status"
@@ -182,12 +227,25 @@ export function DiscoverPage() {
           <div className="min-h-0 flex-1 overflow-y-auto pb-4">
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               {games.map(game => (
-                <DiscoverCard key={game.canonicalId} game={game} />
+                <DiscoverCard
+                  key={game.canonicalId}
+                  game={game}
+                  onClick={() => setSelectedId(game.canonicalId)}
+                />
               ))}
             </div>
           </div>
         )}
       </div>
+
+      {selectedGame && (
+        <GameDrawer
+          game={toDrawerGame(selectedGame)}
+          statuses={statuses}
+          onClose={() => setSelectedId(null)}
+          onMove={handleMoveTo}
+        />
+      )}
     </div>
   );
 }
