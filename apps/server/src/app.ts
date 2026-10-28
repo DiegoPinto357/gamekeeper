@@ -7,6 +7,7 @@ import { registerCatalogRoutes } from './routes/catalog';
 import { registerInterestRoutes } from './routes/interests';
 import { registerSyncRoutes } from './routes/sync';
 import { registerLibraryRoutes } from './routes/library';
+import { registerDiscoverRoutes } from './routes/discover';
 import { createSyncRunManager } from './sync/run-manager';
 import type { RunSyncFn } from './sync/run-manager';
 
@@ -49,6 +50,7 @@ export const buildApp = (opts: AppOptions = {}): FastifyInstance => {
     interestsFile: path.join(dataDir, 'gamepass-interests.json'),
   });
   registerLibraryRoutes(app, { db });
+  registerDiscoverRoutes(app, { db });
 
   const syncManager = createSyncRunManager({ runSync: opts.runSync });
   registerSyncRoutes(app, { manager: syncManager });

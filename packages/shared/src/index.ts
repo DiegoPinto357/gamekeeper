@@ -49,6 +49,43 @@ export type LibraryResponse = {
   games: LibraryGame[];
 };
 
+export type DiscoverGame = {
+  canonicalId: string;
+  name: string;
+  coverImageUrl?: string;
+  playtimeHours?: number;
+  primarySource: string;
+  ownedSources: string[];
+  /** Board status; games without a tracked row count as 'backlog'. */
+  status: string;
+  releaseDate?: string;
+  year?: number;
+  lastPlayedAt?: string;
+  genres: string[];
+  tags: string[];
+  deck?: SteamDeckStatus;
+  protonTier?: ProtonTier;
+  unavailableReason?: string;
+};
+
+export type FacetCount = { value: string; count: number };
+export type YearFacetCount = { value: number; count: number };
+
+export type DiscoverFacets = {
+  genres: FacetCount[];
+  tags: FacetCount[];
+  sources: FacetCount[];
+  statuses: FacetCount[];
+  decks: FacetCount[];
+  protonTiers: FacetCount[];
+  years: YearFacetCount[];
+};
+
+export type DiscoverResponse = {
+  games: DiscoverGame[];
+  total: number;
+};
+
 export type GameStatusResult = {
   canonicalId: string;
   status: string;

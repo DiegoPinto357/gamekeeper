@@ -22,4 +22,14 @@ export {
   type UnpinResult,
   type GameCompatibility,
 } from './repos/game-status';
+export {
+  parseDiscoverFilters,
+  queryGames,
+  getFacets,
+  type DiscoverFilters,
+  type DiscoverGame,
+  type DiscoverFacets,
+  type FacetCount,
+  type YearFacetCount,
+} from './repos/discover';
 export { installSqliteWarningSuppression } from './suppress-warning';

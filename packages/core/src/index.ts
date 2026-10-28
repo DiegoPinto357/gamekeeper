@@ -82,5 +82,13 @@ export {
   type SetStatusResult,
   type UnpinResult,
   type GameCompatibility,
+  parseDiscoverFilters,
+  queryGames,
+  getFacets,
+  type DiscoverFilters,
+  type DiscoverGame,
+  type DiscoverFacets,
+  type FacetCount,
+  type YearFacetCount,
   installSqliteWarningSuppression,
 } from './db/index';
