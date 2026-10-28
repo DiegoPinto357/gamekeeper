@@ -232,6 +232,26 @@ describe('DiscoverPage', () => {
     expect(screen.queryByRole('button', { name: /clear all filters/i })).not.toBeInTheDocument();
   });
 
+  it('collapses a filter section and keeps the active-count badge visible', async () => {
+    const user = userEvent.setup();
+    renderPage('/discover?genre=Action');
+    await waitForCards('Hades II');
+
+    const toggle = screen.getByTestId('facet-section-toggle-genres');
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByTestId('facet-genres-Action')).toBeInTheDocument();
+    expect(screen.getByTestId('facet-active-count-genres')).toHaveTextContent('1');
+
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByTestId('facet-genres-Action')).not.toBeInTheDocument();
+    expect(screen.getByTestId('facet-active-count-genres')).toHaveTextContent('1');
+
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByTestId('facet-genres-Action')).toBeInTheDocument();
+  });
+
   it('sorts by playtime descending with unplayed last', async () => {
     const user = userEvent.setup();
     renderPage();

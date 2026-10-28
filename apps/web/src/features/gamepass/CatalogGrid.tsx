@@ -69,8 +69,8 @@ export function CatalogGrid() {
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-3">
+      {/* Toolbar — sticky band that covers main's scrolled-away padding */}
+      <div className="sticky top-0 z-10 -mx-6 -mt-6 flex flex-wrap items-center gap-3 bg-background px-6 pt-6 pb-3">
         <SearchBar
           value={search}
           onChange={setSearch}

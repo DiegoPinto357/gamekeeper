@@ -63,7 +63,7 @@ export function DiscoverPage() {
 
   return (
     <div data-testid="discover-page" className="flex h-full min-h-0 gap-6">
-      <aside className="w-60 shrink-0 overflow-y-auto pr-2">
+      <aside className="w-60 shrink-0 overflow-y-auto pb-4 pr-2">
         {hasActiveFilters(selection) && (
           <Button
             variant="outline"
@@ -125,7 +125,7 @@ export function DiscoverPage() {
         />
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div className="mb-4 flex shrink-0 flex-wrap items-center gap-3">
           <div className="relative w-64">
             <Input
@@ -179,10 +179,12 @@ export function DiscoverPage() {
         )}
 
         {!isPending && !isError && games.length > 0 && (
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-            {games.map(game => (
-              <DiscoverCard key={game.canonicalId} game={game} />
-            ))}
+          <div className="min-h-0 flex-1 overflow-y-auto pb-4">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+              {games.map(game => (
+                <DiscoverCard key={game.canonicalId} game={game} />
+              ))}
+            </div>
           </div>
         )}
       </div>
