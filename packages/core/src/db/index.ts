@@ -33,3 +33,10 @@ export {
   type YearFacetCount,
 } from './repos/discover';
 export { installSqliteWarningSuppression } from './suppress-warning';
+export {
+  applyForceMerge,
+  type ForceMergeOptions,
+  type ForceMergeRuleReport,
+  type ForceMergeReport,
+  type StatusAction,
+} from './repos/force-merge';

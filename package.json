@@ -14,7 +14,8 @@
     "view-gamepass": "pnpm --filter @gamekeeper/cli run view-gamepass",
     "test": "vitest run",
     "test:watch": "vitest",
-    "ui": "concurrently --names server,web --prefix-colors blue,green \"pnpm --filter @gamekeeper/server run dev\" \"pnpm --filter web run dev\""
+    "ui": "concurrently --names server,web --prefix-colors blue,green \"pnpm --filter @gamekeeper/server run dev\" \"pnpm --filter web run dev\"",
+    "merge-override-dups": "pnpm --filter @gamekeeper/cli run merge-override-dups"
   },
   "author": "Diego Pinto dos Santos",
   "license": "ISC",

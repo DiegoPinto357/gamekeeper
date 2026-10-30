@@ -91,4 +91,9 @@ export {
   type FacetCount,
   type YearFacetCount,
   installSqliteWarningSuppression,
+  applyForceMerge,
+  type ForceMergeOptions,
+  type ForceMergeRuleReport,
+  type ForceMergeReport,
+  type StatusAction,
 } from './db/index';

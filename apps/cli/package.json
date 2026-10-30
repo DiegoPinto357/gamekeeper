@@ -10,7 +10,8 @@
     "start": "node dist/index.js",
     "validate": "tsx src/validate-setup.ts",
     "cleanup-duplicates": "tsx src/scripts/cleanup-duplicates.ts",
-    "view-gamepass": "tsx src/scripts/view-gamepass-catalog.ts"
+    "view-gamepass": "tsx src/scripts/view-gamepass-catalog.ts",
+    "merge-override-dups": "tsx src/scripts/merge-override-dups.ts"
   },
   "dependencies": {
     "@gamekeeper/core": "workspace:*",
