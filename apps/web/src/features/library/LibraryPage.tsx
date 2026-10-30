@@ -55,16 +55,20 @@ export function LibraryPage() {
 
   const [sort, setSort] = useState<SortKey>('name');
   const [qInput, setQInput] = useState(selection.q);
+  const [prevQ, setPrevQ] = useState(selection.q);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const update = (next: LibrarySelection) => {
     setSearchParams(new URLSearchParams(selectionToQueryString(next)));
   };
 
-  // keep the input in sync when the URL changes underneath us (clear-all, back button)
-  useEffect(() => {
+  // keep the input in sync when the URL changes underneath us (clear-all,
+  // back button) — adjusted during render per the React docs pattern
+  // (an effect here trips react-hooks/set-state-in-effect)
+  if (prevQ !== selection.q) {
+    setPrevQ(selection.q);
     setQInput(selection.q);
-  }, [selection.q]);
+  }
 
   // commit search text to the URL after a pause in typing
   useEffect(() => {
