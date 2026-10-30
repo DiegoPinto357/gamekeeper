@@ -178,9 +178,10 @@ export function useSyncEvents() {
       if (payload.type === 'summary') {
         void queryClient.invalidateQueries({ queryKey: ['catalog'] });
         void queryClient.invalidateQueries({ queryKey: ['interests'] });
-        void queryClient.invalidateQueries({ queryKey: ['library'] });
-        // reserved for P4:
-        // void queryClient.invalidateQueries({ queryKey: ['discover'] });
+        void queryClient.invalidateQueries({ queryKey: ['board'] });
+        // reserved:
+        // void queryClient.invalidateQueries({ queryKey: ['library'] }); // browse grid
+        // void queryClient.invalidateQueries({ queryKey: ['discover'] }); // hub (P4.4b)
       }
     };
 

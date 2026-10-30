@@ -5,12 +5,12 @@ import { SourceBadge } from '@/components/SourceBadge';
 import type { DiscoverGame } from '@gamekeeper/shared';
 import { cn } from '@/lib/utils';
 
-export type DiscoverCardProps = {
+export type LibraryCardProps = {
   game: DiscoverGame;
   onClick?: () => void;
 };
 
-export const DiscoverCard = ({ game, onClick }: DiscoverCardProps) => {
+export const LibraryCard = ({ game, onClick }: LibraryCardProps) => {
   const playtime =
     game.playtimeHours != null && game.playtimeHours > 0
       ? `${Math.round(game.playtimeHours)}h`
@@ -18,7 +18,7 @@ export const DiscoverCard = ({ game, onClick }: DiscoverCardProps) => {
 
   return (
     <div
-      data-testid="discover-card"
+      data-testid="library-card"
       data-status={game.status}
       onClick={onClick}
       className={cn(
@@ -45,7 +45,7 @@ export const DiscoverCard = ({ game, onClick }: DiscoverCardProps) => {
       </div>
 
       <div className="flex flex-1 flex-col gap-1.5 p-3">
-        <p data-testid="discover-name" className="line-clamp-2 text-sm font-medium leading-tight">
+        <p data-testid="library-name" className="line-clamp-2 text-sm font-medium leading-tight">
           {game.name}
         </p>
 

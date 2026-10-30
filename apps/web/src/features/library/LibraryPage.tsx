@@ -5,9 +5,9 @@ import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { GameDrawer } from '@/components/GameDrawer';
-import { useDiscoverFacets, useDiscoverGames } from '@/hooks/useDiscover';
-import { useLibrary, useMoveGame } from '@/lib/library';
-import { DiscoverCard } from './DiscoverCard';
+import { useBrowseFacets, useBrowseGames } from '@/hooks/useBrowse';
+import { useBoard, useMoveGame } from '@/lib/board';
+import { LibraryCard } from './LibraryCard';
 import { FacetChips } from './FacetChips';
 import type { DiscoverGame, LibraryGame } from '@gamekeeper/shared';
 import {
@@ -18,10 +18,10 @@ import {
   selectionToQueryString,
   sortGames,
   toggleInList,
-  type DiscoverDimension,
-  type DiscoverSelection,
+  type LibraryDimension,
+  type LibrarySelection,
   type SortKey,
-} from './discover-utils';
+} from './library-utils';
 
 const DEBOUNCE_MS = 300;
 
@@ -42,14 +42,14 @@ const toDrawerGame = (game: DiscoverGame): LibraryGame => ({
     : undefined,
 });
 
-export function DiscoverPage() {
+export function LibraryPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const selection = useMemo(() => parseSelection(searchParams), [searchParams]);
   const qs = useMemo(() => selectionToQueryString(selection), [selection]);
 
-  const { data: results, isPending, isError } = useDiscoverGames(qs);
-  const { data: facets } = useDiscoverFacets(qs);
-  const { data: library } = useLibrary();
+  const { data: results, isPending, isError } = useBrowseGames(qs);
+  const { data: facets } = useBrowseFacets(qs);
+  const { data: library } = useBoard();
   const moveGame = useMoveGame();
   const queryClient = useQueryClient();
 
@@ -57,7 +57,7 @@ export function DiscoverPage() {
   const [qInput, setQInput] = useState(selection.q);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const update = (next: DiscoverSelection) => {
+  const update = (next: LibrarySelection) => {
     setSearchParams(new URLSearchParams(selectionToQueryString(next)));
   };
 
@@ -76,9 +76,9 @@ export function DiscoverPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [qInput, selection]);
 
-  const toggleFacet = (dim: DiscoverDimension, value: string | number) => {
+  const toggleFacet = (dim: LibraryDimension, value: string | number) => {
     const current = selection[dim] as Array<string | number>;
-    update({ ...selection, [dim]: toggleInList(current, value) } as DiscoverSelection);
+    update({ ...selection, [dim]: toggleInList(current, value) } as LibrarySelection);
   };
 
   const games = useMemo(
@@ -102,14 +102,14 @@ export function DiscoverPage() {
       },
       {
         onSettled: () => {
-          void queryClient.invalidateQueries({ queryKey: ['discover'] });
+          void queryClient.invalidateQueries({ queryKey: ['library'] });
         },
       },
     );
   };
 
   return (
-    <div data-testid="discover-page" className="flex h-full min-h-0 gap-6">
+    <div data-testid="library-page" className="flex h-full min-h-0 gap-6">
       <aside className="w-60 shrink-0 overflow-y-auto pb-4 pr-2">
         <Button
           variant="outline"
@@ -207,7 +207,7 @@ export function DiscoverPage() {
               ))}
             </select>
           </label>
-          <span className="ml-auto text-sm text-muted-foreground" data-testid="discover-total">
+          <span className="ml-auto text-sm text-muted-foreground" data-testid="library-total">
             {results ? `${games.length} games` : '…'}
           </span>
         </div>
@@ -219,7 +219,7 @@ export function DiscoverPage() {
           <p className="py-24 text-center text-destructive">Couldn&apos;t load games.</p>
         )}
         {!isPending && !isError && games.length === 0 && (
-          <p className="py-24 text-center text-muted-foreground" data-testid="discover-empty">
+          <p className="py-24 text-center text-muted-foreground" data-testid="library-empty">
             No games match the current filters.
           </p>
         )}
@@ -228,7 +228,7 @@ export function DiscoverPage() {
           <div className="min-h-0 flex-1 overflow-y-auto pb-4">
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               {games.map(game => (
-                <DiscoverCard
+                <LibraryCard
                   key={game.canonicalId}
                   game={game}
                   onClick={() => setSelectedId(game.canonicalId)}

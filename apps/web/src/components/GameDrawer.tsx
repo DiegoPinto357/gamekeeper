@@ -15,7 +15,7 @@ export type GameDrawerProps = {
   onMove: (statusKey: string) => void;
   /**
    * Unpin is opt-in per page: the library passes this callback (shown only for
-   * pinned games); pages that don't support pinning (discover) omit it and the
+   * pinned games); pages that don't support pinning (browse) omit it and the
    * button never renders.
    */
   onUnpin?: () => void;

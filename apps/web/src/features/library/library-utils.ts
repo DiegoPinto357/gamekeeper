@@ -1,6 +1,6 @@
 import type { DiscoverGame } from '@gamekeeper/shared';
 
-export type DiscoverSelection = {
+export type LibrarySelection = {
   q: string;
   genres: string[];
   tags: string[];
@@ -11,7 +11,7 @@ export type DiscoverSelection = {
   years: number[];
 };
 
-export const EMPTY_SELECTION: DiscoverSelection = {
+export const EMPTY_SELECTION: LibrarySelection = {
   q: '',
   genres: [],
   tags: [],
@@ -22,11 +22,11 @@ export const EMPTY_SELECTION: DiscoverSelection = {
   years: [],
 };
 
-export type DiscoverDimension = Exclude<keyof DiscoverSelection, 'q'>;
+export type LibraryDimension = Exclude<keyof LibrarySelection, 'q'>;
 
-export const hasActiveFilters = (selection: DiscoverSelection): boolean =>
+export const hasActiveFilters = (selection: LibrarySelection): boolean =>
   selection.q !== '' ||
-  (Object.keys(EMPTY_SELECTION) as Array<keyof DiscoverSelection>)
+  (Object.keys(EMPTY_SELECTION) as Array<keyof LibrarySelection>)
     .filter(key => key !== 'q')
     .some(key => (selection[key] as unknown[]).length > 0);
 
@@ -40,7 +40,7 @@ const parseList = (params: URLSearchParams, key: string): string[] =>
     .map(value => value.trim())
     .filter(value => value.length > 0);
 
-export const parseSelection = (params: URLSearchParams): DiscoverSelection => ({
+export const parseSelection = (params: URLSearchParams): LibrarySelection => ({
   q: params.get('q')?.trim() ?? '',
   genres: parseList(params, 'genre'),
   tags: parseList(params, 'tag'),
@@ -54,7 +54,7 @@ export const parseSelection = (params: URLSearchParams): DiscoverSelection => ({
 });
 
 /** Build the server query string; omits empty dimensions. */
-export const selectionToQueryString = (selection: DiscoverSelection): string => {
+export const selectionToQueryString = (selection: LibrarySelection): string => {
   const params = new URLSearchParams();
   if (selection.q) params.set('q', selection.q);
   const put = (key: string, values: Array<string | number>) => {

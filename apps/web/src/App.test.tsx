@@ -89,8 +89,8 @@ describe('App', () => {
     stubCatalogFetch();
     renderApp();
 
+    expect(screen.getByRole('link', { name: 'Board' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Library' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Discover' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Game Pass' })).toBeInTheDocument();
 
     await waitFor(() => expect(screen.getByTestId('column-backlog')).toBeInTheDocument());
@@ -118,14 +118,14 @@ describe('App', () => {
     );
   });
 
-  it('renders the discover page when navigating to /discover', async () => {
+  it('renders the library page when navigating to /library', async () => {
     stubCatalogFetch();
     const user = userEvent.setup();
 
     renderApp();
-    await user.click(screen.getByRole('link', { name: 'Discover' }));
+    await user.click(screen.getByRole('link', { name: 'Library' }));
 
-    expect(screen.getByTestId('discover-page')).toBeInTheDocument();
+    expect(screen.getByTestId('library-page')).toBeInTheDocument();
     expect(screen.getByLabelText('Search games')).toBeInTheDocument();
   });
 });

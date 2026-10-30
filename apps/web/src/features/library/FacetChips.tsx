@@ -2,14 +2,14 @@ import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { FacetCount, YearFacetCount } from '@gamekeeper/shared';
-import type { DiscoverDimension } from './discover-utils';
+import type { LibraryDimension } from './library-utils';
 
 export type FacetChipsProps = {
-  dim: DiscoverDimension;
+  dim: LibraryDimension;
   title: string;
   facets: FacetCount[] | YearFacetCount[];
   selected: Array<string | number>;
-  onToggle: (dim: DiscoverDimension, value: string | number) => void;
+  onToggle: (dim: LibraryDimension, value: string | number) => void;
 };
 
 const label = (value: string | number): string =>

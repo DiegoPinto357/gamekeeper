@@ -7,10 +7,10 @@ import {
   selectionToQueryString,
   sortGames,
   toggleInList,
-  type DiscoverSelection,
-} from './discover-utils';
+  type LibrarySelection,
+} from './library-utils';
 
-const selection = (overrides: Partial<DiscoverSelection> = {}): DiscoverSelection => ({
+const selection = (overrides: Partial<LibrarySelection> = {}): LibrarySelection => ({
   ...EMPTY_SELECTION,
   ...overrides,
 });

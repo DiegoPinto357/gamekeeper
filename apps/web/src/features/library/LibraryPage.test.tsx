@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { DiscoverFacets, DiscoverGame, DiscoverResponse } from '@gamekeeper/shared';
-import { DiscoverPage } from './DiscoverPage';
+import { LibraryPage } from './LibraryPage';
 
 const game = (
   canonicalId: string,
@@ -93,7 +93,7 @@ const filterServer = (url: URL): DiscoverResponse => {
   return { games, total: games.length };
 };
 
-const stubDiscover = () => {
+const stubBrowse = () => {
   const calls: string[] = [];
   const patches: Array<{ url: string; body: Record<string, unknown> }> = [];
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -138,14 +138,14 @@ const stubDiscover = () => {
   return { fetchMock, calls, patches };
 };
 
-const renderPage = (initialEntry = '/discover') => {
+const renderPage = (initialEntry = '/library') => {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
   });
   return render(
     <MemoryRouter initialEntries={[initialEntry]}>
       <QueryClientProvider client={queryClient}>
-        <DiscoverPage />
+        <LibraryPage />
       </QueryClientProvider>
     </MemoryRouter>,
   );
@@ -159,9 +159,9 @@ const waitForCards = async (...names: string[]) => {
   }
 };
 
-describe('DiscoverPage', () => {
+describe('LibraryPage', () => {
   beforeEach(() => {
-    stubDiscover();
+    stubBrowse();
   });
 
   afterEach(() => {
@@ -172,8 +172,8 @@ describe('DiscoverPage', () => {
     renderPage();
     await waitForCards('Hades II', 'Celeste');
 
-    expect(screen.getByTestId('discover-total')).toHaveTextContent('2 games');
-    expect(screen.getAllByTestId('discover-card')).toHaveLength(2);
+    expect(screen.getByTestId('library-total')).toHaveTextContent('2 games');
+    expect(screen.getAllByTestId('library-card')).toHaveLength(2);
     expect(screen.getByTestId('facet-genres-Action')).toBeInTheDocument();
     expect(screen.getByTestId('facet-decks-verified')).toBeInTheDocument();
     expect(screen.getByTestId('facet-years-2018')).toBeInTheDocument();
@@ -181,7 +181,7 @@ describe('DiscoverPage', () => {
 
   it('toggles a facet chip: refetch with the filter and reflect active state', async () => {
     const user = userEvent.setup();
-    const { calls } = stubDiscover();
+    const { calls } = stubBrowse();
     renderPage();
     await waitForCards('Hades II', 'Celeste');
 
@@ -193,7 +193,7 @@ describe('DiscoverPage', () => {
     await waitFor(() => expect(screen.getByText('Celeste')).toBeInTheDocument());
     expect(screen.queryByText('Hades II')).not.toBeInTheDocument();
     expect(screen.getByTestId('facet-genres-Platformer')).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('discover-total')).toHaveTextContent('1 games');
+    expect(screen.getByTestId('library-total')).toHaveTextContent('1 games');
 
     // toggling off restores the full library
     await user.click(screen.getByTestId('facet-genres-Platformer'));
@@ -210,12 +210,12 @@ describe('DiscoverPage', () => {
 
     await waitFor(() => expect(screen.getByText('Hades II')).toBeInTheDocument());
     expect(screen.queryByText('Celeste')).not.toBeInTheDocument();
-    expect(screen.getByTestId('discover-total')).toHaveTextContent('1 games');
+    expect(screen.getByTestId('library-total')).toHaveTextContent('1 games');
   });
 
   it('debounces search text into the q param', async () => {
     const user = userEvent.setup();
-    const { calls } = stubDiscover();
+    const { calls } = stubBrowse();
     renderPage();
     await waitForCards('Hades II', 'Celeste');
 
@@ -235,7 +235,7 @@ describe('DiscoverPage', () => {
   });
 
   it('restores filters from the URL on load', async () => {
-    renderPage('/discover?genre=Action&status=playing');
+    renderPage('/library?genre=Action&status=playing');
     await waitForCards('Hades II');
 
     expect(screen.queryByText('Celeste')).not.toBeInTheDocument();
@@ -263,19 +263,19 @@ describe('DiscoverPage', () => {
     renderPage();
     await waitForCards('Celeste');
 
-    const celeste = screen.getByText('Celeste').closest('[data-testid="discover-card"]')!;
+    const celeste = screen.getByText('Celeste').closest('[data-testid="library-card"]')!;
     const sources = within(celeste as HTMLElement).getAllByTestId('source-badge');
     expect(sources.map(badge => badge.getAttribute('data-source'))).toEqual(['gog', 'steam']);
     expect(within(celeste as HTMLElement).getByText('3h')).toBeInTheDocument();
 
-    const hades = screen.getByText('Hades II').closest('[data-testid="discover-card"]')!;
+    const hades = screen.getByText('Hades II').closest('[data-testid="library-card"]')!;
     expect(within(hades as HTMLElement).getByText('13h')).toBeInTheDocument(); // 12.5 rounds
     expect(within(hades as HTMLElement).getByText(/2024/)).toBeInTheDocument();
   });
 
   it('opens the shared game drawer on card click and moves via the menu', async () => {
     const user = userEvent.setup();
-    const { patches } = stubDiscover();
+    const { patches } = stubBrowse();
     renderPage();
     await waitForCards('Hades II');
 
@@ -285,7 +285,7 @@ describe('DiscoverPage', () => {
     // platform row + playtime rendered in the drawer
     expect(within(dialog).getAllByTestId('source-badge')[0]).toBeInTheDocument();
     expect(within(dialog).getByText('13h played')).toBeInTheDocument();
-    // discover games are never pinned → no unpin action
+    // browse games are never pinned → no unpin action
     expect(within(dialog).queryByRole('button', { name: /unpin/i })).not.toBeInTheDocument();
 
     await user.click(within(dialog).getByRole('button', { name: /move to/i }));
@@ -301,7 +301,7 @@ describe('DiscoverPage', () => {
 
   it('collapses a filter section and keeps the active-count badge visible', async () => {
     const user = userEvent.setup();
-    renderPage('/discover?genre=Action');
+    renderPage('/library?genre=Action');
     await waitForCards('Hades II');
 
     const toggle = screen.getByTestId('facet-section-toggle-genres');
@@ -327,7 +327,7 @@ describe('DiscoverPage', () => {
     await user.selectOptions(screen.getByLabelText('Sort by'), 'playtime');
 
     // playtime desc: Hades II (12.5h) before Celeste (3h) — opposite of name order
-    const names = screen.getAllByTestId('discover-card').map(card => card.textContent);
+    const names = screen.getAllByTestId('library-card').map(card => card.textContent);
     expect(names[0]).toContain('Hades II');
     expect(names[1]).toContain('Celeste');
   });
@@ -341,11 +341,11 @@ describe('DiscoverPage', () => {
 
     await waitFor(
       () => {
-        expect(screen.getByTestId('discover-empty')).toBeInTheDocument();
+        expect(screen.getByTestId('library-empty')).toBeInTheDocument();
       },
       { timeout: 2000 },
     );
-    expect(screen.getByTestId('discover-total')).toHaveTextContent('0 games');
+    expect(screen.getByTestId('library-total')).toHaveTextContent('0 games');
   });
 
   it('shows an error state when the API fails', async () => {

@@ -14,13 +14,13 @@ import { BoardCardFace } from './BoardCard';
 import { BoardColumn } from './BoardColumn';
 import { BoardToolbar } from './BoardToolbar';
 import { GameDrawer } from '@/components/GameDrawer';
-import { useLibrary, useMoveGame, useUnpinGame } from '@/lib/library';
+import { useBoard, useMoveGame, useUnpinGame } from '@/lib/board';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 
 const FILTERS_KEY = 'gamekeeper.library.filters';
 
 export const BoardPage = () => {
-  const { data, isPending, isError } = useLibrary();
+  const { data, isPending, isError } = useBoard();
   const [filters, setFilters] = useLocalStorage<BoardFilters>(FILTERS_KEY, {
     q: '',
     source: '',
@@ -99,7 +99,7 @@ export const BoardPage = () => {
   };
 
   return (
-    <div data-testid="library-board" className="flex h-full min-h-0 flex-col">
+    <div data-testid="board-page" className="flex h-full min-h-0 flex-col">
       <BoardToolbar
         filters={filters}
         onChange={setFilters}

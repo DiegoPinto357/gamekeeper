@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { GameStatusResult, LibraryResponse, UnpinResult } from '@gamekeeper/shared';
-import { applyMove, type MoveRequest } from '@/features/library/board-utils';
+import { applyMove, type MoveRequest } from '@/features/board/board-utils';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:3010';
 
@@ -36,8 +36,8 @@ const postUnpin = async (id: string): Promise<UnpinResult> => {
   return res.json() as Promise<UnpinResult>;
 };
 
-export const useLibrary = () => {
-  return useQuery({ queryKey: ['library'], queryFn: fetchLibrary });
+export const useBoard = () => {
+  return useQuery({ queryKey: ['board'], queryFn: fetchLibrary });
 };
 
 export const useMoveGame = () => {
@@ -45,16 +45,16 @@ export const useMoveGame = () => {
   return useMutation({
     mutationFn: patchGameStatus,
     onMutate: async (input: MoveRequest) => {
-      await queryClient.cancelQueries({ queryKey: ['library'] });
-      const prev = queryClient.getQueryData<LibraryResponse>(['library']);
-      if (prev) queryClient.setQueryData(['library'], applyMove(prev, input));
+      await queryClient.cancelQueries({ queryKey: ['board'] });
+      const prev = queryClient.getQueryData<LibraryResponse>(['board']);
+      if (prev) queryClient.setQueryData(['board'], applyMove(prev, input));
       return { prev };
     },
     onError: (_error, _input, context) => {
-      if (context?.prev) queryClient.setQueryData(['library'], context.prev);
+      if (context?.prev) queryClient.setQueryData(['board'], context.prev);
     },
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: ['library'] });
+      void queryClient.invalidateQueries({ queryKey: ['board'] });
     },
   });
 };
@@ -64,10 +64,10 @@ export const useUnpinGame = () => {
   return useMutation({
     mutationFn: postUnpin,
     onMutate: async (id: string) => {
-      await queryClient.cancelQueries({ queryKey: ['library'] });
-      const prev = queryClient.getQueryData<LibraryResponse>(['library']);
+      await queryClient.cancelQueries({ queryKey: ['board'] });
+      const prev = queryClient.getQueryData<LibraryResponse>(['board']);
       if (prev) {
-        queryClient.setQueryData<LibraryResponse>(['library'], {
+        queryClient.setQueryData<LibraryResponse>(['board'], {
           ...prev,
           games: prev.games.map(game =>
             game.canonicalId === id ? { ...game, pinned: false } : game,
@@ -77,10 +77,10 @@ export const useUnpinGame = () => {
       return { prev };
     },
     onError: (_error, _id, context) => {
-      if (context?.prev) queryClient.setQueryData(['library'], context.prev);
+      if (context?.prev) queryClient.setQueryData(['board'], context.prev);
     },
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: ['library'] });
+      void queryClient.invalidateQueries({ queryKey: ['board'] });
     },
   });
 };

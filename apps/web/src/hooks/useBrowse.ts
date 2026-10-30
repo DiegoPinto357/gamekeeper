@@ -12,14 +12,14 @@ const fetchJson = async <T>(path: string): Promise<T> => {
 const withQuery = (path: string, qs: string): string =>
   qs ? `${path}?${qs}` : path;
 
-export const useDiscoverGames = (qs: string) =>
+export const useBrowseGames = (qs: string) =>
   useQuery({
-    queryKey: ['discover', 'games', qs],
+    queryKey: ['library', 'games', qs],
     queryFn: () => fetchJson<DiscoverResponse>(withQuery('/api/games', qs)),
   });
 
-export const useDiscoverFacets = (qs: string) =>
+export const useBrowseFacets = (qs: string) =>
   useQuery({
-    queryKey: ['discover', 'facets', qs],
+    queryKey: ['library', 'facets', qs],
     queryFn: () => fetchJson<DiscoverFacets>(withQuery('/api/facets', qs)),
   });
