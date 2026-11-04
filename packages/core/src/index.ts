@@ -48,6 +48,16 @@ export {
   saveMergeSuggestions,
 } from './core/suggestions';
 export {
+  suggestPick,
+  suggestShelves,
+  SUGGEST_STATUSES,
+  SHELF_SIZE,
+  type SuggestPick,
+  type SuggestOptions,
+  type SuggestShelf,
+  type ShelfOptions,
+} from './core/suggest';
+export {
   loadOwnedXboxGames,
   processGamePassAvailability,
   saveUnavailableGames,

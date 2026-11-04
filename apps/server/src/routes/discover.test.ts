@@ -4,7 +4,12 @@ import os from 'node:os';
 import path from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import { openDb, upsertGames, rebuildGamesFts, type Db } from '@gamekeeper/core';
-import type { DiscoverResponse, DiscoverFacets } from '@gamekeeper/shared';
+import type {
+  DiscoverResponse,
+  DiscoverFacets,
+  SuggestResponse,
+  HubResponse,
+} from '@gamekeeper/shared';
 import { buildApp } from '../app';
 
 const base = {
@@ -45,11 +50,23 @@ describe('discover routes', () => {
         genres: ['Platformer'],
         proton: { tier: 'platinum', steamDeck: 'playable' },
       },
+      {
+        ...base,
+        canonicalId: 'tunic',
+        name: 'Tunic',
+        genres: ['Adventure'],
+      },
     ] as Parameters<typeof upsertGames>[1]);
     seedDb.raw
       .prepare(
         `INSERT INTO game_status (canonical_id, status, position)
          VALUES ('hades-ii', 'playing', NULL)`,
+      )
+      .run();
+    seedDb.raw
+      .prepare(
+        `INSERT INTO game_status (canonical_id, status, position)
+         VALUES ('tunic', 'want_to_play', NULL)`,
       )
       .run();
     rebuildGamesFts(seedDb.raw);
@@ -77,8 +94,12 @@ describe('discover routes', () => {
 
   it('GET /api/games returns all games ordered by name, status defaulted', async () => {
     const body = await getGames();
-    expect(body.total).toBe(2);
-    expect(body.games.map((g) => g.name)).toEqual(['Celeste', 'Hades II']);
+    expect(body.total).toBe(3);
+    expect(body.games.map((g) => g.name)).toEqual([
+      'Celeste',
+      'Hades II',
+      'Tunic',
+    ]);
     expect(body.games[0]).toMatchObject({
       canonicalId: 'celeste',
       status: 'backlog',
@@ -107,23 +128,25 @@ describe('discover routes', () => {
 
   it('GET /api/games ignores invalid params instead of erroring', async () => {
     const body = await getGames('?deck=quantum&playtimeMin=abc');
-    expect(body.total).toBe(2);
+    expect(body.total).toBe(3);
   });
 
   it('GET /api/facets counts every dimension', async () => {
     const facets = await getFacets();
     expect(facets.genres).toEqual([
       { value: 'Action', count: 1 },
+      { value: 'Adventure', count: 1 },
       { value: 'Platformer', count: 1 },
       { value: 'Roguelike', count: 1 },
     ]);
     expect(facets.sources).toEqual([
-      { value: 'steam', count: 2 },
+      { value: 'steam', count: 3 },
       { value: 'gog', count: 1 },
     ]);
     expect(facets.statuses).toEqual([
       { value: 'backlog', count: 1 },
       { value: 'playing', count: 1 },
+      { value: 'want_to_play', count: 1 },
     ]);
     expect(facets.years).toEqual([{ value: 2024, count: 1 }]);
   });
@@ -138,6 +161,69 @@ describe('discover routes', () => {
     expect(facets.statuses).toEqual([
       { value: 'backlog', count: 1 },
       { value: 'playing', count: 1 },
+      { value: 'want_to_play', count: 1 },
     ]);
+  });
+
+  const getSuggest = async (query = ''): Promise<SuggestResponse> => {
+    const res = await app.inject({ method: 'GET', url: `/api/suggest${query}` });
+    expect(res.statusCode).toBe(200);
+    return res.json() as SuggestResponse;
+  };
+
+  const getHub = async (query = ''): Promise<HubResponse> => {
+    const res = await app.inject({ method: 'GET', url: `/api/hub${query}` });
+    expect(res.statusCode).toBe(200);
+    return res.json() as HubResponse;
+  };
+
+  describe('GET /api/suggest', () => {
+    it('picks an eligible game with reason chips under filters', async () => {
+      const body = await getSuggest('?genre=Platformer');
+      expect(body.game?.canonicalId).toBe('celeste');
+      expect(body.reasons).toEqual(['Backlog', 'Never played', 'Platformer']);
+    });
+
+    it('never suggests ineligible statuses', async () => {
+      const body = await getSuggest('?status=playing');
+      expect(body.game).toBeNull();
+      expect(body.reasons).toEqual([]);
+    });
+
+    it('exclude= skips shown picks (spin again), then empties the pool', async () => {
+      const second = await getSuggest('?exclude=celeste');
+      expect(second.game?.canonicalId).toBe('tunic');
+      expect(second.reasons).toEqual(['Want to Play', 'Never played']);
+
+      const drained = await getSuggest('?exclude=celeste,tunic');
+      expect(drained.game).toBeNull();
+      expect(drained.reasons).toEqual([]);
+    });
+  });
+
+  describe('GET /api/hub', () => {
+    it('leads with the hero shelf and only shelves eligible games', async () => {
+      const body = await getHub('?seed=9');
+      expect(body.shelves[0].key).toBe('picked');
+      expect(body.shelves[0].title).toBe('Picked for you');
+      const ids = body.shelves.flatMap((s) => s.games.map((g) => g.canonicalId));
+      expect(ids).toContain('celeste');
+      expect(ids).toContain('tunic');
+      expect(ids).not.toContain('hades-ii');
+      expect(body.shelves.map((s) => s.key)).toContain('want');
+    });
+
+    it('is reproducible for a seed and reshuffles without one', async () => {
+      const a = await getHub('?seed=9');
+      const b = await getHub('?seed=9');
+      expect(b).toEqual(a);
+      const random = await getHub();
+      expect(random.shelves).toHaveLength(a.shelves.length);
+    });
+
+    it('ignores invalid seeds instead of erroring', async () => {
+      const body = await getHub('?seed=abc');
+      expect(body.shelves[0].key).toBe('picked');
+    });
   });
 });

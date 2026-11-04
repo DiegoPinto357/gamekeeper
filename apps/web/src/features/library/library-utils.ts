@@ -1,4 +1,23 @@
-import type { DiscoverGame } from '@gamekeeper/shared';
+import type { DiscoverGame, LibraryGame } from '@gamekeeper/shared';
+
+/** Bridge a discover row into the drawer's board-shaped game. */
+export const toDrawerGame = (game: DiscoverGame): LibraryGame => ({
+  canonicalId: game.canonicalId,
+  name: game.name,
+  coverImageUrl: game.coverImageUrl,
+  playtimeHours: game.playtimeHours,
+  primarySource: game.primarySource,
+  ownedSources: game.ownedSources,
+  status: game.status,
+  position: null,
+  pinned: false,
+  unavailableReason: game.unavailableReason,
+  steamAppId: game.steamAppId,
+  proton: game.protonTier
+    ? { tier: game.protonTier, steamDeck: game.deck ?? 'unknown' }
+    : undefined,
+  screenshots: game.screenshots,
+});
 
 export type LibrarySelection = {
   q: string;

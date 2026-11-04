@@ -181,7 +181,7 @@ export function useSyncEvents() {
         void queryClient.invalidateQueries({ queryKey: ['board'] });
         // reserved:
         // void queryClient.invalidateQueries({ queryKey: ['library'] }); // browse grid
-        // void queryClient.invalidateQueries({ queryKey: ['discover'] }); // hub (P4.4b)
+        void queryClient.invalidateQueries({ queryKey: ['discover'] }); // hub + suggest
       }
     };
 

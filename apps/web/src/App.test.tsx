@@ -91,6 +91,7 @@ describe('App', () => {
 
     expect(screen.getByRole('link', { name: 'Board' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Library' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Discover' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Game Pass' })).toBeInTheDocument();
 
     await waitFor(() => expect(screen.getByTestId('column-backlog')).toBeInTheDocument());

@@ -3,6 +3,7 @@ import { AppShell } from '@/components/AppShell';
 import { CatalogGrid } from '@/features/gamepass/CatalogGrid';
 import { LibraryPage } from '@/features/library/LibraryPage';
 import { BoardPage } from '@/features/board/BoardPage';
+import { DiscoverHub } from '@/features/discover/DiscoverHub';
 
 function App() {
   return (
@@ -12,8 +13,7 @@ function App() {
           <Route path="/" element={<Navigate to="/board" replace />} />
           <Route path="/board" element={<BoardPage />} />
           <Route path="/library" element={<LibraryPage />} />
-          {/* temporary until the Discover hub lands (P4.4b) */}
-          <Route path="/discover" element={<Navigate to="/board" replace />} />
+          <Route path="/discover" element={<DiscoverHub />} />
           <Route path="/gamepass" element={<CatalogGrid />} />
         </Route>
       </Routes>

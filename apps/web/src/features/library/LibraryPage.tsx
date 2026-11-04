@@ -9,7 +9,6 @@ import { useBrowseFacets, useBrowseGames } from '@/hooks/useBrowse';
 import { useBoard, useMoveGame } from '@/lib/board';
 import { LibraryCard } from './LibraryCard';
 import { FacetChips } from './FacetChips';
-import type { DiscoverGame, LibraryGame } from '@gamekeeper/shared';
 import {
   EMPTY_SELECTION,
   SORT_LABELS,
@@ -17,6 +16,7 @@ import {
   parseSelection,
   selectionToQueryString,
   sortGames,
+  toDrawerGame,
   toggleInList,
   type LibraryDimension,
   type LibrarySelection,
@@ -24,24 +24,6 @@ import {
 } from './library-utils';
 
 const DEBOUNCE_MS = 300;
-
-const toDrawerGame = (game: DiscoverGame): LibraryGame => ({
-  canonicalId: game.canonicalId,
-  name: game.name,
-  coverImageUrl: game.coverImageUrl,
-  playtimeHours: game.playtimeHours,
-  primarySource: game.primarySource,
-  ownedSources: game.ownedSources,
-  status: game.status,
-  position: null,
-  pinned: false,
-  unavailableReason: game.unavailableReason,
-  steamAppId: game.steamAppId,
-  proton: game.protonTier
-    ? { tier: game.protonTier, steamDeck: game.deck ?? 'unknown' }
-    : undefined,
-  screenshots: game.screenshots,
-});
 
 export function LibraryPage() {
   const [searchParams, setSearchParams] = useSearchParams();

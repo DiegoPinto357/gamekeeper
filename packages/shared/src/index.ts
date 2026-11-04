@@ -110,6 +110,23 @@ export type DiscoverResponse = {
   total: number;
 };
 
+/** P4.3 — one directed-random pick; game is null when the pool is empty. */
+export type SuggestResponse = {
+  game: DiscoverGame | null;
+  reasons: string[];
+};
+
+export type SuggestShelf = {
+  key: string;
+  title: string;
+  games: DiscoverGame[];
+};
+
+/** P4.3 — store-style shelves for the Discover hub. */
+export type HubResponse = {
+  shelves: SuggestShelf[];
+};
+
 export type GameStatusResult = {
   canonicalId: string;
   status: string;
