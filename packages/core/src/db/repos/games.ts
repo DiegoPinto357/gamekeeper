@@ -1,5 +1,10 @@
 import type { DatabaseSync } from 'node:sqlite';
-import type { Source, UnifiedGame } from '../../types/game';
+import {
+  capScreenshotMap,
+  parseScreenshotMap,
+  type Source,
+  type UnifiedGame,
+} from '../../types/game';
 
 type GameRow = {
   canonical_id: string;
@@ -23,6 +28,7 @@ type GameRow = {
   description: string | null;
   developer: string | null;
   publisher: string | null;
+  screenshots: string | null;
 };
 
 const toRow = (game: UnifiedGame): (string | number | null)[] => [
@@ -42,6 +48,9 @@ const toRow = (game: UnifiedGame): (string | number | null)[] => [
   game.description ?? null,
   game.developer ?? null,
   game.publisher ?? null,
+  game.screenshots && Object.keys(game.screenshots).length > 0
+    ? JSON.stringify(capScreenshotMap(game.screenshots))
+    : null,
 ];
 
 const fromRow = (row: GameRow): UnifiedGame => {
@@ -67,6 +76,10 @@ const fromRow = (row: GameRow): UnifiedGame => {
     description: row.description ?? undefined,
     developer: row.developer ?? undefined,
     publisher: row.publisher ?? undefined,
+    screenshots: (() => {
+      const map = parseScreenshotMap(row.screenshots);
+      return Object.keys(map).length > 0 ? map : undefined;
+    })(),
     createdAt: new Date(row.created_at),
     updatedAt: new Date(row.updated_at),
   };
@@ -74,14 +87,16 @@ const fromRow = (row: GameRow): UnifiedGame => {
 
 // Metadata columns use COALESCE(excluded, existing): a sync resend without
 // the field must not clobber enrichment (Steam appdetails / local harvest);
-// a new non-null value still updates.
+// a new non-null value still updates. screenshots merge per-key instead:
+// each writer (steam/gog/ms/igdb enrich) owns its key, json_patch folds a
+// resend's keys in without touching the others.
 const UPSERT_SQL = `
   INSERT INTO games (
     canonical_id, name, primary_source, owned_sources, steam_app_id,
     playtime_hours, last_played_at, cover_image_url, release_date,
     interest, proton_json, created_at, updated_at,
-    description, developer, publisher
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    description, developer, publisher, screenshots
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   ON CONFLICT(canonical_id) DO UPDATE SET
     name = excluded.name,
     primary_source = excluded.primary_source,
@@ -96,6 +111,10 @@ const UPSERT_SQL = `
     description = COALESCE(excluded.description, games.description),
     developer = COALESCE(excluded.developer, games.developer),
     publisher = COALESCE(excluded.publisher, games.publisher),
+    screenshots = CASE
+      WHEN excluded.screenshots IS NULL THEN games.screenshots
+      ELSE json_patch(COALESCE(games.screenshots, '{}'), excluded.screenshots)
+    END,
     updated_at = excluded.updated_at
 `;
 

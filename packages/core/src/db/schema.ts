@@ -194,4 +194,9 @@ export const MIGRATIONS: string[] = [
     ), '')
   FROM games g;
   `,
+  `
+  -- P4.4a: per-source screenshot URLs as a JSON map
+  -- ({"steam":[…],"gog":[…],"ms":[…],"igdb":[…]}, cap per source at write).
+  ALTER TABLE games ADD COLUMN screenshots TEXT;
+  `,
 ];

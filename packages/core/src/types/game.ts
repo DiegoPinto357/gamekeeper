@@ -29,6 +29,99 @@ export const PLATFORM_PRIORITY: Record<Source, number> = {
 };
 
 /**
+ * Per-source screenshot URLs (stored as a JSON map on `games.screenshots`).
+ * Keys are capture providers, not store sources: `ms` covers xbox/gamepass,
+ * `igdb` is the last-resort fallback for stores without their own media.
+ */
+export const SCREENSHOT_SOURCES = ['steam', 'gog', 'ms', 'igdb'] as const;
+export type ScreenshotSource = (typeof SCREENSHOT_SOURCES)[number];
+export type ScreenshotMap = Partial<Record<ScreenshotSource, string[]>>;
+
+/** Gallery size per source — hero + drawer need a handful, not everything. */
+export const SCREENSHOTS_PER_SOURCE = 5;
+
+export const ScreenshotMapSchema = z.object({
+  steam: z.array(z.string()).optional(),
+  gog: z.array(z.string()).optional(),
+  ms: z.array(z.string()).optional(),
+  igdb: z.array(z.string()).optional(),
+});
+
+export const capScreenshotUrls = (urls: string[]): string[] =>
+  urls.slice(0, SCREENSHOTS_PER_SOURCE);
+
+export const capScreenshotMap = (map: ScreenshotMap): ScreenshotMap => {
+  const capped: ScreenshotMap = {};
+  for (const key of SCREENSHOT_SOURCES) {
+    const urls = map[key];
+    if (urls) capped[key] = capScreenshotUrls(urls);
+  }
+  return capped;
+};
+
+export const parseScreenshotMap = (json: string | null): ScreenshotMap => {
+  if (!json) return {};
+  try {
+    const parsed = ScreenshotMapSchema.safeParse(JSON.parse(json));
+    return parsed.success ? parsed.data : {};
+  } catch {
+    return {};
+  }
+};
+
+/** Store source → screenshot-provider key (null = no direct store media). */
+export const screenshotKeyForSource = (
+  source: Source,
+): ScreenshotSource | null => {
+  if (source === 'steam') return 'steam';
+  if (source === 'gog') return 'gog';
+  if (source === 'xbox' || source === 'gamepass') return 'ms';
+  return null;
+};
+
+/**
+ * Resolve the display list: owned sources in platform-priority order —
+ * the first provider with actual URLs wins; IGDB is the final fallback so
+ * Epic/Amazon titles (no store media) still get images.
+ */
+export const resolveScreenshots = (
+  map: ScreenshotMap | null | undefined,
+  ownedSources: Source[],
+): string[] => {
+  if (!map) return [];
+  const sorted = [...ownedSources].sort(
+    (a, b) => PLATFORM_PRIORITY[a] - PLATFORM_PRIORITY[b],
+  );
+  for (const source of sorted) {
+    const key = screenshotKeyForSource(source);
+    const urls = key ? map[key] : undefined;
+    if (urls && urls.length > 0) return urls;
+  }
+  return map.igdb && map.igdb.length > 0 ? map.igdb : [];
+};
+
+/**
+ * Per-key union (winner order first, capped). A key present on either side
+ * is kept — an explicit `[]` marks "captured, none found" and must survive.
+ * Null only when neither side has any key.
+ */
+export const mergeScreenshotMaps = (
+  winner: ScreenshotMap | null | undefined,
+  loser: ScreenshotMap | null | undefined,
+): ScreenshotMap | null => {
+  const merged: ScreenshotMap = {};
+  for (const key of SCREENSHOT_SOURCES) {
+    const w = winner?.[key];
+    const l = loser?.[key];
+    if (w === undefined && l === undefined) continue;
+    merged[key] = capScreenshotUrls([
+      ...new Set([...(w ?? []), ...(l ?? [])]),
+    ]);
+  }
+  return Object.keys(merged).length > 0 ? merged : null;
+};
+
+/**
  * ProtonDB compatibility tier
  */
 export const ProtonTierSchema = z.enum([
@@ -94,6 +187,7 @@ export const UnifiedGameSchema = z.object({
   description: z.string().optional(),
   developer: z.string().optional(),
   publisher: z.string().optional(),
+  screenshots: ScreenshotMapSchema.optional(),
 
   // Tracking
   createdAt: z.date(),
@@ -118,6 +212,8 @@ export type RawGameData = {
   description?: string;
   developer?: string;
   publisher?: string;
+  /** Per-source screenshot URLs captured by this source (e.g. `{gog:[…]}`). */
+  screenshots?: ScreenshotMap;
 };
 
 /**

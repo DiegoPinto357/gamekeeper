@@ -138,6 +138,39 @@ describe('games', () => {
     );
   });
 
+  it('merges screenshots per key across resends (never clobbers other keys)', () => {
+    upsertGames(db.raw, [
+      makeGame({ screenshots: { steam: ['https://a/1.jpg', 'https://a/2.jpg'] } }),
+    ]);
+    upsertGames(db.raw, [
+      makeGame({
+        screenshots: { gog: ['https://g/1.jpg'] },
+        updatedAt: new Date('2026-01-03T00:00:00.000Z'),
+      }),
+    ]);
+
+    expect(getGame(db.raw, 'steam:1145350')?.screenshots).toEqual({
+      steam: ['https://a/1.jpg', 'https://a/2.jpg'],
+      gog: ['https://g/1.jpg'],
+    });
+
+    // a resend without screenshots leaves the map untouched
+    upsertGames(db.raw, [
+      makeGame({ updatedAt: new Date('2026-01-04T00:00:00.000Z') }),
+    ]);
+    expect(getGame(db.raw, 'steam:1145350')?.screenshots).toEqual({
+      steam: ['https://a/1.jpg', 'https://a/2.jpg'],
+      gog: ['https://g/1.jpg'],
+    });
+  });
+
+  it('caps stored screenshots per source', () => {
+    const urls = Array.from({ length: 8 }, (_, i) => `https://a/${i}.jpg`);
+    upsertGames(db.raw, [makeGame({ screenshots: { steam: urls } })]);
+
+    expect(getGame(db.raw, 'steam:1145350')?.screenshots?.steam).toHaveLength(5);
+  });
+
   it('upsert unions genres into game_genres without clobbering existing rows', () => {
     upsertGames(db.raw, [makeGame({ genres: ['RPG'] })]);
 

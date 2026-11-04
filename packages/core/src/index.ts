@@ -57,6 +57,19 @@ export {
 } from './core/xbox-gamepass';
 export type { RawGameData, UnifiedGame, Source, Config } from './types/game';
 export {
+  SCREENSHOT_SOURCES,
+  SCREENSHOTS_PER_SOURCE,
+  ScreenshotMapSchema,
+  capScreenshotMap,
+  capScreenshotUrls,
+  mergeScreenshotMaps,
+  parseScreenshotMap,
+  resolveScreenshots,
+  screenshotKeyForSource,
+  type ScreenshotMap,
+  type ScreenshotSource,
+} from './types/game';
+export {
   openDb,
   defaultDbPath,
   type Db,
