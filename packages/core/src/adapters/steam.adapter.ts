@@ -35,6 +35,7 @@ type SteamAppData = {
   };
   genres?: Array<{ description: string }>;
   categories?: Array<{ description: string }>;
+  screenshots?: Array<{ id?: number; path_thumbnail?: string; path_full?: string }>;
 };
 
 type SteamAppDetails = {

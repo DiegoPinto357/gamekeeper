@@ -36,6 +36,45 @@ describe('gamepass.adapter — mapProduct', () => {
       }),
     );
     expect(result?.coverImageUrl).toBe('https://example.com/boxart.jpg');
+    expect(result?.screenshotUrls).toEqual(['https://example.com/screen.jpg']);
+  });
+
+  it('captures Screenshot + HeroArt purposes, deduped and capped at 5', () => {
+    const shots = Array.from({ length: 7 }, (_, i) => ({
+      ImagePurpose: 'Screenshot',
+      Uri: `//cdn/${i}.jpg`,
+    }));
+    const result = mapProduct(
+      makeProduct({
+        lp: {
+          Images: [
+            ...shots,
+            { ImagePurpose: 'HeroArt', Uri: '//cdn/hero.jpg' },
+            { ImagePurpose: 'BoxArt', Uri: '//cdn/box.jpg' },
+            { ImagePurpose: 'Screenshot', Uri: '//cdn/0.jpg' }, // duplicate
+          ],
+        },
+      }),
+    );
+
+    expect(result?.screenshotUrls).toEqual([
+      'https://cdn/0.jpg',
+      'https://cdn/1.jpg',
+      'https://cdn/2.jpg',
+      'https://cdn/3.jpg',
+      'https://cdn/4.jpg',
+    ]);
+  });
+
+  it('omits screenshotUrls when no Screenshot/HeroArt images exist', () => {
+    const result = mapProduct(
+      makeProduct({
+        lp: {
+          Images: [{ ImagePurpose: 'BoxArt', Uri: '//example.com/boxart.jpg' }],
+        },
+      }),
+    );
+    expect(result?.screenshotUrls).toBeUndefined();
   });
 
   it('falls back to Poster when no BoxArt', () => {

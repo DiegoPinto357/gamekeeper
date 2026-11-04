@@ -234,6 +234,52 @@ describe('heroicAdapter', () => {
       expect(games[0].developer).toBeUndefined();
     });
 
+    it('captures GOG screenshots from gog_api_info url_format placeholders', async () => {
+      mockLibraries({
+        gog: [gogGame({ extra: {} })],
+        epic: [],
+        amazon: [],
+        gogApiInfo: {
+          'gog_gog-123': {
+            first_release_date: '1998-09-30T00:00:00+0000',
+            game: {
+              screenshots: [
+                { url_format: 'https://images.gog.com/abc{formatter}.{ext}?namespace=gamesdb' },
+                { url_format: 'https://images.gog.com/def{formatter}.{ext}?namespace=gamesdb' },
+              ],
+            },
+          },
+        },
+      });
+
+      const games = await heroicAdapter.loadAllLibraries(CACHE_PATH);
+
+      expect(games[0].screenshots).toEqual({
+        gog: [
+          'https://images.gog.com/abc_product_card_v2_mobile_slider_639.jpg?namespace=gamesdb',
+          'https://images.gog.com/def_product_card_v2_mobile_slider_639.jpg?namespace=gamesdb',
+        ],
+      });
+    });
+
+    it('omits screenshots when gog_api_info has no screenshot entries', async () => {
+      mockLibraries({
+        gog: [gogGame({ extra: {} })],
+        epic: [],
+        amazon: [],
+        gogApiInfo: {
+          'gog_gog-123': {
+            first_release_date: '1998-09-30T00:00:00+0000',
+            game: { genres: [] },
+          },
+        },
+      });
+
+      const games = await heroicAdapter.loadAllLibraries(CACHE_PATH);
+
+      expect(games[0].screenshots).toBeUndefined();
+    });
+
     it('maps Epic developer and description from extra.about', async () => {
       mockLibraries({
         gog: [],

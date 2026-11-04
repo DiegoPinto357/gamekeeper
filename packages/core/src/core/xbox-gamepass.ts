@@ -333,6 +333,9 @@ export const selectInterestGames = async (
       genres: catalogGame.genres,
       developer: catalogGame.developer,
       publisher: catalogGame.publisher,
+      screenshots: catalogGame.screenshotUrls?.length
+        ? { ms: catalogGame.screenshotUrls }
+        : undefined,
     });
   }
 

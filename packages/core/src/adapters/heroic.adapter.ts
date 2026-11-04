@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { type RawGameData, type Source } from '../types/game';
+import { capScreenshotUrls, type RawGameData, type Source } from '../types/game';
 import { log } from '../logger';
 
 /**
@@ -31,7 +31,26 @@ type GogApiEntry = {
     genres?: Array<{ name?: unknown }>;
     developers?: Array<{ name?: string }>;
     publishers?: Array<{ name?: string }>;
+    screenshots?: Array<{ url_format?: string }>;
   };
+};
+
+// GOG CDN url_format carries "{formatter}.{ext}" placeholders; this card-size
+// formatter is verified to return 200 (larger formatters probe TBD — hero
+// upscales with a scrim). Applied to screenshot hashes too.
+const GOG_IMAGE_FORMATTER = '_product_card_v2_mobile_slider_639';
+
+const gogScreenshotUrls = (gogApi?: GogApiEntry): string[] | undefined => {
+  const urls = (gogApi?.game?.screenshots ?? [])
+    .map((shot) => shot.url_format)
+    .filter((url): url is string => !!url)
+    .map((url) =>
+      url
+        .replace('{formatter}', GOG_IMAGE_FORMATTER)
+        .replace('{ext}', 'jpg'),
+    )
+    .filter((url) => url.startsWith('http'));
+  return urls.length > 0 ? capScreenshotUrls(urls) : undefined;
 };
 
 const localizedName = (name: unknown): string | undefined => {
@@ -59,6 +78,7 @@ const mapHeroicGame = (
         ? game.extra.genres
         : undefined;
   const releaseIso = gogApi?.first_release_date ?? game.extra?.releaseDate;
+  const screenshots = gogScreenshotUrls(gogApi);
 
   return {
     source,
@@ -70,6 +90,7 @@ const mapHeroicGame = (
     description: game.extra?.about?.description ?? game.description,
     developer: apiGame?.developers?.[0]?.name ?? game.developer,
     publisher: apiGame?.publishers?.[0]?.name,
+    screenshots: screenshots ? { gog: screenshots } : undefined,
   };
 };
 

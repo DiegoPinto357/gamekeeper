@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import axios from 'axios';
+import { capScreenshotUrls } from '../types/game';
 import { log } from '../logger';
 
 /**
@@ -18,6 +19,8 @@ export type GamePassGame = {
   genres?: string[];
   developer?: string;
   publisher?: string;
+  /** Full-size image URLs captured from Screenshot/HeroArt purposes. */
+  screenshotUrls?: string[];
 };
 
 /**
@@ -84,6 +87,21 @@ export const mapProduct = (product: any): GamePassGame | null => {
   const poster = images.find((img: any) => img.ImagePurpose === 'Poster');
   const imageEntry = boxArt ?? poster;
   const coverImageUrl = imageEntry?.Uri ? `https:${imageEntry.Uri}` : undefined;
+  const screenshotUris = [
+    ...new Set(
+      images
+        .filter(
+          (img: any) =>
+            img.ImagePurpose === 'Screenshot' || img.ImagePurpose === 'HeroArt',
+        )
+        .map((img: any) => img.Uri)
+        .filter((uri: any): uri is string => typeof uri === 'string' && !!uri)
+        .map((uri: string) => `https:${uri}`),
+    ),
+  ];
+  const screenshotUrls = screenshotUris.length
+    ? capScreenshotUrls(screenshotUris)
+    : undefined;
   const releaseDate: string | undefined =
     product.MarketProperties?.[0]?.OriginalReleaseDate ?? undefined;
   const categories: string[] | undefined = product.Properties?.Categories;
@@ -97,6 +115,7 @@ export const mapProduct = (product: any): GamePassGame | null => {
     genres: categories?.length ? categories : undefined,
     developer: localized?.DeveloperName,
     publisher: localized?.PublisherName,
+    screenshotUrls,
   };
 };
 

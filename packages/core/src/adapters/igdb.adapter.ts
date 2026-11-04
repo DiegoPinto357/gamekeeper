@@ -528,6 +528,8 @@ export type IgdbGameDetails = {
   themes: string[];
   keywords: string[];
   similarGameIds: number[];
+  /** Full-size CDN URLs (t_720p), capped at write time. */
+  screenshots?: string[];
   developers: string[];
   publishers: string[];
 };
@@ -592,6 +594,7 @@ const fetchGameDetails = async (
         themes?: Array<{ name: string }>;
         keywords?: Array<{ name: string }>;
         similar_games?: Array<{ id: number }>;
+        screenshots?: Array<{ image_id?: string }>;
         involved_companies?: Array<{
           company: { name: string };
           developer?: boolean;
@@ -600,7 +603,7 @@ const fetchGameDetails = async (
       }>
     >(
       `${IGDB_API_URL}/games`,
-      `where id = ${igdbId}; fields name, summary, genres.name, themes.name, keywords.name, similar_games.id, involved_companies.company.name, involved_companies.developer, involved_companies.publisher; limit 1;`,
+      `where id = ${igdbId}; fields name, summary, genres.name, themes.name, keywords.name, similar_games.id, screenshots.image_id, involved_companies.company.name, involved_companies.developer, involved_companies.publisher; limit 1;`,
       { headers: igdbHeaders(token) },
     );
 
@@ -615,6 +618,10 @@ const fetchGameDetails = async (
       themes: (game.themes ?? []).map((t) => t.name).filter(Boolean),
       keywords: (game.keywords ?? []).map((k) => k.name).filter(Boolean),
       similarGameIds: (game.similar_games ?? []).map((s) => s.id),
+      screenshots: (game.screenshots ?? [])
+        .map((s) => s.image_id)
+        .filter((id): id is string => !!id)
+        .map((id) => `https://images.igdb.com/igdb/image/upload/t_720p/${id}.jpg`),
       developers: (game.involved_companies ?? [])
         .filter((c) => c.developer)
         .map((c) => c.company.name)

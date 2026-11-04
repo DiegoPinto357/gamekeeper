@@ -270,7 +270,36 @@ describe('igdbAdapter metadata', () => {
         similarGameIds: [5501],
         developers: ['Supergiant Games'],
         publishers: ['Supergiant Games'],
+        screenshots: [],
       });
+    });
+
+    it('maps screenshots.image_id to 720p CDN URLs, skipping blanks', async () => {
+      mockedAxios.post.mockImplementation((url: string) => {
+        if (url.includes('oauth2/token'))
+          return Promise.resolve({
+            data: { access_token: 'tok', expires_in: 3600, token_type: 'bearer' },
+          });
+        if (url.includes('/games')) {
+          return Promise.resolve({
+            data: [
+              {
+                id: 5502,
+                name: 'Hades II',
+                screenshots: [{ image_id: 'co6l9' }, { image_id: 'co6la' }, {}],
+              },
+            ],
+          });
+        }
+        return Promise.resolve({ data: [] });
+      });
+
+      const details = await igdbAdapter.fetchGameDetails(5502);
+
+      expect(details?.screenshots).toEqual([
+        'https://images.igdb.com/igdb/image/upload/t_720p/co6l9.jpg',
+        'https://images.igdb.com/igdb/image/upload/t_720p/co6la.jpg',
+      ]);
     });
 
     it('returns null when the game is not found', async () => {
