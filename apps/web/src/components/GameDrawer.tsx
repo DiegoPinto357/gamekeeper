@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { gameLinks } from '@/lib/game-links';
 import { CompatibilityBadges } from './CompatibilityBadges';
 import { CoverImage } from './CoverImage';
+import { ScreenshotGallery } from './ScreenshotGallery';
 import { SourceBadge } from './SourceBadge';
 import { UnavailableBadge } from './UnavailableBadge';
 
@@ -70,6 +71,10 @@ export const GameDrawer = ({
               </div>
             }
           />
+
+          {game.screenshots && game.screenshots.length > 0 && (
+            <ScreenshotGallery screenshots={game.screenshots} alt={game.name} />
+          )}
 
           <div className="flex flex-wrap items-center gap-1.5">
             {game.ownedSources.map(source => (

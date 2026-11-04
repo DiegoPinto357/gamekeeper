@@ -40,6 +40,7 @@ const toDrawerGame = (game: DiscoverGame): LibraryGame => ({
   proton: game.protonTier
     ? { tier: game.protonTier, steamDeck: game.deck ?? 'unknown' }
     : undefined,
+  screenshots: game.screenshots,
 });
 
 export function LibraryPage() {

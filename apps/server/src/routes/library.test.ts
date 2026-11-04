@@ -136,6 +136,22 @@ describe('library routes', () => {
     expect(library.games.find(g => g.canonicalId === 'steam:2')?.steamAppId).toBeUndefined();
   });
 
+  it('GET /api/library exposes resolved screenshots and omits them when none', async () => {
+    upsertGames(seedDb.raw, [
+      {
+        ...makeGame('steam:1', 'Alpha'),
+        screenshots: { steam: ['https://s/1.jpg'], igdb: ['https://i/1.jpg'] },
+      },
+      makeGame('steam:2', 'Beta'),
+    ]);
+
+    const library = await getLibrary();
+    expect(library.games.find(g => g.canonicalId === 'steam:1')?.screenshots).toEqual([
+      'https://s/1.jpg',
+    ]);
+    expect(library.games.find(g => g.canonicalId === 'steam:2')?.screenshots).toBeUndefined();
+  });
+
   it('PATCH /api/games/:id/status moves the game and shows it in the new column on refetch', async () => {
     upsertGames(seedDb.raw, [
       makeGame('steam:1', 'Alpha'),

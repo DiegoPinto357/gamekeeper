@@ -60,6 +60,8 @@ export type LibraryGame = {
   proton?: GameCompatibility;
   /** Steam app id when known; drives store + ProtonDB links. */
   steamAppId?: number;
+  /** Resolved per store precedence (IGDB last resort); [] when none. */
+  screenshots?: string[];
 };
 
 export type LibraryResponse = {

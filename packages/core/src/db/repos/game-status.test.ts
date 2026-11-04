@@ -231,6 +231,33 @@ describe('game-status repo', () => {
         steamDeck: 'verified',
       });
     });
+
+    it('resolves screenshots by store precedence with IGDB last resort', () => {
+      seedGames(db, [
+        makeGame({
+          canonicalId: 'steam:1',
+          name: 'A',
+          screenshots: {
+            steam: ['https://s/1.jpg'],
+            igdb: ['https://i/1.jpg'],
+          },
+        }),
+        makeGame({
+          canonicalId: 'epic:2',
+          name: 'B',
+          primarySource: 'epic',
+          ownedSources: ['epic'],
+          screenshots: { igdb: ['https://i/2.jpg'] },
+        }),
+        makeGame({ canonicalId: 'manual:3', name: 'C', primarySource: 'manual', ownedSources: ['manual'] }),
+      ]);
+
+      const games = getLibraryGames(db.raw);
+      const byId = (id: string) => games.find(g => g.canonicalId === id)!;
+      expect(byId('steam:1').screenshots).toEqual(['https://s/1.jpg']);
+      expect(byId('epic:2').screenshots).toEqual(['https://i/2.jpg']);
+      expect(byId('manual:3').screenshots).toEqual([]);
+    });
   });
 
   describe('merge order (pinned anchored + auto flows around)', () => {

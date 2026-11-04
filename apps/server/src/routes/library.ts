@@ -40,6 +40,7 @@ const toLibraryGame = (game: CoreLibraryGame): LibraryGame => ({
   unavailableReason: game.unavailableReason ?? undefined,
   proton: game.proton ?? undefined,
   steamAppId: game.steamAppId ?? undefined,
+  screenshots: game.screenshots.length > 0 ? game.screenshots : undefined,
 });
 
 const optionalId = (value: unknown): string | null | undefined => {

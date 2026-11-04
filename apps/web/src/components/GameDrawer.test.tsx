@@ -76,3 +76,30 @@ describe('GameDrawer store links', () => {
     expect(screen.queryByTestId('drawer-links')).not.toBeInTheDocument();
   });
 });
+
+describe('GameDrawer screenshots', () => {
+  it('renders the gallery when screenshots are resolved', () => {
+    renderDrawer({
+      ...baseGame,
+      screenshots: ['https://cdn/one.jpg', 'https://cdn/two.jpg'],
+    });
+
+    expect(screen.getByTestId('screenshot-gallery')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Hades II screenshot' })).toHaveAttribute(
+      'src',
+      'https://cdn/one.jpg',
+    );
+  });
+
+  it('omits the gallery when there are no screenshots', () => {
+    renderDrawer({ ...baseGame, screenshots: undefined });
+
+    expect(screen.queryByTestId('screenshot-gallery')).not.toBeInTheDocument();
+  });
+
+  it('omits the gallery for an empty resolved list', () => {
+    renderDrawer({ ...baseGame, screenshots: [] });
+
+    expect(screen.queryByTestId('screenshot-gallery')).not.toBeInTheDocument();
+  });
+});

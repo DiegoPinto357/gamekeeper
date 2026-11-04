@@ -1,6 +1,11 @@
 import type { DatabaseSync } from 'node:sqlite';
 import type { Source } from '../../types/game';
-import { ProtonTierSchema, SteamDeckStatusSchema } from '../../types/game';
+import {
+  ProtonTierSchema,
+  SteamDeckStatusSchema,
+  parseScreenshotMap,
+  resolveScreenshots,
+} from '../../types/game';
 
 export type StatusEntry = {
   key: string;
@@ -28,6 +33,8 @@ export type LibraryGame = {
   proton: GameCompatibility | null;
   /** Steam app id when known; drives store + ProtonDB links. */
   steamAppId: number | null;
+  /** Resolved per store precedence (IGDB last resort); [] when none. */
+  screenshots: string[];
 };
 
 export type SetStatusResult = {
@@ -78,6 +85,7 @@ type BoardRow = {
   last_played_at: string | null;
   created_at: string | null;
   proton_json: string | null;
+  screenshots: string | null;
   status: string | null;
   position: number | null;
   pinned: number;
@@ -96,6 +104,7 @@ const BOARD_SELECT = `
     g.last_played_at,
     g.created_at,
     g.proton_json,
+    g.screenshots,
     gs.status,
     gs.position,
     gs.pinned
@@ -191,20 +200,24 @@ export const getLibraryGames = (db: DatabaseSync): LibraryGame[] => {
     ordered.push(...mergeColumn(columnRows));
   }
 
-  return ordered.map((row) => ({
-    canonicalId: row.canonical_id,
-    name: row.name,
-    coverImageUrl: row.cover_image_url,
-    playtimeHours: row.playtime_hours,
-    primarySource: row.primary_source,
-    ownedSources: JSON.parse(row.owned_sources) as Source[],
-    unavailableReason: row.unavailable_reason,
-    status: row.status,
-    position: row.position,
-    pinned: row.pinned === 1,
-    proton: parseProton(row.proton_json),
-    steamAppId: row.steam_app_id,
-  }));
+  return ordered.map((row) => {
+    const ownedSources = JSON.parse(row.owned_sources) as Source[];
+    return {
+      canonicalId: row.canonical_id,
+      name: row.name,
+      coverImageUrl: row.cover_image_url,
+      playtimeHours: row.playtime_hours,
+      primarySource: row.primary_source,
+      ownedSources,
+      unavailableReason: row.unavailable_reason,
+      status: row.status,
+      position: row.position,
+      pinned: row.pinned === 1,
+      proton: parseProton(row.proton_json),
+      steamAppId: row.steam_app_id,
+      screenshots: resolveScreenshots(parseScreenshotMap(row.screenshots), ownedSources),
+    };
+  });
 };
 
 const statusExists = (db: DatabaseSync, status: string): boolean => {
