@@ -1,4 +1,10 @@
-import { type RawGameData, type UnifiedGame, PLATFORM_PRIORITY } from '../types/game';
+import {
+  type RawGameData,
+  type UnifiedGame,
+  type ScreenshotMap,
+  PLATFORM_PRIORITY,
+  mergeScreenshotMaps,
+} from '../types/game';
 import { normalizeGameName, generateCanonicalId, areNamesMatching } from './normalize';
 import { shouldForceMerge, getCanonicalNameFromVariant } from './overrides';
 import { getConfig } from '../config';
@@ -150,6 +156,13 @@ export const mergeGameGroup = (games: RawGameData[]): UnifiedGame => {
     }
   }
 
+  // Screenshot maps union per source key across the group (each raw entry
+  // carries only its own provider's key).
+  const screenshots = games.reduce<ScreenshotMap | null>(
+    (acc, game) => mergeScreenshotMaps(acc, game.screenshots),
+    null,
+  );
+
   const unified: UnifiedGame = {
     canonicalId,
     name: gameName,
@@ -164,6 +177,7 @@ export const mergeGameGroup = (games: RawGameData[]): UnifiedGame => {
     description: pickFromSiblings('description'),
     developer: pickFromSiblings('developer'),
     publisher: pickFromSiblings('publisher'),
+    screenshots: screenshots ?? undefined,
     createdAt: now,
     updatedAt: now,
   };

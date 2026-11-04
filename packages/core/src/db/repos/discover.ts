@@ -1,5 +1,11 @@
 import type { DatabaseSync } from 'node:sqlite';
-import type { Source, SteamDeckStatus, ProtonTier } from '../../types/game';
+import {
+  parseScreenshotMap,
+  resolveScreenshots,
+  type Source,
+  type SteamDeckStatus,
+  type ProtonTier,
+} from '../../types/game';
 
 export type DiscoverFilters = {
   q?: string;
@@ -35,6 +41,8 @@ export type DiscoverGame = {
   unavailableReason?: string;
   /** Steam app id when known; drives store + ProtonDB links. */
   steamAppId?: number;
+  /** Resolved per store precedence (IGDB last resort); [] when none. */
+  screenshots?: string[];
 };
 
 export type FacetCount = { value: string; count: number };
@@ -248,6 +256,7 @@ type GameRow = {
   last_played_at: string | null;
   unavailable_reason: string | null;
   proton_json: string | null;
+  screenshots: string | null;
 };
 
 const namesFor = (
@@ -277,13 +286,14 @@ const toDiscoverGame = (db: DatabaseSync, row: GameRow): DiscoverGame => {
       proton = undefined;
     }
   }
+  const ownedSources = JSON.parse(row.owned_sources) as Source[];
   return {
     canonicalId: row.canonical_id,
     name: row.name,
     coverImageUrl: row.cover_image_url ?? undefined,
     playtimeHours: row.playtime_hours ?? undefined,
     primarySource: row.primary_source,
-    ownedSources: JSON.parse(row.owned_sources) as Source[],
+    ownedSources,
     steamAppId: row.steam_app_id ?? undefined,
     status: row.status,
     releaseDate: row.release_date ?? undefined,
@@ -296,6 +306,10 @@ const toDiscoverGame = (db: DatabaseSync, row: GameRow): DiscoverGame => {
     deck: proton?.steamDeck,
     protonTier: proton?.tier,
     unavailableReason: row.unavailable_reason ?? undefined,
+    screenshots: resolveScreenshots(
+      parseScreenshotMap(row.screenshots),
+      ownedSources,
+    ),
   };
 };
 
@@ -318,6 +332,7 @@ export const queryGames = (
       `SELECT g.canonical_id, g.name, g.cover_image_url, g.playtime_hours,
               g.primary_source, g.owned_sources, g.steam_app_id, g.release_date,
               g.last_played_at, g.unavailable_reason, g.proton_json,
+              g.screenshots,
               COALESCE(gs.status, 'backlog') AS status
        ${BASE_FROM} ${whereSql}
        ORDER BY g.name COLLATE NOCASE ASC`,

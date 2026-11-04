@@ -86,6 +86,8 @@ export type DiscoverGame = {
   unavailableReason?: string;
   /** Steam app id when known; drives store + ProtonDB links. */
   steamAppId?: number;
+  /** Resolved per store precedence (IGDB last resort); [] when none. */
+  screenshots?: string[];
 };
 
 export type FacetCount = { value: string; count: number };

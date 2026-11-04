@@ -242,6 +242,53 @@ describe('deduplicate', () => {
 
       expect(unified.canonicalId).toMatch(/^epic-exclusive$/);
     });
+
+    it('unions screenshot maps per provider key across the group', () => {
+      const games: RawGameData[] = [
+        createGame('Test Game', 'steam', {
+          steamAppId: 12345,
+          screenshots: { steam: ['https://s/1.jpg'] },
+        }),
+        createGame('Test Game', 'epic', {
+          screenshots: { igdb: ['https://i/1.jpg'] },
+        }),
+      ];
+
+      const unified = mergeGameGroup(games);
+
+      expect(unified.screenshots).toEqual({
+        steam: ['https://s/1.jpg'],
+        igdb: ['https://i/1.jpg'],
+      });
+    });
+
+    it('keeps an explicit empty screenshot key from any sibling', () => {
+      const games: RawGameData[] = [
+        createGame('Test Game', 'steam', {
+          steamAppId: 12345,
+          screenshots: { steam: [] },
+        }),
+        createGame('Test Game', 'gog', { screenshots: { gog: ['https://g/1.jpg'] } }),
+      ];
+
+      const unified = mergeGameGroup(games);
+
+      expect(unified.screenshots).toEqual({
+        steam: [],
+        gog: ['https://g/1.jpg'],
+      });
+    });
+
+    it('leaves screenshots undefined when no source has any', () => {
+      const games: RawGameData[] = [
+        createGame('Test Game', 'steam', { steamAppId: 12345 }),
+        createGame('Test Game', 'epic'),
+      ];
+
+      const unified = mergeGameGroup(games);
+
+      expect(unified.screenshots).toBeUndefined();
+    });
   });
 
   describe('processRawGames', () => {

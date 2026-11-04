@@ -144,6 +144,28 @@ describe('applyForceMerge', () => {
     expect(winner.proton?.tier).toBe('verified');
   });
 
+  it('merges screenshot maps per key, keeping both sides and explicit empties', () => {
+    db.raw
+      .prepare(
+        `UPDATE games SET screenshots = ? WHERE canonical_id = ?`,
+      )
+      .run(JSON.stringify({ steam: ['https://s/1.jpg'], gog: [] }), WINNER_ID);
+    db.raw
+      .prepare(
+        `UPDATE games SET screenshots = ? WHERE canonical_id = ?`,
+      )
+      .run(JSON.stringify({ steam: ['https://s/1.jpg', 'https://s/2.jpg'], igdb: ['https://i/1.jpg'] }), LOSER_ID);
+
+    applyForceMerge(db.raw, [rule]);
+
+    const winner = getGame(db.raw, WINNER_ID)!;
+    expect(winner.screenshots).toEqual({
+      steam: ['https://s/1.jpg', 'https://s/2.jpg'],
+      gog: [],
+      igdb: ['https://i/1.jpg'],
+    });
+  });
+
   it('copies loser genre and tag links to the winner and drops loser rows', () => {
     const linkTag = db.raw.prepare(
       `INSERT INTO tags (name) VALUES (?) ON CONFLICT(name) DO NOTHING`,

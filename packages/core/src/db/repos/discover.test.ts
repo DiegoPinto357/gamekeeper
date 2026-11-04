@@ -212,6 +212,65 @@ describe('discover', () => {
       expect(names({ genres: ['Action'], statuses: ['completed'] })).toEqual([]);
       expect(names({ genres: ['Platformer'], sources: ['gog'], playtimeMin: 10 })).toEqual([]);
     });
+
+    it('resolves screenshots by store precedence (IGDB last resort)', () => {
+      upsertGames(db.raw, [
+        makeGame({
+          canonicalId: 'multi',
+          name: 'Multi Store',
+          ownedSources: ['gog', 'steam'],
+          screenshots: {
+            steam: ['https://s/1.jpg'],
+            gog: ['https://g/1.jpg'],
+            igdb: ['https://i/1.jpg'],
+          },
+        }),
+        makeGame({
+          canonicalId: 'epic-only',
+          name: 'Epic Only',
+          primarySource: 'epic',
+          ownedSources: ['epic'],
+          screenshots: { steam: [], igdb: ['https://i/1.jpg'] },
+        }),
+        makeGame({
+          canonicalId: 'gog-shots',
+          name: 'GOG Shots',
+          primarySource: 'gog',
+          ownedSources: ['gog'],
+          screenshots: { gog: ['https://g/1.jpg'], igdb: ['https://i/1.jpg'] },
+        }),
+        makeGame({
+          canonicalId: 'xbox-shots',
+          name: 'Xbox Shots',
+          primarySource: 'xbox',
+          ownedSources: ['xbox'],
+          screenshots: { ms: ['https://m/1.jpg'], igdb: ['https://i/1.jpg'] },
+        }),
+        makeGame({
+          canonicalId: 'no-shots',
+          name: 'No Shots',
+          primarySource: 'manual',
+          ownedSources: ['manual'],
+          screenshots: { igdb: [] },
+        }),
+      ]);
+
+      const { games } = queryGames(db.raw);
+      const byId = (id: string) => games.find((g) => g.canonicalId === id)!;
+
+      // steam beats gog + igdb despite gog appearing in the map
+      expect(byId('multi').screenshots).toEqual(['https://s/1.jpg']);
+      // no store media → IGDB fallback
+      expect(byId('epic-only').screenshots).toEqual(['https://i/1.jpg']);
+      // gog beats its igdb fallback
+      expect(byId('gog-shots').screenshots).toEqual(['https://g/1.jpg']);
+      // xbox/gamepass ownership resolves through the ms provider key
+      expect(byId('xbox-shots').screenshots).toEqual(['https://m/1.jpg']);
+      // empty everywhere → []
+      expect(byId('no-shots').screenshots).toEqual([]);
+      // seeded fixtures without a map → []
+      expect(byId('hades-ii').screenshots).toEqual([]);
+    });
   });
 
   describe('getFacets', () => {

@@ -1,5 +1,9 @@
 import type { DatabaseSync } from 'node:sqlite';
 import type { ForceMergeRule } from '../../types/overrides';
+import {
+  mergeScreenshotMaps,
+  parseScreenshotMap,
+} from '../../types/game';
 import { normalizeGameName } from '../../core/normalize';
 import { rebuildGamesFts } from './games';
 
@@ -150,6 +154,13 @@ const mergeRows = (winner: Row, loser: Row): Row => ({
     winner.publisher as string | null,
     loser.publisher as string | null,
   ),
+  screenshots: (() => {
+    const merged = mergeScreenshotMaps(
+      parseScreenshotMap(winner.screenshots as string | null),
+      parseScreenshotMap(loser.screenshots as string | null),
+    );
+    return merged ? JSON.stringify(merged) : null;
+  })(),
 });
 
 const getStatusRow = (db: DatabaseSync, canonicalId: string): StatusRow | undefined =>
