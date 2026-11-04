@@ -1,5 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { steamAdapter } from '../adapters/steam.adapter';
+import { capScreenshotUrls } from '../types/game';
 import { log } from '../logger';
 
 /**
@@ -14,6 +15,7 @@ export type SteamAppMetadata = {
   publishers?: string[];
   release_date?: { coming_soon: boolean; date: string };
   genres?: Array<{ description: string }>;
+  screenshots?: Array<{ id?: number; path_thumbnail?: string; path_full?: string }>;
 };
 
 export type SteamEnrichOptions = {
@@ -50,9 +52,15 @@ export const getSteamEnrichmentCandidates = (
   db: DatabaseSync,
   opts: { force?: boolean } = {},
 ): SteamEnrichCandidate[] => {
+  // Resumable on two axes: never-enriched rows, and enriched rows that
+  // predate screenshots (json_extract NULL = key never captured). A
+  // successful capture always writes the key — `[]` included — so games
+  // without Steam screenshots are not re-selected forever.
   const where = opts.force
     ? 'steam_app_id IS NOT NULL'
-    : 'steam_app_id IS NOT NULL AND enriched_at IS NULL';
+    : `steam_app_id IS NOT NULL
+       AND (enriched_at IS NULL
+         OR json_extract(screenshots, '$.steam') IS NULL)`;
   const rows = db
     .prepare(
       `SELECT canonical_id, steam_app_id, name, description, developer, publisher,
@@ -96,6 +104,14 @@ const applyDetails = (
   const validRelease =
     releaseIso && !Number.isNaN(releaseIso.getTime()) ? releaseIso : undefined;
 
+  const steamScreenshots = JSON.stringify(
+    capScreenshotUrls(
+      (details.screenshots ?? [])
+        .map((shot) => shot.path_full)
+        .filter((url): url is string => !!url),
+    ),
+  );
+
   db.prepare(
     `UPDATE games SET
        description = COALESCE(description, ?),
@@ -103,6 +119,9 @@ const applyDetails = (
        publisher = COALESCE(publisher, ?),
        cover_image_url = COALESCE(cover_image_url, ?),
        release_date = COALESCE(release_date, ?),
+       screenshots = json_patch(
+         COALESCE(screenshots, '{}'), json_object('steam', json(?))
+       ),
        enriched_at = ?
      WHERE canonical_id = ?`,
   ).run(
@@ -111,6 +130,7 @@ const applyDetails = (
     details.publishers?.[0] ?? null,
     details.header_image ?? null,
     validRelease ? validRelease.toISOString() : null,
+    steamScreenshots,
     new Date().toISOString(),
     candidate.canonicalId,
   );

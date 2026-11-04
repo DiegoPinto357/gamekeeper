@@ -1,5 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { igdbAdapter, type IgdbGameDetails, type IgdbMatch } from '../adapters/igdb.adapter';
+import { capScreenshotUrls } from '../types/game';
 import { log } from '../logger';
 
 export type { IgdbGameDetails };
@@ -42,7 +43,13 @@ export const getIgdbEnrichmentCandidates = (
   db: DatabaseSync,
   opts: { force?: boolean } = {},
 ): IgdbEnrichCandidate[] => {
-  const where = opts.force ? '1 = 1' : 'igdb_enriched_at IS NULL';
+  // Same two-axis resumability as the Steam pass: unstamped rows, plus
+  // stamped rows that predate screenshots (key never captured). A success
+  // always writes the key — `[]` included — so empty galleries settle.
+  const where = opts.force
+    ? '1 = 1'
+    : `igdb_enriched_at IS NULL
+       OR json_extract(screenshots, '$.igdb') IS NULL`;
   const rows = db
     .prepare(
       `SELECT canonical_id, name, steam_app_id, igdb_id, description, developer, publisher
@@ -100,12 +107,19 @@ const applyDetails = (
   igdbId: number,
   details: IgdbGameDetails | null,
 ): void => {
+  const igdbScreenshots = JSON.stringify(
+    capScreenshotUrls(details?.screenshots ?? []),
+  );
+
   db.prepare(
     `UPDATE games SET
        igdb_id = COALESCE(igdb_id, ?),
        description = COALESCE(description, ?),
        developer = COALESCE(developer, ?),
        publisher = COALESCE(publisher, ?),
+       screenshots = json_patch(
+         COALESCE(screenshots, '{}'), json_object('igdb', json(?))
+       ),
        igdb_enriched_at = ?
      WHERE canonical_id = ?`,
   ).run(
@@ -113,6 +127,7 @@ const applyDetails = (
     details?.summary ?? null,
     details?.developers[0] ?? null,
     details?.publishers[0] ?? null,
+    igdbScreenshots,
     new Date().toISOString(),
     candidate.canonicalId,
   );

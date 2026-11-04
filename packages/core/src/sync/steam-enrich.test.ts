@@ -45,6 +45,7 @@ const readGame = (db: DatabaseSync, id: string) =>
     cover_image_url: string | null;
     release_date: string | null;
     enriched_at: string | null;
+    screenshots: string | null;
   };
 
 const genreNames = (db: DatabaseSync, id: string): string[] =>
@@ -74,7 +75,8 @@ describe('steam-enrich', () => {
     it('selects Steam games not yet enriched, skipping non-steam and already-enriched', () => {
       upsertGames(db.raw, [
         makeGame({ canonicalId: 'steam:1', steamAppId: 1 }),
-        makeGame({ canonicalId: 'steam:2', steamAppId: 2 }),
+        // fully settled: metadata stamped AND the steam screenshot key present
+        makeGame({ canonicalId: 'steam:2', steamAppId: 2, screenshots: { steam: [] } }),
         makeGame({ canonicalId: 'gog:x', steamAppId: undefined, primarySource: 'gog', ownedSources: ['gog'] }),
       ]);
       db.raw
@@ -87,13 +89,29 @@ describe('steam-enrich', () => {
     });
 
     it('force includes already-enriched games', () => {
-      upsertGames(db.raw, [makeGame()]);
+      upsertGames(db.raw, [makeGame({ screenshots: { steam: [] } })]);
       db.raw
         .prepare("UPDATE games SET enriched_at = '2026-01-02T00:00:00.000Z'")
         .run();
 
       expect(getSteamEnrichmentCandidates(db.raw, { force: true })).toHaveLength(1);
       expect(getSteamEnrichmentCandidates(db.raw)).toHaveLength(0);
+    });
+
+    it('backfills enriched rows missing the steam screenshot key', () => {
+      upsertGames(db.raw, [
+        makeGame({ canonicalId: 'steam:1', steamAppId: 1 }),
+        // captured with no Steam screenshots — the empty key settles the gate
+        makeGame({ canonicalId: 'steam:2', steamAppId: 2, screenshots: { steam: [] } }),
+        // another provider wrote first; steam key still missing
+        makeGame({ canonicalId: 'steam:3', steamAppId: 3, screenshots: { gog: ['x'] } }),
+      ]);
+      db.raw
+        .prepare("UPDATE games SET enriched_at = '2026-01-02T00:00:00.000Z'")
+        .run();
+
+      const ids = getSteamEnrichmentCandidates(db.raw).map((c) => c.canonicalId);
+      expect(ids).toEqual(['steam:1', 'steam:3']);
     });
   });
 
@@ -135,6 +153,42 @@ describe('steam-enrich', () => {
       expect(row.description).toBe('Sibling description.');
       expect(row.developer).toBe('Supergiant Games');
       expect(row.cover_image_url).toBe('https://cdn.example/existing.jpg');
+    });
+
+    it('writes the steam screenshot key, preserving other providers', async () => {
+      upsertGames(db.raw, [
+        makeGame({ screenshots: { gog: ['https://g/1.jpg'] } }),
+      ]);
+      const screenshots = Array.from({ length: 7 }, (_, i) => ({
+        path_full: `https://s/${i}.jpg`,
+        path_thumbnail: `https://s/${i}_t.jpg`,
+      }));
+
+      await enrichSteamMetadata(
+        db.raw,
+        { delayMs: 0 },
+        async () => details({ screenshots }),
+      );
+
+      const row = readGame(db.raw, 'steam:1145350');
+      expect(JSON.parse(row.screenshots!)).toEqual({
+        gog: ['https://g/1.jpg'],
+        steam: ['https://s/0.jpg', 'https://s/1.jpg', 'https://s/2.jpg', 'https://s/3.jpg', 'https://s/4.jpg'],
+      });
+    });
+
+    it('writes an empty steam key when the game has no screenshots (settles the gate)', async () => {
+      upsertGames(db.raw, [makeGame()]);
+
+      await enrichSteamMetadata(
+        db.raw,
+        { delayMs: 0 },
+        async () => details({ screenshots: [] }),
+      );
+
+      const row = readGame(db.raw, 'steam:1145350');
+      expect(JSON.parse(row.screenshots!)).toEqual({ steam: [] });
+      expect(getSteamEnrichmentCandidates(db.raw)).toHaveLength(0);
     });
 
     it('leaves enriched_at null on fetch failure so the next run retries', async () => {

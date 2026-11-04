@@ -55,6 +55,7 @@ const readGame = (db: DatabaseSync, id: string) =>
     description: string | null;
     developer: string | null;
     publisher: string | null;
+    screenshots: string | null;
   };
 
 const junctionNames = (db: DatabaseSync, table: 'genres' | 'tags', id: string): string[] =>
@@ -91,7 +92,8 @@ describe('igdb-enrich', () => {
           primarySource: 'manual',
           ownedSources: ['manual'],
         }),
-        makeGame({ canonicalId: 'steam:3', steamAppId: 3 }),
+        // fully settled: stamp AND the igdb screenshot key present
+        makeGame({ canonicalId: 'steam:3', steamAppId: 3, screenshots: { igdb: [] } }),
       ]);
       db.raw
         .prepare("UPDATE games SET igdb_enriched_at = '2026-01-02T00:00:00.000Z' WHERE canonical_id = 'steam:3'")
@@ -106,13 +108,27 @@ describe('igdb-enrich', () => {
     });
 
     it('force includes already-enriched games', () => {
-      upsertGames(db.raw, [makeGame()]);
+      upsertGames(db.raw, [makeGame({ screenshots: { igdb: [] } })]);
       db.raw
         .prepare("UPDATE games SET igdb_enriched_at = '2026-01-02T00:00:00.000Z'")
         .run();
 
       expect(getIgdbEnrichmentCandidates(db.raw, { force: true })).toHaveLength(1);
       expect(getIgdbEnrichmentCandidates(db.raw)).toHaveLength(0);
+    });
+
+    it('backfills stamped rows missing the igdb screenshot key', () => {
+      upsertGames(db.raw, [
+        makeGame({ canonicalId: 'steam:1', steamAppId: 1 }),
+        makeGame({ canonicalId: 'steam:2', steamAppId: 2, screenshots: { igdb: [] } }),
+        makeGame({ canonicalId: 'steam:3', steamAppId: 3, screenshots: { steam: ['x'] } }),
+      ]);
+      db.raw
+        .prepare("UPDATE games SET igdb_enriched_at = '2026-01-02T00:00:00.000Z'")
+        .run();
+
+      const ids = getIgdbEnrichmentCandidates(db.raw).map((c) => c.canonicalId);
+      expect(ids).toEqual(['steam:1', 'steam:3']);
     });
   });
 
@@ -165,6 +181,41 @@ describe('igdb-enrich', () => {
         'Existing',
         'Roguelike',
       ]);
+    });
+
+    it('writes the igdb screenshot key, preserving other providers', async () => {
+      upsertGames(db.raw, [
+        makeGame({ screenshots: { steam: ['https://s/1.jpg'] } }),
+      ]);
+
+      await enrichIgdbMetadata(
+        db.raw,
+        { delayMs: 0 },
+        makeApi({
+          fetchDetails: async () =>
+            details({ screenshots: ['https://i/1.jpg', 'https://i/2.jpg'] }),
+        }),
+      );
+
+      const row = readGame(db.raw, 'steam:1145350');
+      expect(JSON.parse(row.screenshots!)).toEqual({
+        steam: ['https://s/1.jpg'],
+        igdb: ['https://i/1.jpg', 'https://i/2.jpg'],
+      });
+    });
+
+    it('writes an empty igdb key when details carry no screenshots (settles the gate)', async () => {
+      upsertGames(db.raw, [makeGame()]);
+
+      await enrichIgdbMetadata(
+        db.raw,
+        { delayMs: 0 },
+        makeApi({ fetchDetails: async () => details({ screenshots: [] }) }),
+      );
+
+      const row = readGame(db.raw, 'steam:1145350');
+      expect(JSON.parse(row.screenshots!)).toEqual({ igdb: [] });
+      expect(getIgdbEnrichmentCandidates(db.raw)).toHaveLength(0);
     });
 
     it('leaves igdb_enriched_at null when the lookup fails', async () => {
