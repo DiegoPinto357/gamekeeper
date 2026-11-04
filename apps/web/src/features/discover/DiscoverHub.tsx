@@ -4,9 +4,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Dices, Shuffle } from 'lucide-react';
 import type { DiscoverGame } from '@gamekeeper/shared';
 import { Button } from '@/components/ui/button';
-import { GameDrawer } from '@/components/GameDrawer';
+import { GameModal } from '@/components/GameModal';
+import { FilterSidebar, type FilterGroup } from '@/components/FilterSidebar';
 import { LibraryCard } from '@/features/library/LibraryCard';
-import { FacetChips } from '@/features/library/FacetChips';
 import {
   EMPTY_SELECTION,
   hasActiveFilters,
@@ -32,6 +32,7 @@ export function DiscoverHub() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [exclude, setExclude] = useState<string[]>([]);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const { data, isPending, isError } = useHub(qs, seed);
   const { data: facets } = useBrowseFacets(qs);
@@ -95,40 +96,22 @@ export function DiscoverHub() {
     handleMoveTo(game, 'want_to_play');
   };
 
+  const filterGroups: FilterGroup[] = [
+    { dim: 'statuses', title: 'Status', facets: facets?.statuses ?? [], selected: selection.statuses },
+    { dim: 'genres', title: 'Genre', facets: facets?.genres ?? [], selected: selection.genres },
+    { dim: 'tags', title: 'Tags', facets: facets?.tags ?? [], selected: selection.tags },
+  ];
+
   return (
     <div data-testid="discover-page" className="flex h-full min-h-0 gap-6">
-      <aside className="w-60 shrink-0 overflow-y-auto pb-4 pr-2">
-        <Button
-          variant="outline"
-          size="sm"
-          className="mb-4 w-full"
-          disabled={!hasActiveFilters(selection)}
-          onClick={() => update(EMPTY_SELECTION)}
-        >
-          Clear all filters
-        </Button>
-        <FacetChips
-          dim="statuses"
-          title="Status"
-          facets={facets?.statuses ?? []}
-          selected={selection.statuses}
-          onToggle={toggleFacet}
-        />
-        <FacetChips
-          dim="genres"
-          title="Genre"
-          facets={facets?.genres ?? []}
-          selected={selection.genres}
-          onToggle={toggleFacet}
-        />
-        <FacetChips
-          dim="tags"
-          title="Tags"
-          facets={facets?.tags ?? []}
-          selected={selection.tags}
-          onToggle={toggleFacet}
-        />
-      </aside>
+      <FilterSidebar
+        open={filtersOpen}
+        onToggle={() => setFiltersOpen(open => !open)}
+        onClear={() => update(EMPTY_SELECTION)}
+        canClear={hasActiveFilters(selection)}
+        groups={filterGroups}
+        onToggleFacet={toggleFacet}
+      />
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div className="mb-4 flex shrink-0 flex-wrap items-center gap-3">
@@ -206,7 +189,7 @@ export function DiscoverHub() {
       )}
 
       {selectedGame && (
-        <GameDrawer
+        <GameModal
           game={toDrawerGame(selectedGame)}
           statuses={statuses}
           onClose={() => setSelectedId(null)}

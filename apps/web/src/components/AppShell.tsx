@@ -8,9 +8,9 @@ import { useTheme } from '@/hooks/useTheme';
 import { cn } from '@/lib/utils';
 
 const navItems = [
+  { to: '/discover', label: 'Discover' },
   { to: '/board', label: 'Board' },
   { to: '/library', label: 'Library' },
-  { to: '/discover', label: 'Discover' },
   { to: '/gamepass', label: 'Game Pass' },
 ] as const;
 

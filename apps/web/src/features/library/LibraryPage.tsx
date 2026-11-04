@@ -2,13 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { GameDrawer } from '@/components/GameDrawer';
+import { FilterSidebar, type FilterGroup } from '@/components/FilterSidebar';
 import { useBrowseFacets, useBrowseGames } from '@/hooks/useBrowse';
 import { useBoard, useMoveGame } from '@/lib/board';
 import { LibraryCard } from './LibraryCard';
-import { FacetChips } from './FacetChips';
 import {
   EMPTY_SELECTION,
   SORT_LABELS,
@@ -40,6 +39,7 @@ export function LibraryPage() {
   const [qInput, setQInput] = useState(selection.q);
   const [prevQ, setPrevQ] = useState(selection.q);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(true);
 
   const update = (next: LibrarySelection) => {
     setSearchParams(new URLSearchParams(selectionToQueryString(next)));
@@ -95,68 +95,26 @@ export function LibraryPage() {
     );
   };
 
+  const filterGroups: FilterGroup[] = [
+    { dim: 'statuses', title: 'Status', facets: facets?.statuses ?? [], selected: selection.statuses },
+    { dim: 'genres', title: 'Genre', facets: facets?.genres ?? [], selected: selection.genres },
+    { dim: 'tags', title: 'Tags', facets: facets?.tags ?? [], selected: selection.tags },
+    { dim: 'sources', title: 'Source', facets: facets?.sources ?? [], selected: selection.sources },
+    { dim: 'decks', title: 'Steam Deck', facets: facets?.decks ?? [], selected: selection.decks },
+    { dim: 'protonTiers', title: 'ProtonDB', facets: facets?.protonTiers ?? [], selected: selection.protonTiers },
+    { dim: 'years', title: 'Year', facets: facets?.years ?? [], selected: selection.years },
+  ];
+
   return (
     <div data-testid="library-page" className="flex h-full min-h-0 gap-6">
-      <aside className="w-60 shrink-0 overflow-y-auto pb-4 pr-2">
-        <Button
-          variant="outline"
-          size="sm"
-          className="mb-4 w-full"
-          disabled={!hasActiveFilters(selection)}
-          onClick={() => update(EMPTY_SELECTION)}
-        >
-          Clear all filters
-        </Button>
-        <FacetChips
-          dim="statuses"
-          title="Status"
-          facets={facets?.statuses ?? []}
-          selected={selection.statuses}
-          onToggle={toggleFacet}
-        />
-        <FacetChips
-          dim="genres"
-          title="Genre"
-          facets={facets?.genres ?? []}
-          selected={selection.genres}
-          onToggle={toggleFacet}
-        />
-        <FacetChips
-          dim="tags"
-          title="Tags"
-          facets={facets?.tags ?? []}
-          selected={selection.tags}
-          onToggle={toggleFacet}
-        />
-        <FacetChips
-          dim="sources"
-          title="Source"
-          facets={facets?.sources ?? []}
-          selected={selection.sources}
-          onToggle={toggleFacet}
-        />
-        <FacetChips
-          dim="decks"
-          title="Steam Deck"
-          facets={facets?.decks ?? []}
-          selected={selection.decks}
-          onToggle={toggleFacet}
-        />
-        <FacetChips
-          dim="protonTiers"
-          title="ProtonDB"
-          facets={facets?.protonTiers ?? []}
-          selected={selection.protonTiers}
-          onToggle={toggleFacet}
-        />
-        <FacetChips
-          dim="years"
-          title="Year"
-          facets={facets?.years ?? []}
-          selected={selection.years}
-          onToggle={toggleFacet}
-        />
-      </aside>
+      <FilterSidebar
+        open={filtersOpen}
+        onToggle={() => setFiltersOpen(open => !open)}
+        onClear={() => update(EMPTY_SELECTION)}
+        canClear={hasActiveFilters(selection)}
+        groups={filterGroups}
+        onToggleFacet={toggleFacet}
+      />
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div className="mb-4 flex shrink-0 flex-wrap items-center gap-3">

@@ -29,6 +29,7 @@ const game = (
 const celeste = game('celeste', 'Celeste', {
   genres: ['Platformer'],
   year: 2018,
+  screenshots: ['https://cdn/celeste-1.jpg', 'https://cdn/celeste-2.jpg'],
 });
 const tunic = game('tunic', 'Tunic', {
   genres: ['Adventure'],
@@ -143,14 +144,27 @@ describe('DiscoverHub', () => {
     expect(screen.getAllByTestId('library-card')).toHaveLength(3);
   });
 
-  it('opens the drawer from a shelf card', async () => {
+  it('opens the big detail modal from a shelf card', async () => {
     const user = userEvent.setup();
     renderPage();
 
     await user.click(await screen.findByText('Celeste'));
+    expect(await screen.findByTestId('game-modal')).toBeInTheDocument();
     expect(
       await screen.findByRole('dialog', { name: 'Details: Celeste' }),
     ).toBeInTheDocument();
+    expect(screen.getByTestId('screenshot-gallery')).toBeInTheDocument();
+  });
+
+  it('keeps the filter panel hidden until asked', async () => {
+    renderPage();
+
+    const toggle = await screen.findByRole('button', { name: 'Show filters' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByTestId('facet-section-genres')).not.toBeInTheDocument();
+
+    await userEvent.click(toggle);
+    expect(screen.getByTestId('facet-section-genres')).toBeInTheDocument();
   });
 
   it('surprise me: picks a game, spin again excludes the shown pick', async () => {
@@ -193,6 +207,7 @@ describe('DiscoverHub', () => {
     renderPage();
 
     await screen.findByTestId('shelf-picked');
+    await user.click(screen.getByRole('button', { name: 'Show filters' }));
     await user.click(screen.getByTestId('facet-genres-Platformer'));
 
     await waitFor(() => {

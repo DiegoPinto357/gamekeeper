@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
@@ -93,6 +93,13 @@ describe('App', () => {
     expect(screen.getByRole('link', { name: 'Library' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Discover' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Game Pass' })).toBeInTheDocument();
+
+    const nav = screen.getByRole('navigation');
+    expect(
+      within(nav)
+        .getAllByRole('link')
+        .map(link => link.textContent),
+    ).toEqual(['Discover', 'Board', 'Library', 'Game Pass']);
 
     await waitFor(() => expect(screen.getByTestId('column-backlog')).toBeInTheDocument());
     expect(screen.getByTestId('column-backlog')).toHaveTextContent('Backlog');

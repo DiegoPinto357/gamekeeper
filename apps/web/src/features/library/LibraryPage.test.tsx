@@ -359,4 +359,36 @@ describe('LibraryPage', () => {
       expect(screen.getByText(/couldn't load games/i)).toBeInTheDocument();
     });
   });
+
+  it('shows the filter panel by default and collapses it to an icon', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await waitForCards('Hades II', 'Celeste');
+
+    const toggle = screen.getByTestId('filter-panel-toggle');
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByTestId('filter-search')).toBeInTheDocument();
+
+    await user.click(toggle);
+    expect(screen.queryByTestId('facet-section-genres')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('filter-search')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Show filters' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Show filters' }));
+    expect(screen.getByTestId('facet-section-genres')).toBeInTheDocument();
+    expect(screen.getByTestId('filter-search')).toBeInTheDocument();
+  });
+
+  it('narrows filter chips through the shared panel search', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await waitForCards('Hades II', 'Celeste');
+
+    await user.type(screen.getByTestId('filter-search'), 'action');
+
+    expect(screen.getByTestId('facet-genres-Action')).toBeInTheDocument();
+    expect(screen.queryByTestId('facet-genres-Platformer')).not.toBeInTheDocument();
+    // the library's own search box is untouched
+    expect(screen.getByLabelText('Search games')).toHaveValue('');
+  });
 });

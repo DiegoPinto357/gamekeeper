@@ -7,7 +7,7 @@ import type { LibraryDimension } from './library-utils';
 export type FacetChipsProps = {
   dim: LibraryDimension;
   title: string;
-  facets: FacetCount[] | YearFacetCount[];
+  facets: Array<FacetCount | YearFacetCount>;
   selected: Array<string | number>;
   onToggle: (dim: LibraryDimension, value: string | number) => void;
 };
