@@ -17,6 +17,8 @@ export type GameDrawerProps = {
    * button never renders.
    */
   onUnpin?: () => void;
+  /** Swap the drawer to a similar game (P5). */
+  onSelectGame?: (canonicalId: string) => void;
 };
 
 export const GameDrawer = ({
@@ -25,6 +27,7 @@ export const GameDrawer = ({
   onClose,
   onMove,
   onUnpin,
+  onSelectGame,
 }: GameDrawerProps) => {
   const dialogRef = useRef<HTMLElement>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -89,6 +92,7 @@ export const GameDrawer = ({
             statuses={statuses}
             onMove={onMove}
             onUnpin={onUnpin}
+            onSelectGame={onSelectGame}
           />
         </div>
       </aside>

@@ -7,6 +7,8 @@ import type {
   DiscoverFacets,
   DiscoverGame,
   HubResponse,
+  LibraryGame,
+  SimilarGame,
   SuggestResponse,
 } from '@gamekeeper/shared';
 import { DiscoverHub } from './DiscoverHub';
@@ -71,6 +73,8 @@ const json = (body: unknown): Response =>
 type StubOptions = {
   shelves?: HubResponse['shelves'];
   suggest?: (url: URL) => SuggestResponse;
+  similar?: SimilarGame[];
+  libraryGames?: LibraryGame[];
 };
 
 const stubHub = (opts: StubOptions = {}) => {
@@ -100,7 +104,12 @@ const stubHub = (opts: StubOptions = {}) => {
     if (url.pathname === '/api/hub') return json({ shelves });
     if (url.pathname === '/api/suggest') return json(suggest(url));
     if (url.pathname === '/api/facets') return json(facets);
-    if (url.pathname === '/api/library') return json({ statuses, games: [] });
+    if (url.pathname === '/api/library') {
+      return json({ statuses, games: opts.libraryGames ?? [] });
+    }
+    if (/^\/api\/games\/[^/]+\/similar$/.test(url.pathname)) {
+      return json({ similar: opts.similar ?? [] });
+    }
     return new Response('Not found', { status: 404 });
   });
   vi.stubGlobal('fetch', fetchMock);
@@ -154,6 +163,45 @@ describe('DiscoverHub', () => {
       await screen.findByRole('dialog', { name: 'Details: Celeste' }),
     ).toBeInTheDocument();
     expect(screen.getByTestId('screenshot-gallery')).toBeInTheDocument();
+  });
+
+  it('swaps the modal to a similar game outside the shelves via the library fallback', async () => {
+    stubHub({
+      similar: [
+        {
+          canonicalId: 'hades',
+          name: 'Hades',
+          coverImageUrl: null,
+          status: 'completed',
+          origin: 'igdb',
+          score: null,
+          rank: 1,
+        },
+      ],
+      libraryGames: [
+        {
+          canonicalId: 'hades',
+          name: 'Hades',
+          primarySource: 'steam',
+          ownedSources: ['steam'],
+          status: 'completed',
+          position: null,
+          pinned: false,
+        },
+      ],
+    });
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(await screen.findByText('Celeste'));
+    const row = await screen.findByTestId('similar-row');
+    expect(row).toHaveTextContent('Hades');
+
+    await user.click(row);
+    expect(
+      await screen.findByRole('dialog', { name: 'Details: Hades' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Details: Celeste' })).not.toBeInTheDocument();
   });
 
   it('keeps the filter panel hidden until asked', async () => {

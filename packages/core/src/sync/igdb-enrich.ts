@@ -101,6 +101,39 @@ const upsertNamed = (
   }
 };
 
+/**
+ * P5 — persist IGDB's curated `similar_games` list (rank = list position).
+ * Targets already in the catalog with an igdb_id store their canonical id;
+ * everything else is staged as `igdb:<id>` and resolved by the similarity
+ * scorer at read time — so pairs heal themselves as targets get enriched.
+ * Re-enrichment replaces the whole set (wipe + rewrite).
+ */
+const persistSimilarIds = (
+  db: DatabaseSync,
+  canonicalId: string,
+  igdbIds: number[],
+): void => {
+  db.prepare('DELETE FROM similar_games WHERE canonical_id = ?').run(
+    canonicalId,
+  );
+  if (igdbIds.length === 0) return;
+  const resolve = db.prepare(
+    'SELECT canonical_id FROM games WHERE igdb_id = ?',
+  );
+  const insert = db.prepare(
+    `INSERT INTO similar_games (canonical_id, similar_canonical_id, rank, score)
+     VALUES (?, ?, ?, NULL)
+     ON CONFLICT(canonical_id, similar_canonical_id)
+     DO UPDATE SET rank = excluded.rank`,
+  );
+  igdbIds.forEach((igdbId, index) => {
+    const match = resolve.get(igdbId) as { canonical_id: string } | undefined;
+    if (match?.canonical_id === canonicalId) return;
+    const target = match?.canonical_id ?? `igdb:${igdbId}`;
+    insert.run(canonicalId, target, index + 1);
+  });
+};
+
 const applyDetails = (
   db: DatabaseSync,
   candidate: IgdbEnrichCandidate,
@@ -141,7 +174,7 @@ const applyDetails = (
       candidate.canonicalId,
       [...details.themes, ...details.keywords],
     );
-    // similar_game_ids are fetched for P5's similarity scorer — not persisted yet.
+    persistSimilarIds(db, candidate.canonicalId, details.similarGameIds);
   }
 };
 

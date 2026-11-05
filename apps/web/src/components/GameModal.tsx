@@ -12,12 +12,14 @@ export type GameModalProps = {
   onClose: () => void;
   onMove: (statusKey: string) => void;
   onUnpin?: () => void;
+  /** Swap the modal to a similar game (P5). */
+  onSelectGame?: (canonicalId: string) => void;
 };
 
 /**
  * The discover page's big detail modal: screenshots take the stage, the cover
  * plays a supporting role beside the full detail block (same content as the
- * drawer — badges, compatibility, links, move menu, notes).
+ * drawer — badges, compatibility, links, move menu, notes, similar games).
  */
 export const GameModal = ({
   game,
@@ -25,6 +27,7 @@ export const GameModal = ({
   onClose,
   onMove,
   onUnpin,
+  onSelectGame,
 }: GameModalProps) => {
   const hasScreenshots = !!game.screenshots && game.screenshots.length > 0;
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -100,6 +103,7 @@ export const GameModal = ({
                 statuses={statuses}
                 onMove={onMove}
                 onUnpin={onUnpin}
+                onSelectGame={onSelectGame}
               />
             </div>
           </div>

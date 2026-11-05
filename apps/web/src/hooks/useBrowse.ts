@@ -3,6 +3,7 @@ import type {
   DiscoverFacets,
   DiscoverResponse,
   HubResponse,
+  SimilarResponse,
   SuggestResponse,
 } from '@gamekeeper/shared';
 
@@ -59,3 +60,13 @@ export const useSuggest = (
     gcTime: 0,
   });
 };
+
+/** P5 — similar games for the drawer/modal detail section. */
+export const useSimilarGames = (canonicalId: string): UseQueryResult<SimilarResponse> =>
+  useQuery({
+    queryKey: ['similar', canonicalId],
+    queryFn: () =>
+      fetchJson<SimilarResponse>(
+        `/api/games/${encodeURIComponent(canonicalId)}/similar`,
+      ),
+  });

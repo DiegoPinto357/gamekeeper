@@ -58,6 +58,12 @@ export {
   type ShelfOptions,
 } from './core/suggest';
 export {
+  getSimilarGames,
+  SIMILAR_LIMIT,
+  type SimilarGame,
+  type SimilarOrigin,
+} from './core/similarity';
+export {
   loadOwnedXboxGames,
   processGamePassAvailability,
   saveUnavailableGames,

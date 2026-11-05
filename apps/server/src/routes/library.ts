@@ -1,6 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import {
+  getGame,
   getLibraryGames,
+  getSimilarGames,
   listStatuses,
   setGameStatus,
   unpinGame,
@@ -13,6 +15,7 @@ import type {
   LibraryGame,
   LibraryResponse,
   GameStatusResult,
+  SimilarResponse,
   UnpinResult,
 } from '@gamekeeper/shared';
 
@@ -58,6 +61,18 @@ export const registerLibraryRoutes = (
     statuses: listStatuses(db.raw),
     games: getLibraryGames(db.raw).map(toLibraryGame),
   }));
+
+  app.get<{ Params: { id: string } }>(
+    '/api/games/:id/similar',
+    async (req, reply) => {
+      const { id } = req.params;
+      if (!getGame(db.raw, id)) {
+        return reply.status(404).send({ error: `unknown game: ${id}` });
+      }
+      const response: SimilarResponse = { similar: getSimilarGames(db.raw, id) };
+      return reply.send(response);
+    },
+  );
 
   app.patch<{ Params: { id: string }; Body: PatchBody }>(
     '/api/games/:id/status',

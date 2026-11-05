@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { Dices, Shuffle } from 'lucide-react';
-import type { DiscoverGame } from '@gamekeeper/shared';
+import type { DiscoverGame, LibraryGame } from '@gamekeeper/shared';
 import { Button } from '@/components/ui/button';
 import { GameModal } from '@/components/GameModal';
 import { FilterSidebar, type FilterGroup } from '@/components/FilterSidebar';
@@ -54,13 +54,18 @@ export function DiscoverHub() {
   const statuses = library?.statuses ?? [];
   const allGames = shelves.flatMap(shelf => shelf.games);
   const uniquePicks = new Set(allGames.map(game => game.canonicalId)).size;
-  const selectedGame = selectedId
-    ? (allGames.find(game => game.canonicalId === selectedId) ?? null)
-    : null;
+  // The modal follows selectedId: shelves first (current filters), then the
+  // full library — so swapping to a similar game outside the shelves works.
+  const selectedGame: LibraryGame | null = (() => {
+    if (!selectedId) return null;
+    const fromShelves = allGames.find(game => game.canonicalId === selectedId);
+    if (fromShelves) return toDrawerGame(fromShelves);
+    return library?.games.find(game => game.canonicalId === selectedId) ?? null;
+  })();
 
-  const handleMoveTo = (game: DiscoverGame, statusKey: string) => {
+  const handleMoveTo = (canonicalId: string, statusKey: string) => {
     moveGame.mutate(
-      { id: game.canonicalId, status: statusKey, beforeId: null, afterId: null },
+      { id: canonicalId, status: statusKey, beforeId: null, afterId: null },
       {
         onSettled: () => {
           void queryClient.invalidateQueries({ queryKey: ['library'] });
@@ -93,7 +98,7 @@ export function DiscoverHub() {
 
   const handleMoveFromSuggest = (game: DiscoverGame) => {
     setSuggestOpen(false);
-    handleMoveTo(game, 'want_to_play');
+    handleMoveTo(game.canonicalId, 'want_to_play');
   };
 
   const filterGroups: FilterGroup[] = [
@@ -190,10 +195,11 @@ export function DiscoverHub() {
 
       {selectedGame && (
         <GameModal
-          game={toDrawerGame(selectedGame)}
+          game={selectedGame}
           statuses={statuses}
           onClose={() => setSelectedId(null)}
-          onMove={statusKey => handleMoveTo(selectedGame, statusKey)}
+          onMove={statusKey => handleMoveTo(selectedGame.canonicalId, statusKey)}
+          onSelectGame={setSelectedId}
         />
       )}
     </div>

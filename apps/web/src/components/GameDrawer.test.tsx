@@ -1,6 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { LibraryGame, StatusEntry } from '@gamekeeper/shared';
 import { GameDrawer } from './GameDrawer';
 
@@ -19,15 +20,45 @@ const baseGame: LibraryGame = {
   pinned: false,
 };
 
-const renderDrawer = (game: LibraryGame) => {
+const stubSimilar = (body: unknown) => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(
+      async () =>
+        new Response(JSON.stringify(body), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+    ),
+  );
+};
+
+beforeEach(() => {
+  stubSimilar({ similar: [] });
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+const renderDrawer = (
+  game: LibraryGame,
+  extra: { onSelectGame?: (canonicalId: string) => void } = {},
+) => {
   const onClose = vi.fn();
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   render(
-    <GameDrawer
-      game={game}
-      statuses={statuses}
-      onClose={onClose}
-      onMove={vi.fn()}
-    />,
+    <QueryClientProvider client={queryClient}>
+      <GameDrawer
+        game={game}
+        statuses={statuses}
+        onClose={onClose}
+        onMove={vi.fn()}
+        {...extra}
+      />
+    </QueryClientProvider>,
   );
   return { onClose };
 };
@@ -136,5 +167,31 @@ describe('GameDrawer dismissal', () => {
 
     await user.keyboard('{Escape}');
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('lists similar games and swaps the drawer through onSelectGame', async () => {
+    stubSimilar({
+      similar: [
+        {
+          canonicalId: 'hades',
+          name: 'Hades',
+          coverImageUrl: null,
+          status: 'completed',
+          origin: 'igdb',
+          score: null,
+          rank: 1,
+        },
+      ],
+    });
+    const user = userEvent.setup();
+    const onSelectGame = vi.fn();
+    renderDrawer(baseGame, { onSelectGame });
+
+    const row = await screen.findByTestId('similar-row');
+    expect(row).toHaveTextContent('Hades');
+    expect(row).toHaveTextContent('IGDB similar');
+
+    await user.click(row);
+    expect(onSelectGame).toHaveBeenCalledWith('hades');
   });
 });

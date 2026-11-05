@@ -4,6 +4,7 @@ import type { LibraryGame, StatusEntry } from '@gamekeeper/shared';
 import { Badge } from '@/components/ui/badge';
 import { gameLinks } from '@/lib/game-links';
 import { CompatibilityBadges } from './CompatibilityBadges';
+import { SimilarGames } from './SimilarGames';
 import { SourceBadge } from './SourceBadge';
 import { UnavailableBadge } from './UnavailableBadge';
 
@@ -12,6 +13,8 @@ export type GameInfoProps = {
   statuses: StatusEntry[];
   onMove: (statusKey: string) => void;
   onUnpin?: () => void;
+  /** Swap the hosting dialog to a similar game (P5). */
+  onSelectGame?: (canonicalId: string) => void;
 };
 
 /**
@@ -19,7 +22,13 @@ export type GameInfoProps = {
  * badges, compatibility, store links, move menu, unpin, notes. Callers
  * decide where it sits in their layout.
  */
-export const GameInfo = ({ game, statuses, onMove, onUnpin }: GameInfoProps) => {
+export const GameInfo = ({
+  game,
+  statuses,
+  onMove,
+  onUnpin,
+  onSelectGame,
+}: GameInfoProps) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const targets = statuses.filter(status => status.key !== game.status);
   const links = gameLinks(game);
@@ -102,11 +111,16 @@ export const GameInfo = ({ game, statuses, onMove, onUnpin }: GameInfoProps) => 
       )}
 
       <div>
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <h3 className="text-xs font-semibold uppercase tracking-wide">
           Notes
         </h3>
         <p className="mt-1 text-sm text-muted-foreground">No notes yet.</p>
       </div>
+
+      <SimilarGames
+        canonicalId={game.canonicalId}
+        onSelect={onSelectGame}
+      />
     </>
   );
 };

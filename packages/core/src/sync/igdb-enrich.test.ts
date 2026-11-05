@@ -313,5 +313,81 @@ describe('igdb-enrich', () => {
       expect(result.total).toBe(2);
       expect(progress.map((p) => p[0])).toEqual([1, 2]);
     });
+
+    it('persists similar ids: resolved targets stored canonical, the rest staged as igdb:<id>', async () => {
+      upsertGames(db.raw, [
+        makeGame(),
+        makeGame({
+          canonicalId: 'gog:celeste',
+          name: 'Celeste',
+          steamAppId: undefined,
+          primarySource: 'gog',
+          ownedSources: ['gog'],
+        }),
+      ]);
+      // target already enriched earlier → resolves at write time
+      db.raw
+        .prepare("UPDATE games SET igdb_id = 5501 WHERE canonical_id = 'gog:celeste'")
+        .run();
+
+      await enrichIgdbMetadata(
+        db.raw,
+        { delayMs: 0 },
+        makeApi({
+          fetchDetails: async () => details({ similarGameIds: [5501, 7777] }),
+        }),
+      );
+
+      const rows = db.raw
+        .prepare(
+          `SELECT similar_canonical_id AS similar, rank
+           FROM similar_games WHERE canonical_id = 'steam:1145350'
+           ORDER BY rank`,
+        )
+        .all() as { similar: string; rank: number }[];
+      expect(rows).toEqual([
+        { similar: 'gog:celeste', rank: 1 },
+        { similar: 'igdb:7777', rank: 2 },
+      ]);
+    });
+
+    it('replaces stale similar rows on re-enrich (empty list wipes)', async () => {
+      upsertGames(db.raw, [makeGame()]);
+      db.raw
+        .prepare(
+          `INSERT INTO similar_games (canonical_id, similar_canonical_id, rank, score)
+           VALUES ('steam:1145350', 'gog:stale', 1, NULL)`,
+        )
+        .run();
+
+      await enrichIgdbMetadata(
+        db.raw,
+        { delayMs: 0 },
+        makeApi({ fetchDetails: async () => details({ similarGameIds: [] }) }),
+      );
+
+      const rows = db.raw
+        .prepare("SELECT COUNT(*) AS c FROM similar_games WHERE canonical_id = 'steam:1145350'")
+        .get() as { c: number };
+      expect(rows.c).toBe(0);
+    });
+
+    it('skips self-references', async () => {
+      upsertGames(db.raw, [makeGame()]);
+
+      await enrichIgdbMetadata(
+        db.raw,
+        { delayMs: 0 },
+        // 5502 is this game's own igdb id (findBySteamAppId result)
+        makeApi({
+          fetchDetails: async () => details({ similarGameIds: [5502] }),
+        }),
+      );
+
+      const rows = db.raw
+        .prepare('SELECT COUNT(*) AS c FROM similar_games')
+        .get() as { c: number };
+      expect(rows.c).toBe(0);
+    });
   });
 });

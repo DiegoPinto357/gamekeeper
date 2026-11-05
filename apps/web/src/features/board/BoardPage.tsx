@@ -139,6 +139,7 @@ export const BoardPage = () => {
           onClose={() => setSelectedId(null)}
           onMove={handleMoveTo}
           onUnpin={() => unpinMutation.mutate(selectedGame.canonicalId)}
+          onSelectGame={setSelectedId}
         />
       )}
     </div>

@@ -139,3 +139,23 @@ export type UnpinResult = {
   status: string;
   pinned: false;
 };
+
+/** P5 — how a similar pair was found: IGDB's curated list vs local overlap. */
+export type SimilarOrigin = 'igdb' | 'overlap';
+
+export type SimilarGame = {
+  canonicalId: string;
+  name: string;
+  coverImageUrl: string | null;
+  /** Board status; games without a tracked row count as 'backlog'. */
+  status: string;
+  origin: SimilarOrigin;
+  /** 0.4·jaccard(genres) + 0.6·jaccard(tags); null for IGDB-curated rows. */
+  score: number | null;
+  /** IGDB curated rank (1-based); null for computed overlap. */
+  rank: number | null;
+};
+
+export type SimilarResponse = {
+  similar: SimilarGame[];
+};

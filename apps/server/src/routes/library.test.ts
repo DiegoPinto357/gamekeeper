@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import { openDb, upsertGames, reconcileUnavailableReasons, type Db } from '@gamekeeper/core';
-import type { LibraryResponse, GameStatusResult } from '@gamekeeper/shared';
+import type { LibraryResponse, GameStatusResult, SimilarResponse } from '@gamekeeper/shared';
 import { buildApp } from '../app';
 
 const makeGame = (
@@ -358,5 +358,50 @@ describe('library routes', () => {
   it('POST /api/library/games/:id/unpin unknown game returns 404', async () => {
     const res = await unpin('steam:999');
     expect(res.statusCode).toBe(404);
+  });
+
+  describe('GET /api/games/:id/similar', () => {
+    it('returns curated rows first, then computed overlap, with metadata', async () => {
+      upsertGames(seedDb.raw, [
+        { ...makeGame('steam:1', 'Target'), genres: ['Action', 'RPG'] },
+        { ...makeGame('steam:2', 'Curated'), genres: ['Puzzle'] },
+        { ...makeGame('steam:3', 'Overlap'), genres: ['Action'] },
+      ]);
+      seedDb.raw
+        .prepare(
+          `INSERT INTO similar_games (canonical_id, similar_canonical_id, rank, score)
+           VALUES ('steam:1', 'steam:2', 1, NULL)`,
+        )
+        .run();
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/games/steam:1/similar',
+      });
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json() as SimilarResponse;
+      expect(body.similar.map((game) => [game.canonicalId, game.origin])).toEqual([
+        ['steam:2', 'igdb'],
+        ['steam:3', 'overlap'],
+      ]);
+      expect(body.similar[0]).toMatchObject({
+        name: 'Curated',
+        rank: 1,
+        score: null,
+        status: 'backlog',
+      });
+      // genres 1/2 → 0.4·0.5; no tags either side
+      expect(body.similar[1].score).toBeCloseTo(0.2, 5);
+      expect(body.similar[1].rank).toBeNull();
+    });
+
+    it('unknown game returns 404', async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/games/nope/similar',
+      });
+      expect(res.statusCode).toBe(404);
+    });
   });
 });

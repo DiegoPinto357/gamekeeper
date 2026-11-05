@@ -1,6 +1,7 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { LibraryGame, StatusEntry } from '@gamekeeper/shared';
 import { GameModal } from './GameModal';
 
@@ -24,12 +25,48 @@ const baseGame: LibraryGame = {
   screenshots: ['https://cdn/one.jpg', 'https://cdn/two.jpg'],
 };
 
-const renderModal = (game: LibraryGame = baseGame, onMove = vi.fn()) => {
-  const onClose = vi.fn();
-  render(
-    <GameModal game={game} statuses={statuses} onClose={onClose} onMove={onMove} />,
+const stubSimilar = (body: unknown) => {
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(
+      async () =>
+        new Response(JSON.stringify(body), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+    ),
   );
-  return { onClose, onMove };
+};
+
+beforeEach(() => {
+  stubSimilar({ similar: [] });
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+const renderModal = (
+  game: LibraryGame = baseGame,
+  onMove = vi.fn(),
+  onSelectGame: (canonicalId: string) => void = vi.fn(),
+) => {
+  const onClose = vi.fn();
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  render(
+    <QueryClientProvider client={queryClient}>
+      <GameModal
+        game={game}
+        statuses={statuses}
+        onClose={onClose}
+        onMove={onMove}
+        onSelectGame={onSelectGame}
+      />
+    </QueryClientProvider>,
+  );
+  return { onClose, onMove, onSelectGame };
 };
 
 describe('GameModal', () => {
@@ -141,5 +178,30 @@ describe('GameModal', () => {
 
     await user.keyboard('{Escape}');
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('lists similar games and swaps the modal through onSelectGame', async () => {
+    stubSimilar({
+      similar: [
+        {
+          canonicalId: 'celeste',
+          name: 'Celeste',
+          coverImageUrl: null,
+          status: 'backlog',
+          origin: 'overlap',
+          score: 0.4,
+          rank: null,
+        },
+      ],
+    });
+    const user = userEvent.setup();
+    const { onSelectGame } = renderModal();
+
+    const row = await screen.findByTestId('similar-row');
+    expect(row).toHaveTextContent('Celeste');
+    expect(row).toHaveTextContent('40% match');
+
+    await user.click(row);
+    expect(onSelectGame).toHaveBeenCalledWith('celeste');
   });
 });
