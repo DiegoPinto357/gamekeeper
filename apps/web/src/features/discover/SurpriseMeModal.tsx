@@ -1,8 +1,10 @@
+import { useEffect, useRef } from 'react';
 import { ArrowRight, PanelRight, RefreshCw, Sparkles, X } from 'lucide-react';
 import type { DiscoverGame } from '@gamekeeper/shared';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { CoverImage } from '@/components/CoverImage';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 
 export type SurpriseMeModalProps = {
   loading: boolean;
@@ -26,6 +28,13 @@ export const SurpriseMeModal = ({
   onClose,
 }: SurpriseMeModalProps) => {
   const showGame = !loading && !error && game !== null;
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useEscapeKey(onClose);
+
+  useEffect(() => {
+    dialogRef.current?.focus();
+  }, []);
 
   return (
     <>
@@ -35,11 +44,13 @@ export const SurpriseMeModal = ({
         data-testid="suggest-backdrop"
       />
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label="Surprise me"
         data-testid="suggest-modal"
-        className="fixed inset-0 z-50 m-auto flex h-fit max-h-[90vh] w-full max-w-sm flex-col overflow-hidden rounded-xl border bg-background shadow-xl"
+        tabIndex={-1}
+        className="fixed inset-0 z-50 m-auto flex h-fit max-h-[90vh] w-full max-w-sm flex-col overflow-hidden rounded-xl border bg-background shadow-xl outline-none"
       >
         <div className="flex items-center justify-between border-b px-4 py-3">
           <h2 className="flex items-center gap-2 text-base font-semibold">

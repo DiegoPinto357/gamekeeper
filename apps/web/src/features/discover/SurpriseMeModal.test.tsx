@@ -91,6 +91,14 @@ describe('SurpriseMeModal', () => {
     expect(handlers.onClose).toHaveBeenCalledTimes(2);
   });
 
+  it('closes with Escape', async () => {
+    const user = userEvent.setup();
+    const handlers = renderModal();
+
+    await user.keyboard('{Escape}');
+    expect(handlers.onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('is a labelled modal dialog', () => {
     renderModal();
     expect(screen.getByRole('dialog', { name: 'Surprise me' })).toHaveAttribute(

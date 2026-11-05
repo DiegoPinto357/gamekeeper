@@ -1,5 +1,7 @@
+import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import type { LibraryGame, StatusEntry } from '@gamekeeper/shared';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 import { CoverImage } from './CoverImage';
 import { GameInfo } from './GameInfo';
 import { ScreenshotGallery } from './ScreenshotGallery';
@@ -25,6 +27,14 @@ export const GameModal = ({
   onUnpin,
 }: GameModalProps) => {
   const hasScreenshots = !!game.screenshots && game.screenshots.length > 0;
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  // Escape closes the modal — unless the lightbox is stacked on top of it
+  useEscapeKey(onClose, !lightboxOpen);
+
+  useEffect(() => {
+    dialogRef.current?.focus();
+  }, []);
 
   return (
     <>
@@ -34,11 +44,13 @@ export const GameModal = ({
         data-testid="game-modal-backdrop"
       />
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={`Details: ${game.name}`}
         data-testid="game-modal"
-        className="fixed inset-0 z-50 m-auto flex h-[90vh] max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border bg-background shadow-xl"
+        tabIndex={-1}
+        className="fixed inset-0 z-50 m-auto flex h-[90vh] max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border bg-background shadow-xl outline-none"
       >
         <div className="flex items-start justify-between gap-2 border-b px-6 py-4">
           <div className="min-w-0">
@@ -61,7 +73,11 @@ export const GameModal = ({
 
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-5">
           {hasScreenshots && game.screenshots && (
-            <ScreenshotGallery screenshots={game.screenshots} alt={game.name} />
+            <ScreenshotGallery
+              screenshots={game.screenshots}
+              alt={game.name}
+              onLightboxChange={setLightboxOpen}
+            />
           )}
 
           <div className="flex items-start gap-5">

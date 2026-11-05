@@ -9,6 +9,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 import {
   useSyncStats,
   type SyncStartError,
@@ -56,6 +57,8 @@ export function SyncPanel({
   const [alsoNotion, setAlsoNotion] = useState(false);
   const { total, currentStep, overall } = useSyncStats(state);
   const running = state.status === 'running';
+
+  useEscapeKey(onClose, open);
 
   if (!open) return null;
 

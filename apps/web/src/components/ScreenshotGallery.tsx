@@ -5,29 +5,53 @@ import { CoverImage } from './CoverImage';
 export type ScreenshotGalleryProps = {
   screenshots: string[];
   alt: string;
+  /** Reports lightbox open/close so hosting dialogs can defer their own Escape. */
+  onLightboxChange?: (open: boolean) => void;
 };
 
 /**
  * Hero screenshot + thumbnail strip. Renders nothing when the game has no
- * screenshots (callers pass the already store-resolved list). Clicking any
- * screenshot opens a fullscreen lightbox with a working carousel (arrows,
- * keyboard, counter); the overlay sits above both the drawer and the
- * discover modal.
+ * screenshots (callers pass the already store-resolved list). The hero is a
+ * carousel (inline arrows, or Left/Right anywhere in the hosting dialog);
+ * clicking any screenshot opens a fullscreen lightbox with the same carousel
+ * (arrows, keyboard, counter) — the overlay sits above both the drawer and
+ * the discover modal.
  */
-export const ScreenshotGallery = ({ screenshots, alt }: ScreenshotGalleryProps) => {
+export const ScreenshotGallery = ({
+  screenshots,
+  alt,
+  onLightboxChange,
+}: ScreenshotGalleryProps) => {
   const [selectedRaw, setSelected] = useState(0);
   const [fullscreen, setFullscreen] = useState(false);
 
   useEffect(() => {
-    if (!fullscreen) return;
+    onLightboxChange?.(fullscreen);
+    return () => onLightboxChange?.(false);
+  }, [fullscreen, onLightboxChange]);
+
+  useEffect(() => {
+    // Arrow keys drive the carousel both inline (hero) and fullscreen.
+    // Editable targets keep their caret; keys another widget already handled
+    // (event.defaultPrevented) are left alone.
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setFullscreen(false);
-      if (event.key === 'ArrowRight') {
-        setSelected(index => (index + 1) % screenshots.length);
+      if (event.defaultPrevented) return;
+      if (event.key === 'Escape' && fullscreen) {
+        setFullscreen(false);
+        return;
       }
-      if (event.key === 'ArrowLeft') {
-        setSelected(index => (index - 1 + screenshots.length) % screenshots.length);
+      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+      if (screenshots.length < 2) return;
+      const { target } = event;
+      if (
+        target instanceof HTMLElement &&
+        target.closest('input, textarea, select, [contenteditable="true"]')
+      ) {
+        return;
       }
+      event.preventDefault();
+      const delta = event.key === 'ArrowRight' ? 1 : -1;
+      setSelected(index => (index + delta + screenshots.length) % screenshots.length);
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
@@ -45,29 +69,52 @@ export const ScreenshotGallery = ({ screenshots, alt }: ScreenshotGalleryProps) 
 
   return (
     <div data-testid="screenshot-gallery" className="space-y-2">
-      <button
-        type="button"
-        onClick={() => setFullscreen(true)}
-        aria-label={`View ${alt} screenshots fullscreen`}
-        className="group relative block w-full"
-      >
-        <CoverImage
-          src={screenshots[selected]}
-          alt={`${alt} screenshot`}
-          className="aspect-video w-full rounded-lg bg-muted object-cover"
-          fallback={
-            <div
-              data-testid="screenshot-hero-fallback"
-              className="flex aspect-video w-full items-center justify-center rounded-lg bg-muted text-sm text-muted-foreground"
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setFullscreen(true)}
+          aria-label={`View ${alt} screenshots fullscreen`}
+          className="group relative block w-full"
+        >
+          <CoverImage
+            src={screenshots[selected]}
+            alt={`${alt} screenshot`}
+            className="aspect-video w-full rounded-lg bg-muted object-cover"
+            fallback={
+              <div
+                data-testid="screenshot-hero-fallback"
+                className="flex aspect-video w-full items-center justify-center rounded-lg bg-muted text-sm text-muted-foreground"
+              >
+                No preview
+              </div>
+            }
+          />
+          <span className="absolute right-2 top-2 rounded-md bg-black/60 p-1.5 text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+            <Maximize2 className="size-3.5" aria-hidden />
+          </span>
+        </button>
+
+        {screenshots.length > 1 && (
+          <>
+            <button
+              type="button"
+              aria-label="Show previous screenshot"
+              onClick={() => step(-1)}
+              className="absolute left-1 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/50 p-1.5 text-white hover:bg-black/70"
             >
-              No preview
-            </div>
-          }
-        />
-        <span className="absolute right-2 top-2 rounded-md bg-black/60 p-1.5 text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
-          <Maximize2 className="size-3.5" aria-hidden />
-        </span>
-      </button>
+              <ChevronLeft className="size-4" aria-hidden />
+            </button>
+            <button
+              type="button"
+              aria-label="Show next screenshot"
+              onClick={() => step(1)}
+              className="absolute right-1 top-1/2 z-10 -translate-y-1/2 rounded-full bg-black/50 p-1.5 text-white hover:bg-black/70"
+            >
+              <ChevronRight className="size-4" aria-hidden />
+            </button>
+          </>
+        )}
+      </div>
 
       {screenshots.length > 1 && (
         <div className="flex gap-1.5 overflow-x-auto pb-1">

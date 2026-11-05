@@ -104,4 +104,42 @@ describe('GameModal', () => {
     await user.click(screen.getByTestId('game-modal-backdrop'));
     expect(onClose).toHaveBeenCalledTimes(2);
   });
+
+  it('closes with Escape', async () => {
+    const user = userEvent.setup();
+    const { onClose } = renderModal();
+
+    await user.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('cycles the hero carousel with arrow keys, without opening the lightbox', async () => {
+    const user = userEvent.setup();
+    renderModal();
+
+    await user.keyboard('{ArrowRight}');
+    expect(screen.getByRole('img', { name: 'Hades II screenshot' })).toHaveAttribute(
+      'src',
+      'https://cdn/two.jpg',
+    );
+    expect(screen.queryByTestId('screenshot-lightbox')).not.toBeInTheDocument();
+  });
+
+  it('unwraps stacked overlays: Escape closes the lightbox first, then the modal', async () => {
+    const user = userEvent.setup();
+    const { onClose } = renderModal();
+
+    await user.click(
+      screen.getByRole('button', { name: 'View Hades II screenshots fullscreen' }),
+    );
+    expect(screen.getByTestId('screenshot-lightbox')).toBeInTheDocument();
+
+    await user.keyboard('{Escape}');
+    expect(screen.queryByTestId('screenshot-lightbox')).not.toBeInTheDocument();
+    expect(screen.getByTestId('game-modal')).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+
+    await user.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
 });

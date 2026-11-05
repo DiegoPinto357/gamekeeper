@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { LibraryGame, StatusEntry } from '@gamekeeper/shared';
 import { GameDrawer } from './GameDrawer';
 
@@ -18,15 +19,18 @@ const baseGame: LibraryGame = {
   pinned: false,
 };
 
-const renderDrawer = (game: LibraryGame) =>
+const renderDrawer = (game: LibraryGame) => {
+  const onClose = vi.fn();
   render(
     <GameDrawer
       game={game}
       statuses={statuses}
-      onClose={vi.fn()}
+      onClose={onClose}
       onMove={vi.fn()}
     />,
   );
+  return { onClose };
+};
 
 describe('GameDrawer store links', () => {
   it('links the exact Steam page and ProtonDB when the app id is known', () => {
@@ -101,5 +105,36 @@ describe('GameDrawer screenshots', () => {
     renderDrawer({ ...baseGame, screenshots: [] });
 
     expect(screen.queryByTestId('screenshot-gallery')).not.toBeInTheDocument();
+  });
+});
+
+describe('GameDrawer dismissal', () => {
+  it('closes with Escape', async () => {
+    const user = userEvent.setup();
+    const { onClose } = renderDrawer(baseGame);
+
+    await user.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('unwraps stacked overlays: Escape closes the lightbox first, then the drawer', async () => {
+    const user = userEvent.setup();
+    const { onClose } = renderDrawer({
+      ...baseGame,
+      screenshots: ['https://cdn/one.jpg', 'https://cdn/two.jpg'],
+    });
+
+    await user.click(
+      screen.getByRole('button', { name: 'View Hades II screenshots fullscreen' }),
+    );
+    expect(screen.getByTestId('screenshot-lightbox')).toBeInTheDocument();
+
+    await user.keyboard('{Escape}');
+    expect(screen.queryByTestId('screenshot-lightbox')).not.toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: 'Details: Hades II' })).toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+
+    await user.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

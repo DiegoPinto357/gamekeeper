@@ -1,5 +1,7 @@
+import { useRef, useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import type { LibraryGame, StatusEntry } from '@gamekeeper/shared';
+import { useEscapeKey } from '@/hooks/useEscapeKey';
 import { CoverImage } from './CoverImage';
 import { GameInfo } from './GameInfo';
 import { ScreenshotGallery } from './ScreenshotGallery';
@@ -24,6 +26,15 @@ export const GameDrawer = ({
   onMove,
   onUnpin,
 }: GameDrawerProps) => {
+  const dialogRef = useRef<HTMLElement>(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  // Escape closes the drawer — unless the lightbox is stacked on top of it
+  useEscapeKey(onClose, !lightboxOpen);
+
+  useEffect(() => {
+    dialogRef.current?.focus();
+  }, []);
+
   return (
     <>
       <div
@@ -32,10 +43,12 @@ export const GameDrawer = ({
         data-testid="drawer-backdrop"
       />
       <aside
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={`Details: ${game.name}`}
-        className="fixed inset-y-0 right-0 z-50 flex w-96 flex-col border-l bg-background shadow-xl"
+        tabIndex={-1}
+        className="fixed inset-y-0 right-0 z-50 flex w-96 flex-col border-l bg-background shadow-xl outline-none"
       >
         <div className="flex items-start justify-between gap-2 border-b px-4 py-3">
           <h2 className="min-w-0 flex-1 truncate text-base font-semibold">
@@ -64,7 +77,11 @@ export const GameDrawer = ({
           />
 
           {game.screenshots && game.screenshots.length > 0 && (
-            <ScreenshotGallery screenshots={game.screenshots} alt={game.name} />
+            <ScreenshotGallery
+              screenshots={game.screenshots}
+              alt={game.name}
+              onLightboxChange={setLightboxOpen}
+            />
           )}
 
           <GameInfo

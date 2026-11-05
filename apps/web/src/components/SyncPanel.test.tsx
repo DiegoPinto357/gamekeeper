@@ -224,12 +224,17 @@ describe('SyncPanel', () => {
     expect(screen.getByRole('button', { name: 'Start' })).toBeEnabled();
   });
 
-  it('closes the panel via the close button and backdrop', async () => {
+  it('closes the panel via the close button, Escape, and backdrop', async () => {
     stubFetch();
     renderShell();
     const user = await openPanel();
 
     await user.click(screen.getByRole('button', { name: 'Close sync panel' }));
+    expect(screen.queryByRole('dialog', { name: 'Sync' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Sync' }));
+    expect(screen.getByRole('dialog', { name: 'Sync' })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
     expect(screen.queryByRole('dialog', { name: 'Sync' })).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Sync' }));

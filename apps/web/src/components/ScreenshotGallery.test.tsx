@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ScreenshotGallery } from './ScreenshotGallery';
@@ -35,8 +35,8 @@ describe('ScreenshotGallery', () => {
       'src',
       'https://cdn/one.jpg',
     );
-    // hero fullscreen button + three thumbnails
-    expect(screen.getAllByRole('button')).toHaveLength(4);
+    // hero fullscreen button + two inline carousel arrows + three thumbnails
+    expect(screen.getAllByRole('button')).toHaveLength(6);
     expect(
       screen.getByRole('button', { name: 'View Hades II screenshots fullscreen' }),
     ).toBeInTheDocument();
@@ -50,10 +50,91 @@ describe('ScreenshotGallery', () => {
       'https://cdn/one.jpg',
     );
     expect(screen.queryByRole('button', { name: /^Screenshot \d+$/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Show next screenshot' })).not.toBeInTheDocument();
     // the hero itself still opens fullscreen
     expect(
       screen.getByRole('button', { name: 'View Hades II screenshots fullscreen' }),
     ).toBeInTheDocument();
+  });
+
+  it('cycles the hero with the inline arrows without opening the lightbox', async () => {
+    const user = userEvent.setup();
+    renderGallery();
+
+    await user.click(screen.getByRole('button', { name: 'Show next screenshot' }));
+    expect(screen.getByRole('img', { name: 'Hades II screenshot' })).toHaveAttribute(
+      'src',
+      'https://cdn/two.jpg',
+    );
+    expect(screen.queryByTestId('screenshot-lightbox')).not.toBeInTheDocument();
+
+    // previous from the first wraps around to the last
+    await user.click(screen.getByRole('button', { name: 'Show previous screenshot' }));
+    await user.click(screen.getByRole('button', { name: 'Show previous screenshot' }));
+    expect(screen.getByRole('img', { name: 'Hades II screenshot' })).toHaveAttribute(
+      'src',
+      'https://cdn/three.jpg',
+    );
+    expect(screen.queryByTestId('screenshot-lightbox')).not.toBeInTheDocument();
+  });
+
+  it('cycles the hero with arrow keys without opening the lightbox', async () => {
+    const user = userEvent.setup();
+    renderGallery();
+
+    await user.keyboard('{ArrowRight}');
+    expect(screen.getByRole('img', { name: 'Hades II screenshot' })).toHaveAttribute(
+      'src',
+      'https://cdn/two.jpg',
+    );
+    expect(screen.queryByTestId('screenshot-lightbox')).not.toBeInTheDocument();
+
+    // previous from the first wraps around to the last
+    await user.keyboard('{ArrowLeft}');
+    await user.keyboard('{ArrowLeft}');
+    expect(screen.getByRole('img', { name: 'Hades II screenshot' })).toHaveAttribute(
+      'src',
+      'https://cdn/three.jpg',
+    );
+    expect(screen.queryByTestId('screenshot-lightbox')).not.toBeInTheDocument();
+  });
+
+  it('leaves arrow keys to editable fields', async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <input data-testid="note-input" />
+        <ScreenshotGallery screenshots={shots} alt="Hades II" />
+      </>,
+    );
+    await user.click(screen.getByTestId('note-input'));
+
+    await user.keyboard('{ArrowRight}');
+    expect(screen.getByRole('img', { name: 'Hades II screenshot' })).toHaveAttribute(
+      'src',
+      'https://cdn/one.jpg',
+    );
+  });
+
+  it('reports lightbox open and close to the hosting dialog', async () => {
+    const user = userEvent.setup();
+    const onLightboxChange = vi.fn();
+    render(
+      <ScreenshotGallery
+        screenshots={shots}
+        alt="Hades II"
+        onLightboxChange={onLightboxChange}
+      />,
+    );
+    expect(onLightboxChange).toHaveBeenLastCalledWith(false);
+
+    await user.click(
+      screen.getByRole('button', { name: 'View Hades II screenshots fullscreen' }),
+    );
+    expect(onLightboxChange).toHaveBeenLastCalledWith(true);
+
+    await user.keyboard('{Escape}');
+    expect(onLightboxChange).toHaveBeenLastCalledWith(false);
   });
 
   it('switches the hero when a thumbnail is clicked', async () => {
