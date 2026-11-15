@@ -4,6 +4,7 @@ import { CatalogGrid } from '@/features/gamepass/CatalogGrid';
 import { LibraryPage } from '@/features/library/LibraryPage';
 import { BoardPage } from '@/features/board/BoardPage';
 import { DiscoverHub } from '@/features/discover/DiscoverHub';
+import { SettingsPage } from '@/features/settings/SettingsPage';
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
           <Route path="/library" element={<LibraryPage />} />
           <Route path="/discover" element={<DiscoverHub />} />
           <Route path="/gamepass" element={<CatalogGrid />} />
+          <Route path="/settings" element={<SettingsPage />} />
         </Route>
       </Routes>
     </BrowserRouter>

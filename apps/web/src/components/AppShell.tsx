@@ -12,6 +12,7 @@ const navItems = [
   { to: '/board', label: 'Board' },
   { to: '/library', label: 'Library' },
   { to: '/gamepass', label: 'Game Pass' },
+  { to: '/settings', label: 'Settings' },
 ] as const;
 
 export const AppShell = () => {

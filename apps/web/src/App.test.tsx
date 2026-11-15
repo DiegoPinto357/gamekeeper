@@ -93,13 +93,14 @@ describe('App', () => {
     expect(screen.getByRole('link', { name: 'Library' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Discover' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Game Pass' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Settings' })).toBeInTheDocument();
 
     const nav = screen.getByRole('navigation');
     expect(
       within(nav)
         .getAllByRole('link')
         .map(link => link.textContent),
-    ).toEqual(['Discover', 'Board', 'Library', 'Game Pass']);
+    ).toEqual(['Discover', 'Board', 'Library', 'Game Pass', 'Settings']);
 
     await waitFor(() => expect(screen.getByTestId('column-backlog')).toBeInTheDocument());
     expect(screen.getByTestId('column-backlog')).toHaveTextContent('Backlog');
