@@ -13,3 +13,6 @@ logs/sync-*.json
 
 # cwd/data fallback created when core scripts/tests run from packages/core
 packages/core/data/
+data/gamepass-interests.json
+data/owned-xbox-games.json
+data/overrides.json
