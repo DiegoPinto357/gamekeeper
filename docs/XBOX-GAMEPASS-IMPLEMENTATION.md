@@ -8,9 +8,9 @@ This implementation provides comprehensive management of Xbox-owned games and Xb
 
 ### 1. Data Files
 
-- **`data/owned-xbox-games.json`** - Manual list of Xbox games you own (not Game Pass)
+- **`data/gamekeeper.db`** - SQLite source of truth: `owned_games` + `interests` tables (edit via the Settings / Game Pass pages)
 - **`data/gamepass-unavailable.json`** - Auto-generated report of games no longer on Game Pass
-- **`data/gamepass-interests.json`** - Already existed, used for tracking wanted Game Pass games
+- **`data/owned-xbox-games.json`**, **`data/gamepass-interests.json`** - Legacy JSON backups (one-time import source; no longer read after import)
 
 ### 2. Core Module
 
@@ -58,13 +58,13 @@ This implementation provides comprehensive management of Xbox-owned games and Xb
 ### Always Sync
 
 1. All non-Xbox/Game Pass games (Steam, Epic, GOG, etc.)
-2. Games in `owned-xbox-games.json` (even with 0 playtime)
-3. Games from `gamepass-interests.json` that are available on Game Pass
+2. Games in the `owned_games` table (even with 0 playtime)
+3. Games from the `interests` table that are available on Game Pass
 
 ### Conditional Sync
 
 4. Xbox games from Playnite:
-   - If in `owned-xbox-games.json` → Sync
+   - If in `owned_games` → Sync
    - If NOT owned but available on Game Pass → Sync with `gamepass` tag
    - If NOT owned and NOT on Game Pass → Don't sync, add to unavailable report
 
@@ -87,7 +87,7 @@ This implementation provides comprehensive management of Xbox-owned games and Xb
    - Marked as `wasPlayed: true`
 
 2. **Interest games not available**
-   - From `gamepass-interests.json`
+   - From the `interests` table
    - Not currently in Game Pass catalog
    - Marked as `wasPlayed: false`
 
@@ -234,26 +234,22 @@ console.log(`Returned to Game Pass: ${returned.join(', ')}`);
 
 ### 1. Add Owned Xbox Games
 
-Edit `data/owned-xbox-games.json`:
+Use **Settings → Owned Xbox games** (or `POST /api/owned-games`):
 
-```json
-{
-  "ownedGames": ["Halo Infinite", "Forza Horizon 5", "Starfield"]
-}
+```
+Halo Infinite (xbox)
+Forza Horizon 5 (xbox)
+Starfield (xbox)
 ```
 
 ### 2. Add Game Pass Interests
 
-Edit `data/gamepass-interests.json`:
+Use the **Game Pass page** (add/remove buttons) or `POST /api/interests`:
 
-```json
-{
-  "wantToPlay": [
-    "Hollow Knight: Silksong",
-    "Hi-Fi RUSH",
-    "Clair Obscur: Expedition 33"
-  ]
-}
+```
+Hollow Knight: Silksong
+Hi-Fi RUSH
+Clair Obscur: Expedition 33
 ```
 
 ### 3. Review Unavailable Games

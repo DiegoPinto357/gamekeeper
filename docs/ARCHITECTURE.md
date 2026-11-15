@@ -141,7 +141,7 @@ export function createAdapter(config) {
 
 - Fetches PC Game Pass catalog from Microsoft API
 - 7-day disk cache (configurable)
-- Interest-based filtering via `data/gamepass-interests.json`
+- Interest-based filtering via the SQLite `interests` table
 
 ### Notion Client
 
@@ -168,7 +168,7 @@ export function createAdapter(config) {
 
 - Playnite marks owned games as "Xbox" and subscription games as "Xbox Game Pass"
 - GameKeeper fetches the current PC Game Pass catalog automatically
-- User maintains a manual curation list (`data/gamepass-interests.json`)
+- User maintains a manual curation list (the SQLite `interests` table, edited on the Game Pass page)
 - Only games that are BOTH (interested AND available) sync to Notion
 - Games leaving the catalog automatically stop syncing
 
@@ -190,7 +190,7 @@ gamekeeper/
 │   └── scripts/
 │       └── view-gamepass-catalog.ts # Helper to view GP catalog
 ├── data/
-│   └── gamepass-interests.json     # Manual GP curation list
+│   └── gamekeeper.db                # SQLite: interests, owned games, statuses, overrides
 ├── .cache/
 │   ├── protondb/                   # ProtonDB ratings cache
 │   └── gamepass/                   # Game Pass catalog cache

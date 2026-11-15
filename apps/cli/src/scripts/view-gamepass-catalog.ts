@@ -3,7 +3,7 @@ import { createGamePassAdapter } from '@gamekeeper/core';
 
 /**
  * Utility script to view the current Game Pass catalog
- * Useful for finding exact game titles to add to gamepass-interests.json
+ * Useful for finding exact game titles to track as interests
  */
 const main = async () => {
   console.log('🎮 Xbox Game Pass Catalog Viewer\n');
@@ -27,7 +27,7 @@ const main = async () => {
     });
 
     console.log(
-      `\n💡 Copy exact titles to data/gamepass-interests.json to track them`
+      `\n💡 Use the Game Pass page to add these exact titles to your interests`
     );
   } catch (error) {
     console.error('❌ Failed to fetch catalog:', error);

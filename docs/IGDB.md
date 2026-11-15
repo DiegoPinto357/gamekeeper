@@ -178,17 +178,9 @@ Next run will rebuild the cache.
 
 ### Manual Mappings
 
-For games IGDB doesn't match correctly, add manual overrides to `data/overrides.json`:
-
-```json
-{
-  "forceMerge": [],
-  "canonicalNames": {},
-  "manualSteamAppIds": {
-    "Some Obscure Game": 123456
-  }
-}
-```
+For games IGDB doesn't match correctly, confirm the merge suggestions from
+`pnpm validate` in **Settings → Force-merge rules** — both titles then map to
+one canonical game.
 
 ## Troubleshooting
 

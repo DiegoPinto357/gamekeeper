@@ -236,7 +236,9 @@ describe('suggestions', () => {
       const writtenData = JSON.parse(writeCall[1] as string);
 
       expect(writtenData.instructions).toBeDefined();
-      expect(writtenData.instructions.howToUse).toContain('overrides.json');
+      expect(writtenData.instructions.howToUse).toContain(
+        'Settings → Force-merge rules',
+      );
     });
 
     it('includes timestamp', async () => {

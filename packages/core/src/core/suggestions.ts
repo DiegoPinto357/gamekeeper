@@ -81,7 +81,7 @@ export const saveMergeSuggestions = async (
     })),
     instructions: {
       howToUse:
-        'Review these suggestions and add confirmed merges to data/overrides.json in the "forceMerge" array',
+        'Review these suggestions and confirm merges in Settings → Force-merge rules',
       example: {
         games: ['Game Name', 'Game Name: Enhanced Edition'],
         canonicalName: 'Game Name',
