@@ -1,63 +1,46 @@
-import fs from 'fs/promises';
 import type { FastifyInstance } from 'fastify';
+import {
+  addInterest,
+  listInterestEntries,
+  removeInterestByTitle,
+  type Db,
+} from '@gamekeeper/core';
 
 export interface InterestRouteOptions {
-  interestsFile: string;
-}
-
-interface InterestsData {
-  wantToPlay: string[];
-  [k: string]: unknown;
+  db: Db;
 }
 
 export const registerInterestRoutes = (
   app: FastifyInstance,
   opts: InterestRouteOptions,
 ): void => {
-  const readInterests = async (): Promise<InterestsData> => {
-    try {
-      const content = await fs.readFile(opts.interestsFile, 'utf-8');
-      return JSON.parse(content) as InterestsData;
-    } catch {
-      return { wantToPlay: [] };
-    }
-  };
+  const respond = (reply: { send: (payload: unknown) => unknown }) =>
+    reply.send({ interests: listInterestEntries(opts.db.raw) });
 
-  const writeInterests = async (data: object): Promise<void> => {
-    const tmp = opts.interestsFile + '.tmp';
-    await fs.writeFile(tmp, JSON.stringify(data, null, 2), 'utf-8');
-    await fs.rename(tmp, opts.interestsFile);
-  };
+  app.get('/api/interests', async (_req, reply) => respond(reply));
 
-  app.get('/api/interests', async (_req, reply) => {
-    try {
-      const data = await readInterests();
-      return reply.send({ interests: data.wantToPlay ?? [] });
-    } catch {
-      return reply.send({ interests: [] });
-    }
-  });
+  app.post<{ Body: { name?: string; id?: string } }>(
+    '/api/interests',
+    async (req, reply) => {
+      const name = req.body?.name?.trim();
+      if (!name) return reply.status(400).send({ error: 'name is required' });
 
-  app.post<{ Body: { name: string } }>('/api/interests', async (req, reply) => {
-    const name = req.body?.name?.trim();
-    if (!name) return reply.status(400).send({ error: 'name is required' });
+      const id =
+        typeof req.body?.id === 'string' && req.body.id.trim()
+          ? req.body.id.trim()
+          : undefined;
 
-    const data = await readInterests();
-    if (!data.wantToPlay.includes(name)) {
-      data.wantToPlay.push(name);
-      await writeInterests(data);
-    }
-    return reply.send({ interests: data.wantToPlay });
-  });
+      addInterest(opts.db.raw, name, id);
+      return respond(reply);
+    },
+  );
 
   app.delete<{ Params: { name: string } }>(
     '/api/interests/:name',
     async (req, reply) => {
       const name = decodeURIComponent(req.params.name);
-      const data = await readInterests();
-      data.wantToPlay = data.wantToPlay.filter((n: string) => n !== name);
-      await writeInterests(data);
-      return reply.send({ interests: data.wantToPlay });
+      removeInterestByTitle(opts.db.raw, name);
+      return respond(reply);
     },
   );
 };

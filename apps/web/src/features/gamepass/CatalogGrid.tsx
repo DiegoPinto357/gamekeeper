@@ -20,10 +20,18 @@ export function CatalogGrid() {
   const addInterest = useAddInterest();
   const removeInterest = useRemoveInterest();
 
-  const interestSet = useMemo(
-    () => new Set(interestsData?.interests ?? []),
+  // Membership is id-primary (P0B rekey); title fallback covers legacy
+  // manual: rows imported from the old JSON list.
+  const interestIds = useMemo(
+    () => new Set((interestsData?.interests ?? []).map((entry) => entry.id)),
     [interestsData],
   );
+  const interestTitles = useMemo(
+    () => new Set((interestsData?.interests ?? []).map((entry) => entry.title)),
+    [interestsData],
+  );
+  const isInterested = (game: CatalogGame) =>
+    interestIds.has(game.id) || interestTitles.has(game.title);
 
   const processed = useMemo(() => {
     if (!catalog) return [];
@@ -33,21 +41,21 @@ export function CatalogGrid() {
     let result = q ? catalog.filter((g) => g.title.toLowerCase().includes(q)) : [...catalog];
 
     // Filter
-    if (filter === 'interested') result = result.filter((g) => interestSet.has(g.title));
-    else if (filter === 'not-interested') result = result.filter((g) => !interestSet.has(g.title));
+    if (filter === 'interested') result = result.filter((g) => interestIds.has(g.id) || interestTitles.has(g.title));
+    else if (filter === 'not-interested') result = result.filter((g) => !(interestIds.has(g.id) || interestTitles.has(g.title)));
 
     // Sort — 'recent' = newest releaseDate first; 'az' = alphabetical
     if (sort === 'az') result.sort((a, b) => a.title.localeCompare(b.title));
     else result.sort((a, b) => (b.releaseDate ?? '').localeCompare(a.releaseDate ?? ''));
 
     return result;
-  }, [catalog, search, sort, filter, interestSet]);
+  }, [catalog, search, sort, filter, interestIds, interestTitles]);
 
   function handleToggle(game: CatalogGame) {
-    if (interestSet.has(game.title)) {
+    if (isInterested(game)) {
       removeInterest.mutate(game.title);
     } else {
-      addInterest.mutate(game.title);
+      addInterest.mutate({ name: game.title, id: game.id });
     }
   }
 
@@ -74,7 +82,7 @@ export function CatalogGrid() {
         <SearchBar
           value={search}
           onChange={setSearch}
-          interestCount={interestSet.size}
+          interestCount={interestsData?.interests.length ?? 0}
         />
 
         {/* Sort */}
@@ -117,7 +125,7 @@ export function CatalogGrid() {
           <GameCard
             key={game.id}
             game={game}
-            isInterested={interestSet.has(game.title)}
+            isInterested={isInterested(game)}
             onToggle={handleToggle}
             isPending={addInterest.isPending || removeInterest.isPending}
           />

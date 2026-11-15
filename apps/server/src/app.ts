@@ -5,6 +5,7 @@ import type { FastifyInstance } from 'fastify';
 import { openDb, type Db } from '@gamekeeper/core';
 import { registerCatalogRoutes } from './routes/catalog';
 import { registerInterestRoutes } from './routes/interests';
+import { registerOwnedGamesRoutes } from './routes/owned-games';
 import { registerSyncRoutes } from './routes/sync';
 import { registerLibraryRoutes } from './routes/library';
 import { registerDiscoverRoutes } from './routes/discover';
@@ -46,9 +47,8 @@ export const buildApp = (opts: AppOptions = {}): FastifyInstance => {
   });
 
   registerCatalogRoutes(app, { cacheDir });
-  registerInterestRoutes(app, {
-    interestsFile: path.join(dataDir, 'gamepass-interests.json'),
-  });
+  registerInterestRoutes(app, { db });
+  registerOwnedGamesRoutes(app, { db });
   registerLibraryRoutes(app, { db });
   registerDiscoverRoutes(app, { db });
 

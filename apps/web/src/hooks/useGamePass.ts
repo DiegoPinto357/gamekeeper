@@ -15,11 +15,14 @@ async function fetchInterests(): Promise<InterestsResponse> {
   return res.json() as Promise<InterestsResponse>;
 }
 
-async function addInterest(name: string): Promise<InterestsResponse> {
+async function addInterest(input: {
+  name: string;
+  id?: string;
+}): Promise<InterestsResponse> {
   const res = await fetch(`${API_BASE}/api/interests`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify(input.id ? { name: input.name, id: input.id } : { name: input.name }),
   });
   if (!res.ok) throw new Error('Failed to add interest');
   return res.json() as Promise<InterestsResponse>;

@@ -8,8 +8,13 @@ export type CatalogGame = {
   catalogPosition?: number;
 };
 
+export type InterestEntry = {
+  id: string;
+  title: string;
+};
+
 export type InterestsResponse = {
-  interests: string[];
+  interests: InterestEntry[];
 };
 
 export type StatusEntry = {
@@ -17,6 +22,31 @@ export type StatusEntry = {
   label: string;
   color: string;
   position: number;
+};
+
+export type StatusesResponse = {
+  statuses: StatusEntry[];
+};
+
+export type ForceMergeRuleEntry = {
+  id: number;
+  games: string[];
+  canonicalName?: string;
+};
+
+export type ForceMergeRulesResponse = {
+  rules: ForceMergeRuleEntry[];
+};
+
+export type OwnedGame = {
+  canonicalId: string;
+  name: string;
+  platform: string;
+  notes: string | null;
+};
+
+export type OwnedGamesResponse = {
+  ownedGames: OwnedGame[];
 };
 
 export type ProtonTier = 'platinum' | 'gold' | 'silver' | 'bronze' | 'borked';
