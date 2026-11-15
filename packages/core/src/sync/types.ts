@@ -3,6 +3,7 @@ import type { GamePassGame } from '../adapters/gamepass.adapter';
 import type { GameOverrides } from '../types/overrides';
 import type { MergeSuggestion } from '../core/suggestions';
 import type { UnavailableGame } from '../core/xbox-gamepass';
+import type { InterestEntry } from '../db/repos/interests';
 import type { SyncOperations } from '../notion/sync-logger';
 import type { Logger } from '../logger';
 
@@ -119,8 +120,8 @@ export interface SyncIO {
   loadConfig(): Config;
   loadOverrides(): Promise<GameOverrides>;
   initAdapters(config: Config): Promise<SyncAdapters>;
-  /** null ⇒ interests file missing */
-  loadInterests(): Promise<string[] | null>;
+  /** null ⇒ interests unavailable (legacy file-missing case; DB-backed IO never returns null) */
+  loadInterests(): Promise<InterestEntry[] | null>;
   saveMergeSuggestions(suggestions: MergeSuggestion[]): Promise<void>;
   saveLibrarySnapshot(games: UnifiedGame[]): Promise<void>;
   writeGamesToDb(

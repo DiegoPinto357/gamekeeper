@@ -1,9 +1,12 @@
 import fs from 'fs/promises';
 import path from 'path';
+import type { DatabaseSync } from 'node:sqlite';
 import { type RawGameData } from '../types/game';
 import { normalizeGameName, wordSortedKey } from './normalize';
 import { type GamePassGame } from '../adapters/gamepass.adapter';
 import { log } from '../logger';
+import { listOwnedGameNames } from '../db/repos/owned-games';
+import { listInterestEntries, listInterestTitles, type InterestEntry } from '../db/repos/interests';
 
 /**
  * Check if a normalized interest name matches a normalized catalog title.
@@ -65,14 +68,6 @@ const catalogMatchesInterest = (
   return remainderWords.every(w => EDITION_WORDS.has(w));
 };
 
-export type OwnedXboxGames = {
-  ownedGames: string[];
-};
-
-export type GamePassInterests = {
-  wantToPlay: string[];
-};
-
 export type UnavailableGame = {
   name: string;
   reason: 'left-catalog' | 'interest-unavailable';
@@ -86,51 +81,45 @@ export type GamePassUnavailable = {
 };
 
 const DATA_DIR = path.join(process.cwd(), 'data');
-const OWNED_XBOX_FILE = path.join(DATA_DIR, 'owned-xbox-games.json');
-const INTERESTS_FILE = path.join(DATA_DIR, 'gamepass-interests.json');
 const UNAVAILABLE_FILE = path.join(DATA_DIR, 'gamepass-unavailable.json');
 
 /**
- * Load owned Xbox games list
+ * Load owned Xbox games list (normalized) from SQLite (P0B).
  */
-export const loadOwnedXboxGames = async (): Promise<Set<string>> => {
-  try {
-    const content = await fs.readFile(OWNED_XBOX_FILE, 'utf-8');
-    const data: OwnedXboxGames = JSON.parse(content);
-    return new Set(data.ownedGames.map(normalizeGameName));
-  } catch (error) {
-    log.warn('Could not load owned Xbox games, using empty set');
-    return new Set();
-  }
+export const loadOwnedXboxGames = async (
+  db: DatabaseSync,
+): Promise<Set<string>> => {
+  return new Set(listOwnedGameNames(db).map(normalizeGameName));
 };
 
 /**
- * Load Game Pass interests
+ * Load Game Pass interests (normalized) from SQLite (P0B).
  */
-export const loadGamePassInterests = async (): Promise<Set<string>> => {
-  try {
-    const content = await fs.readFile(INTERESTS_FILE, 'utf-8');
-    const data: GamePassInterests = JSON.parse(content);
-    return new Set(data.wantToPlay.map(normalizeGameName));
-  } catch (error) {
-    log.warn('Could not load Game Pass interests, using empty set');
-    return new Set();
-  }
+export const loadGamePassInterests = async (
+  db: DatabaseSync,
+): Promise<Set<string>> => {
+  return new Set(listInterestTitles(db).map(normalizeGameName));
 };
 
 /**
  * Check if a game is owned on Xbox (not Game Pass)
  */
-export const isOwnedOnXbox = async (gameName: string): Promise<boolean> => {
-  const ownedGames = await loadOwnedXboxGames();
+export const isOwnedOnXbox = async (
+  db: DatabaseSync,
+  gameName: string,
+): Promise<boolean> => {
+  const ownedGames = await loadOwnedXboxGames(db);
   return ownedGames.has(normalizeGameName(gameName));
 };
 
 /**
  * Check if a game is in interests list
  */
-export const isInInterests = async (gameName: string): Promise<boolean> => {
-  const interests = await loadGamePassInterests();
+export const isInInterests = async (
+  db: DatabaseSync,
+  gameName: string,
+): Promise<boolean> => {
+  const interests = await loadGamePassInterests(db);
   return interests.has(normalizeGameName(gameName));
 };
 
@@ -185,14 +174,15 @@ export const saveUnavailableGames = async (
  * Process Game Pass availability and update unavailable games report
  */
 export const processGamePassAvailability = async (
+  db: DatabaseSync,
   playedGames: RawGameData[],
   gamePassCatalog: GamePassGame[],
 ): Promise<{
   unavailable: UnavailableGame[];
   returned: string[];
 }> => {
-  const ownedXbox = await loadOwnedXboxGames();
-  const interests = await loadGamePassInterests();
+  const ownedXbox = await loadOwnedXboxGames(db);
+  const interests = await loadGamePassInterests(db);
   const currentUnavailable = await loadUnavailableGames();
 
   const unavailableGames: UnavailableGame[] = [];
@@ -255,10 +245,11 @@ export const processGamePassAvailability = async (
  * Determine correct source tag for Xbox/Game Pass games
  */
 export const resolveXboxSource = async (
+  db: DatabaseSync,
   gameName: string,
   gamePassCatalog: GamePassGame[],
 ): Promise<'xbox' | 'gamepass'> => {
-  const isOwned = await isOwnedOnXbox(gameName);
+  const isOwned = await isOwnedOnXbox(db, gameName);
 
   if (isOwned) {
     return 'xbox';
@@ -272,6 +263,7 @@ export const resolveXboxSource = async (
  * Check if a game should be synced to Notion
  */
 export const shouldSyncToNotion = async (
+  db: DatabaseSync,
   game: RawGameData,
   gamePassCatalog: GamePassGame[],
 ): Promise<boolean> => {
@@ -280,7 +272,7 @@ export const shouldSyncToNotion = async (
     return true;
   }
 
-  const isOwned = await isOwnedOnXbox(game.name);
+  const isOwned = await isOwnedOnXbox(db, game.name);
 
   // Owned Xbox games always sync
   if (isOwned) {
@@ -293,11 +285,14 @@ export const shouldSyncToNotion = async (
 };
 
 /**
- * Pick interest games that should be synced, given already-loaded raw interest
- * names. Pure — no file access.
+ * Pick interest games that should be synced. Matching is id-equality first
+ * (P0B §6 — a non-manual catalog product id must match the catalog's id,
+ * which kills the swapped-title bug class), with the word-sorted name
+ * fallback for legacy `manual:` rows that have no catalog id. Pure — no
+ * file access.
  */
 export const selectInterestGames = async (
-  rawInterests: string[],
+  entries: InterestEntry[],
   gamePassCatalog: GamePassGame[],
   playedGames: RawGameData[],
 ): Promise<RawGameData[]> => {
@@ -305,18 +300,25 @@ export const selectInterestGames = async (
   const gamesToSync: RawGameData[] = [];
   const seenNormalized = new Set<string>(); // deduplicate interests that normalize identically
 
-  for (const rawName of rawInterests) {
-    const interestName = normalizeGameName(rawName);
+  for (const entry of entries) {
+    const interestName = normalizeGameName(entry.title);
     if (seenNormalized.has(interestName)) continue;
     seenNormalized.add(interestName);
 
-    // Check if available on Game Pass
-    const catalogGame = gamePassCatalog.find(
-      g =>
-        g.available &&
-        catalogMatchesInterest(normalizeGameName(g.title), interestName),
-    );
-
+    // Id-equality first for catalog-backed rows; manual: ids never match
+    let catalogGame: GamePassGame | undefined;
+    if (!entry.id.startsWith('manual:')) {
+      catalogGame = gamePassCatalog.find(
+        g => g.available && g.id === entry.id,
+      );
+    }
+    if (!catalogGame) {
+      catalogGame = gamePassCatalog.find(
+        g =>
+          g.available &&
+          catalogMatchesInterest(normalizeGameName(g.title), interestName),
+      );
+    }
     if (!catalogGame) continue;
 
     // Check if already played
@@ -324,7 +326,7 @@ export const selectInterestGames = async (
 
     // Use the user's clean interest name (not the verbose catalog title)
     gamesToSync.push({
-      name: rawName,
+      name: entry.title,
       source: 'gamepass',
       externalId: `gamepass-interest-${catalogGame.id}`,
       playtimeHours: wasPlayed ? undefined : 0,
@@ -346,18 +348,10 @@ export const selectInterestGames = async (
  * Get games from interests that should be synced
  */
 export const getInterestGamesToSync = async (
+  db: DatabaseSync,
   gamePassCatalog: GamePassGame[],
   playedGames: RawGameData[],
 ): Promise<RawGameData[]> => {
-  // Load raw (non-normalized) interest names to preserve the user's clean title
-  let rawInterests: string[] = [];
-  try {
-    const content = await fs.readFile(INTERESTS_FILE, 'utf-8');
-    const data: GamePassInterests = JSON.parse(content);
-    rawInterests = data.wantToPlay || [];
-  } catch {
-    return [];
-  }
-
-  return selectInterestGames(rawInterests, gamePassCatalog, playedGames);
+  const entries = listInterestEntries(db);
+  return selectInterestGames(entries, gamePassCatalog, playedGames);
 };

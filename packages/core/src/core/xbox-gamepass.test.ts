@@ -1,18 +1,22 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import fs from 'fs/promises';
+import path from 'node:path';
+import os from 'node:os';
+import nodeFs from 'node:fs';
+import { openDb, addOwnedGame, addInterest, type Db } from '../db/index';
 import {
   loadOwnedXboxGames,
   loadGamePassInterests,
   isOwnedOnXbox,
-  isInInterests,
   isAvailableOnGamePass,
   processGamePassAvailability,
   resolveXboxSource,
   shouldSyncToNotion,
   getInterestGamesToSync,
+  selectInterestGames,
 } from './xbox-gamepass';
 import { RawGameData, Source } from '../types/game';
 import { GamePassGame } from '../adapters/gamepass.adapter';
-import fs from 'fs/promises';
 
 vi.mock('fs/promises');
 
@@ -36,52 +40,71 @@ const createGamePassGame = (
   available,
 });
 
+type Fixture = { db: Db; dir: string };
+const fixtures: Fixture[] = [];
+
+const makeDb = (): Db => {
+  const dir = nodeFs.mkdtempSync(path.join(os.tmpdir(), 'gamekeeper-xgp-'));
+  const db = openDb(path.join(dir, 'lib.db'));
+  fixtures.push({ db, dir });
+  return db;
+};
+
+const seedOwned = (db: Db, names: string[]): void => {
+  for (const name of names) addOwnedGame(db.raw, { name });
+};
+
+const seedInterests = (db: Db, titles: string[]): void => {
+  for (const title of titles) addInterest(db.raw, title);
+};
+
 describe('xbox-gamepass', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  describe('loadOwnedXboxGames', () => {
-    it('loads and normalizes owned Xbox games', async () => {
-      vi.mocked(fs.readFile).mockResolvedValue(
-        JSON.stringify({
-          ownedGames: ['Halo Infinite', 'Forza Horizon 5'],
-        }),
-      );
+  afterEach(() => {
+    for (const { db, dir } of fixtures.splice(0)) {
+      db.close();
+      nodeFs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
 
-      const owned = await loadOwnedXboxGames();
+  describe('loadOwnedXboxGames', () => {
+    it('loads and normalizes owned Xbox games from the db', async () => {
+      const db = makeDb();
+      seedOwned(db, ['Halo Infinite', 'Forza Horizon 5']);
+
+      const owned = await loadOwnedXboxGames(db.raw);
 
       expect(owned.has('halo infinite')).toBe(true);
       expect(owned.has('forza horizon 5')).toBe(true);
     });
 
-    it('returns empty set on file read error', async () => {
-      vi.mocked(fs.readFile).mockRejectedValue(new Error('File not found'));
+    it('returns an empty set when no rows exist', async () => {
+      const db = makeDb();
 
-      const owned = await loadOwnedXboxGames();
+      const owned = await loadOwnedXboxGames(db.raw);
 
       expect(owned.size).toBe(0);
     });
   });
 
   describe('loadGamePassInterests', () => {
-    it('loads and normalizes interest games', async () => {
-      vi.mocked(fs.readFile).mockResolvedValue(
-        JSON.stringify({
-          wantToPlay: ['Starfield', 'Hi-Fi RUSH'],
-        }),
-      );
+    it('loads and normalizes interest games from the db', async () => {
+      const db = makeDb();
+      seedInterests(db, ['Starfield', 'Hi-Fi RUSH']);
 
-      const interests = await loadGamePassInterests();
+      const interests = await loadGamePassInterests(db.raw);
 
       expect(interests.has('starfield')).toBe(true);
       expect(interests.has('hi fi rush')).toBe(true);
     });
 
-    it('returns empty set on file read error', async () => {
-      vi.mocked(fs.readFile).mockRejectedValue(new Error('File not found'));
+    it('returns an empty set when no rows exist', async () => {
+      const db = makeDb();
 
-      const interests = await loadGamePassInterests();
+      const interests = await loadGamePassInterests(db.raw);
 
       expect(interests.size).toBe(0);
     });
@@ -89,23 +112,17 @@ describe('xbox-gamepass', () => {
 
   describe('isOwnedOnXbox', () => {
     it('returns true for owned games', async () => {
-      vi.mocked(fs.readFile).mockResolvedValue(
-        JSON.stringify({
-          ownedGames: ['Halo Infinite'],
-        }),
-      );
+      const db = makeDb();
+      seedOwned(db, ['Halo Infinite']);
 
-      expect(await isOwnedOnXbox('Halo Infinite')).toBe(true);
+      expect(await isOwnedOnXbox(db.raw, 'Halo Infinite')).toBe(true);
     });
 
     it('returns false for non-owned games', async () => {
-      vi.mocked(fs.readFile).mockResolvedValue(
-        JSON.stringify({
-          ownedGames: ['Halo Infinite'],
-        }),
-      );
+      const db = makeDb();
+      seedOwned(db, ['Halo Infinite']);
 
-      expect(await isOwnedOnXbox('Starfield')).toBe(false);
+      expect(await isOwnedOnXbox(db.raw, 'Starfield')).toBe(false);
     });
   });
 
@@ -160,40 +177,29 @@ describe('xbox-gamepass', () => {
 
   describe('resolveXboxSource', () => {
     it('returns xbox for owned games', async () => {
-      vi.mocked(fs.readFile).mockResolvedValue(
-        JSON.stringify({
-          ownedGames: ['Halo Infinite'],
-        }),
-      );
+      const db = makeDb();
+      seedOwned(db, ['Halo Infinite']);
 
       const catalog = [createGamePassGame('Halo Infinite')];
-      const source = await resolveXboxSource('Halo Infinite', catalog);
+      const source = await resolveXboxSource(db.raw, 'Halo Infinite', catalog);
 
       expect(source).toBe('xbox');
     });
 
     it('returns gamepass for non-owned available games', async () => {
-      vi.mocked(fs.readFile).mockResolvedValue(
-        JSON.stringify({
-          ownedGames: [],
-        }),
-      );
+      const db = makeDb();
 
       const catalog = [createGamePassGame('Starfield')];
-      const source = await resolveXboxSource('Starfield', catalog);
+      const source = await resolveXboxSource(db.raw, 'Starfield', catalog);
 
       expect(source).toBe('gamepass');
     });
 
     it('returns xbox for non-owned unavailable games', async () => {
-      vi.mocked(fs.readFile).mockResolvedValue(
-        JSON.stringify({
-          ownedGames: [],
-        }),
-      );
+      const db = makeDb();
 
       const catalog: GamePassGame[] = [];
-      const source = await resolveXboxSource('Old Game', catalog);
+      const source = await resolveXboxSource(db.raw, 'Old Game', catalog);
 
       expect(source).toBe('xbox');
     });
@@ -201,63 +207,47 @@ describe('xbox-gamepass', () => {
 
   describe('shouldSyncToNotion', () => {
     it('always syncs non-Xbox/GamePass games', async () => {
+      const db = makeDb();
       const game = createGame('Portal 2', 'steam');
 
-      expect(await shouldSyncToNotion(game, [])).toBe(true);
+      expect(await shouldSyncToNotion(db.raw, game, [])).toBe(true);
     });
 
     it('syncs owned Xbox games even if not on Game Pass', async () => {
-      vi.mocked(fs.readFile).mockResolvedValue(
-        JSON.stringify({
-          ownedGames: ['Halo Infinite'],
-        }),
-      );
-
+      const db = makeDb();
+      seedOwned(db, ['Halo Infinite']);
       const game = createGame('Halo Infinite', 'xbox');
 
-      expect(await shouldSyncToNotion(game, [])).toBe(true);
+      expect(await shouldSyncToNotion(db.raw, game, [])).toBe(true);
     });
 
     it('syncs Game Pass games if available', async () => {
-      vi.mocked(fs.readFile).mockResolvedValue(
-        JSON.stringify({
-          ownedGames: [],
-        }),
-      );
-
+      const db = makeDb();
       const game = createGame('Starfield', 'gamepass');
       const catalog = [createGamePassGame('Starfield')];
 
-      expect(await shouldSyncToNotion(game, catalog)).toBe(true);
+      expect(await shouldSyncToNotion(db.raw, game, catalog)).toBe(true);
     });
 
     it('does not sync non-owned Xbox games not on Game Pass', async () => {
-      vi.mocked(fs.readFile).mockResolvedValue(
-        JSON.stringify({
-          ownedGames: [],
-        }),
-      );
-
+      const db = makeDb();
       const game = createGame('Old Game', 'xbox');
 
-      expect(await shouldSyncToNotion(game, [])).toBe(false);
+      expect(await shouldSyncToNotion(db.raw, game, [])).toBe(false);
     });
   });
 
   describe('processGamePassAvailability', () => {
     it('identifies played games that left Game Pass', async () => {
-      vi.mocked(fs.readFile).mockResolvedValue(
-        JSON.stringify({
-          ownedGames: [],
-          unavailableGames: [],
-          wantToPlay: [],
-        }),
-      );
-
+      const db = makeDb();
       const playedGames = [createGame('Old Game', 'xbox')];
       const catalog: GamePassGame[] = [];
 
-      const result = await processGamePassAvailability(playedGames, catalog);
+      const result = await processGamePassAvailability(
+        db.raw,
+        playedGames,
+        catalog,
+      );
 
       expect(result.unavailable).toHaveLength(1);
       expect(result.unavailable[0].name).toBe('Old Game');
@@ -266,23 +256,10 @@ describe('xbox-gamepass', () => {
     });
 
     it('identifies interest games not on Game Pass', async () => {
-      vi.mocked(fs.readFile).mockImplementation(path => {
-        if (path.toString().includes('interests')) {
-          return Promise.resolve(
-            JSON.stringify({
-              wantToPlay: ['Future Game'],
-            }),
-          );
-        }
-        return Promise.resolve(
-          JSON.stringify({
-            ownedGames: [],
-            unavailableGames: [],
-          }),
-        );
-      });
+      const db = makeDb();
+      seedInterests(db, ['Future Game']);
 
-      const result = await processGamePassAvailability([], []);
+      const result = await processGamePassAvailability(db.raw, [], []);
 
       expect(result.unavailable).toHaveLength(1);
       expect(result.unavailable[0].name).toBe('future game');
@@ -291,38 +268,24 @@ describe('xbox-gamepass', () => {
     });
 
     it('tracks returned games', async () => {
-      vi.mocked(fs.readFile).mockImplementation(path => {
-        if (path.toString().includes('interests')) {
-          return Promise.resolve(
-            JSON.stringify({
-              wantToPlay: ['Returned Game'],
-            }),
-          );
-        }
-        if (path.toString().includes('unavailable')) {
-          return Promise.resolve(
-            JSON.stringify({
-              unavailableGames: [
-                {
-                  name: 'Returned Game',
-                  reason: 'left-catalog',
-                  wasPlayed: true,
-                },
-              ],
-              lastUpdated: new Date().toISOString(),
-            }),
-          );
-        }
-        return Promise.resolve(
-          JSON.stringify({
-            ownedGames: [],
-          }),
-        );
-      });
+      const db = makeDb();
+      seedInterests(db, ['Returned Game']);
+      vi.mocked(fs.readFile).mockResolvedValue(
+        JSON.stringify({
+          unavailableGames: [
+            {
+              name: 'Returned Game',
+              reason: 'left-catalog',
+              wasPlayed: true,
+            },
+          ],
+          lastUpdated: new Date().toISOString(),
+        }),
+      );
 
       const catalog = [createGamePassGame('Returned Game')];
 
-      const result = await processGamePassAvailability([], catalog);
+      const result = await processGamePassAvailability(db.raw, [], catalog);
 
       expect(result.returned).toContain('returned game');
     });
@@ -330,43 +293,36 @@ describe('xbox-gamepass', () => {
 
   describe('getInterestGamesToSync', () => {
     it('returns interest games available on Game Pass', async () => {
-      vi.mocked(fs.readFile).mockResolvedValue(
-        JSON.stringify({
-          wantToPlay: ['Starfield', 'Unavailable Game'],
-        }),
-      );
+      const db = makeDb();
+      seedInterests(db, ['Starfield', 'Unavailable Game']);
 
       const catalog = [createGamePassGame('Starfield')];
       const played: RawGameData[] = [];
 
-      const result = await getInterestGamesToSync(catalog, played);
+      const result = await getInterestGamesToSync(db.raw, catalog, played);
 
       expect(result).toHaveLength(1);
       expect(result[0].name).toBe('Starfield');
     });
 
     it('uses the clean interest name, not the verbose catalog title', async () => {
-      vi.mocked(fs.readFile).mockResolvedValue(
-        JSON.stringify({
-          wantToPlay: ['Call of Duty: Modern Warfare'],
-        }),
-      );
+      const db = makeDb();
+      seedInterests(db, ['Call of Duty: Modern Warfare']);
 
       const catalog = [
         createGamePassGame(
-          'Call of Duty\u00ae: Modern Warfare\u00ae - Digital Standard Edition (Windows)',
+          'Call of Duty®: Modern Warfare® - Digital Standard Edition (Windows)',
         ),
       ];
-      const result = await getInterestGamesToSync(catalog, []);
+      const result = await getInterestGamesToSync(db.raw, catalog, []);
 
       expect(result).toHaveLength(1);
       expect(result[0].name).toBe('Call of Duty: Modern Warfare');
     });
 
     it('carries catalog description/genres/developer/publisher into RawGameData', async () => {
-      vi.mocked(fs.readFile).mockResolvedValue(
-        JSON.stringify({ wantToPlay: ['Starfield'] }),
-      );
+      const db = makeDb();
+      seedInterests(db, ['Starfield']);
 
       const catalog = [
         {
@@ -379,7 +335,7 @@ describe('xbox-gamepass', () => {
           publisher: 'Bethesda Softworks',
         },
       ];
-      const result = await getInterestGamesToSync(catalog, []);
+      const result = await getInterestGamesToSync(db.raw, catalog, []);
 
       expect(result).toHaveLength(1);
       expect(result[0]).toMatchObject({
@@ -392,47 +348,86 @@ describe('xbox-gamepass', () => {
     });
 
     it('deduplicates interests that normalize to the same name', async () => {
-      vi.mocked(fs.readFile).mockResolvedValue(
-        JSON.stringify({
-          // Both normalize to the same string
-          wantToPlay: [
-            "Assassin's Creed\u00ae Mirage",
-            "Assassin's Creed Mirage",
-          ],
-        }),
-      );
+      const db = makeDb();
+      seedInterests(db, [
+        "Assassin's Creed® Mirage",
+        "Assassin's Creed Mirage",
+      ]);
 
       const catalog = [
-        createGamePassGame('Assassin\u2019s Creed\u00ae Mirage'),
+        createGamePassGame('Assassin’s Creed® Mirage'),
       ];
-      const result = await getInterestGamesToSync(catalog, []);
+      const result = await getInterestGamesToSync(db.raw, catalog, []);
 
       expect(result).toHaveLength(1);
     });
 
     it('includes interest games even if already played', async () => {
-      vi.mocked(fs.readFile).mockResolvedValue(
-        JSON.stringify({
-          wantToPlay: ['Starfield'],
-        }),
-      );
+      const db = makeDb();
+      seedInterests(db, ['Starfield']);
 
       const catalog = [createGamePassGame('Starfield')];
       const played = [createGame('Starfield', 'gamepass')];
 
-      const result = await getInterestGamesToSync(catalog, played);
+      const result = await getInterestGamesToSync(db.raw, catalog, played);
 
       expect(result).toHaveLength(1);
     });
 
     it('excludes unavailable interest games', async () => {
-      vi.mocked(fs.readFile).mockResolvedValue(
-        JSON.stringify({
-          wantToPlay: ['Not Available'],
-        }),
-      );
+      const db = makeDb();
+      seedInterests(db, ['Not Available']);
 
-      const result = await getInterestGamesToSync([], []);
+      const result = await getInterestGamesToSync(db.raw, [], []);
+
+      expect(result).toHaveLength(0);
+    });
+  });
+
+  describe('selectInterestGames — id-equality (P0B rekey)', () => {
+    it('matches a catalog-backed interest by id even when titles differ', async () => {
+      const entries = [{ id: 'prod-1', title: 'User Clean Name' }];
+      const catalog: GamePassGame[] = [
+        { id: 'prod-1', title: 'A Totally Different Verbose Title', available: true },
+      ];
+
+      const result = await selectInterestGames(entries, catalog, []);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('User Clean Name');
+      expect(result[0].externalId).toBe('gamepass-interest-prod-1');
+    });
+
+    it('falls back to name matching for legacy manual: ids', async () => {
+      const entries = [{ id: 'manual:starfield', title: 'Starfield' }];
+      const catalog: GamePassGame[] = [
+        { id: 'prod-9', title: 'Starfield', available: true },
+      ];
+
+      const result = await selectInterestGames(entries, catalog, []);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].name).toBe('Starfield');
+    });
+
+    it('does not match an unavailable catalog row by id', async () => {
+      const entries = [{ id: 'prod-1', title: 'Some Game' }];
+      const catalog: GamePassGame[] = [
+        { id: 'prod-1', title: 'Some Game', available: false },
+      ];
+
+      const result = await selectInterestGames(entries, catalog, []);
+
+      expect(result).toHaveLength(0);
+    });
+
+    it('skips an id-backed interest with no catalog match and no name match', async () => {
+      const entries = [{ id: 'prod-1', title: 'Unrelated Name' }];
+      const catalog: GamePassGame[] = [
+        { id: 'prod-2', title: 'Different Game', available: true },
+      ];
+
+      const result = await selectInterestGames(entries, catalog, []);
 
       expect(result).toHaveLength(0);
     });
@@ -440,43 +435,32 @@ describe('xbox-gamepass', () => {
 
   describe('Integration: Xbox/Game Pass tagging scenarios', () => {
     it('owned Xbox game available on Game Pass gets Xbox tag only', async () => {
-      vi.mocked(fs.readFile).mockResolvedValue(
-        JSON.stringify({
-          ownedGames: ['Halo Infinite'],
-        }),
-      );
+      const db = makeDb();
+      seedOwned(db, ['Halo Infinite']);
 
       const catalog = [createGamePassGame('Halo Infinite')];
-      const source = await resolveXboxSource('Halo Infinite', catalog);
+      const source = await resolveXboxSource(db.raw, 'Halo Infinite', catalog);
 
       expect(source).toBe('xbox');
     });
 
     it('played but not owned game on Game Pass gets gamepass tag', async () => {
-      vi.mocked(fs.readFile).mockResolvedValue(
-        JSON.stringify({
-          ownedGames: [],
-        }),
-      );
+      const db = makeDb();
 
       const game = createGame('Starfield', 'xbox');
       const catalog = [createGamePassGame('Starfield')];
 
-      const shouldSync = await shouldSyncToNotion(game, catalog);
+      const shouldSync = await shouldSyncToNotion(db.raw, game, catalog);
       expect(shouldSync).toBe(true);
     });
 
     it('played game left Game Pass and not owned does not sync', async () => {
-      vi.mocked(fs.readFile).mockResolvedValue(
-        JSON.stringify({
-          ownedGames: [],
-        }),
-      );
+      const db = makeDb();
 
       const game = createGame('Old Game', 'xbox');
       const catalog: GamePassGame[] = [];
 
-      const shouldSync = await shouldSyncToNotion(game, catalog);
+      const shouldSync = await shouldSyncToNotion(db.raw, game, catalog);
       expect(shouldSync).toBe(false);
     });
   });
@@ -485,7 +469,7 @@ describe('xbox-gamepass', () => {
     it('matches interest with straight apostrophe against catalog title with curly apostrophe', async () => {
       // Microsoft catalog uses U+2019 curly apostrophe; interests use straight apostrophe
       const catalog = [
-        createGamePassGame('Assassin\u2019s Creed\u00ae Mirage'),
+        createGamePassGame('Assassin’s Creed® Mirage'),
       ];
 
       expect(
@@ -494,7 +478,7 @@ describe('xbox-gamepass', () => {
     });
 
     it('matches Tom Clancy title with curly apostrophe in catalog', async () => {
-      const catalog = [createGamePassGame('Tom Clancy\u2019s The Division 2')];
+      const catalog = [createGamePassGame('Tom Clancy’s The Division 2')];
 
       expect(
         await isAvailableOnGamePass("Tom Clancy's The Division 2", catalog),
@@ -505,7 +489,7 @@ describe('xbox-gamepass', () => {
       // Catalog: "Call of Duty®: Modern Warfare® - Digital Standard Edition (Windows)"
       const catalog = [
         createGamePassGame(
-          'Call of Duty\u00ae: Modern Warfare\u00ae - Digital Standard Edition (Windows)',
+          'Call of Duty®: Modern Warfare® - Digital Standard Edition (Windows)',
         ),
       ];
 
@@ -526,36 +510,30 @@ describe('xbox-gamepass', () => {
     });
 
     it('processGamePassAvailability does not flag interests that match via smart quotes', async () => {
-      vi.mocked(fs.readFile).mockImplementation(path => {
-        if (path.toString().includes('interests')) {
-          return Promise.resolve(
-            JSON.stringify({ wantToPlay: ["Assassin's Creed\u00ae Mirage"] }),
-          );
-        }
-        return Promise.resolve(
-          JSON.stringify({ ownedGames: [], unavailableGames: [] }),
-        );
-      });
+      const db = makeDb();
+      seedInterests(db, ["Assassin's Creed® Mirage"]);
+      vi.mocked(fs.readFile).mockResolvedValue(
+        JSON.stringify({ unavailableGames: [] }),
+      );
 
       const catalog = [
-        createGamePassGame('Assassin\u2019s Creed\u00ae Mirage'),
+        createGamePassGame('Assassin’s Creed® Mirage'),
       ];
-      const result = await processGamePassAvailability([], catalog);
+      const result = await processGamePassAvailability(db.raw, [], catalog);
 
       expect(result.unavailable).toHaveLength(0);
     });
 
     it('getInterestGamesToSync matches via substring for verbose catalog titles', async () => {
-      vi.mocked(fs.readFile).mockResolvedValue(
-        JSON.stringify({ wantToPlay: ['Call of Duty: Modern Warfare'] }),
-      );
+      const db = makeDb();
+      seedInterests(db, ['Call of Duty: Modern Warfare']);
 
       const catalog = [
         createGamePassGame(
-          'Call of Duty\u00ae: Modern Warfare\u00ae - Digital Standard Edition (Windows)',
+          'Call of Duty®: Modern Warfare® - Digital Standard Edition (Windows)',
         ),
       ];
-      const result = await getInterestGamesToSync(catalog, []);
+      const result = await getInterestGamesToSync(db.raw, catalog, []);
 
       expect(result).toHaveLength(1);
       expect(result[0].source).toBe('gamepass');
@@ -565,10 +543,10 @@ describe('xbox-gamepass', () => {
       // "Modern Warfare" interest must not match "Modern Warfare II" catalog entry
       const catalog = [
         createGamePassGame(
-          'Call of Duty\u00ae: Modern Warfare\u00ae II - Standard Edition (Windows)',
+          'Call of Duty®: Modern Warfare® II - Standard Edition (Windows)',
         ),
         createGamePassGame(
-          'Call of Duty\u00ae: Modern Warfare\u00ae III - Standard Edition (Windows)',
+          'Call of Duty®: Modern Warfare® III - Standard Edition (Windows)',
         ),
       ];
 
@@ -581,10 +559,10 @@ describe('xbox-gamepass', () => {
     it('matches "Modern Warfare II" interest against the MW II catalog entry', async () => {
       const catalog = [
         createGamePassGame(
-          'Call of Duty\u00ae: Modern Warfare\u00ae - Digital Standard Edition (Windows)',
+          'Call of Duty®: Modern Warfare® - Digital Standard Edition (Windows)',
         ),
         createGamePassGame(
-          'Call of Duty\u00ae: Modern Warfare\u00ae II - Standard Edition (Windows)',
+          'Call of Duty®: Modern Warfare® II - Standard Edition (Windows)',
         ),
       ];
 

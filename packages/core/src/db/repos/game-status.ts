@@ -64,6 +64,19 @@ export class UnknownGameError extends Error {
   }
 }
 
+export class InvalidStatusListError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidStatusListError';
+  }
+}
+
+export type StatusInput = {
+  key: string;
+  label: string;
+  color: string;
+};
+
 export const listStatuses = (db: DatabaseSync): StatusEntry[] => {
   const rows = db
     .prepare(
@@ -364,4 +377,44 @@ export const unpinGame = (
   }
 
   return { canonicalId, status: row.status, pinned: false };
+};
+
+/**
+ * Replace labels, colors and positions for the full status list (P6).
+ * Keys are fixed data: every existing key exactly once, position = array index.
+ */
+export const replaceStatuses = (
+  db: DatabaseSync,
+  entries: StatusInput[],
+): StatusEntry[] => {
+  const existing = listStatuses(db);
+  const known = new Set(existing.map(status => status.key));
+  const seen = new Set<string>();
+  for (const entry of entries) {
+    if (seen.has(entry.key)) {
+      throw new InvalidStatusListError(`Duplicate status: ${entry.key}`);
+    }
+    if (!known.has(entry.key)) {
+      throw new InvalidStatusListError(`Unknown status: ${entry.key}`);
+    }
+    seen.add(entry.key);
+  }
+  if (entries.length !== existing.length) {
+    throw new InvalidStatusListError('Status list must include every status');
+  }
+
+  const update = db.prepare(
+    'UPDATE statuses SET label = ?, color = ?, position = ? WHERE key = ?',
+  );
+  db.exec('BEGIN');
+  try {
+    entries.forEach((entry, index) => {
+      update.run(entry.label, entry.color, index, entry.key);
+    });
+    db.exec('COMMIT');
+  } catch (err) {
+    db.exec('ROLLBACK');
+    throw err;
+  }
+  return listStatuses(db);
 };

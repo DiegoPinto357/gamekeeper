@@ -119,7 +119,9 @@ const makeHarness = (overrides: Partial<SyncIO> = {}): Harness => {
       propertyOverrides: [],
     }),
     initAdapters: vi.fn().mockResolvedValue(adapters),
-    loadInterests: vi.fn().mockResolvedValue(['Celeste']),
+    loadInterests: vi.fn().mockResolvedValue([
+      { id: 'manual:celeste', title: 'Celeste' },
+    ]),
     saveMergeSuggestions: vi.fn().mockResolvedValue(undefined),
     saveLibrarySnapshot: vi.fn().mockResolvedValue(undefined),
     writeGamesToDb: vi.fn().mockResolvedValue({ path: '/tmp/gamekeeper.db', added: 2, updated: 1 }),

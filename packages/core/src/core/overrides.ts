@@ -1,4 +1,5 @@
-import fs from 'fs/promises';
+import type { DatabaseSync } from 'node:sqlite';
+import { loadGameOverrides } from '../db/repos/overrides';
 import { type GameOverrides } from '../types/overrides';
 import { normalizeGameName } from './normalize';
 import { log } from '../logger';
@@ -6,21 +7,15 @@ import { log } from '../logger';
 let overrides: GameOverrides | null = null;
 
 /**
- * Load overrides from JSON file
+ * Load overrides from SQLite (P0B) into the module cache that
+ * shouldForceMerge / applyPropertyOverrides read synchronously.
  */
 export const loadOverrides = async (
-  filePath: string = './data/overrides.json'
+  db: DatabaseSync,
 ): Promise<GameOverrides> => {
-  try {
-    const content = await fs.readFile(filePath, 'utf-8');
-    overrides = JSON.parse(content);
-    log.info('✅ Loaded manual overrides');
-    return overrides!;
-  } catch (error) {
-    log.info('⚠️  No overrides file found, using defaults');
-    overrides = { forceMerge: [], propertyOverrides: [] };
-    return overrides;
-  }
+  overrides = loadGameOverrides(db);
+  log.info('✅ Loaded manual overrides');
+  return overrides;
 };
 
 /**

@@ -5,6 +5,8 @@ import { createRequire } from 'node:module';
 import type { DatabaseSync } from 'node:sqlite';
 import { migrate } from './migrate';
 import { seedStatuses } from './seed';
+import { importLegacyUserData } from './legacy-import';
+import { log } from '../logger';
 
 const sqlite = createRequire(import.meta.url)('node:sqlite') as {
   DatabaseSync: typeof DatabaseSync;
@@ -31,6 +33,18 @@ export const openDb = (dbPath?: string): Db => {
 
   migrate(raw);
   seedStatuses(raw);
+
+  const imported = importLegacyUserData(raw, path.dirname(file));
+  const total =
+    imported.interests +
+    imported.owned +
+    imported.forceMergeRules +
+    imported.propertyOverrides;
+  if (total > 0) {
+    log.info(
+      `📥 Imported legacy user data: interests=${imported.interests}, owned=${imported.owned}, forceMerge=${imported.forceMergeRules}, propertyOverrides=${imported.propertyOverrides}`,
+    );
+  }
 
   return {
     raw,

@@ -1,4 +1,5 @@
 import fs from 'fs/promises';
+import type { DatabaseSync } from 'node:sqlite';
 import { loadConfig } from '../config';
 import { loadOverrides } from '../core/overrides';
 import {
@@ -16,7 +17,7 @@ import { createProtonDBAdapter } from '../adapters/protondb.adapter';
 import { createGamePassAdapter } from '../adapters/gamepass.adapter';
 import { igdbAdapter } from '../adapters/igdb.adapter';
 import { createNotionClient } from '../notion/notion.client';
-import { openDb, upsertGames, reconcileUnavailableReasons, rebuildGamesFts } from '../db/index';
+import { openDb, upsertGames, reconcileUnavailableReasons, rebuildGamesFts, listOwnedGameNames, listInterestEntries } from '../db/index';
 import { enrichSteamMetadata as runSteamEnrich } from './steam-enrich';
 import { enrichIgdbMetadata as runIgdbEnrich } from './igdb-enrich';
 import { normalizeGameName, wordSortedKey } from '../core/normalize';
@@ -24,17 +25,34 @@ import { log } from '../logger';
 import type { Config, RawGameData, UnifiedGame } from '../types/game';
 import type { GamePassGame } from '../adapters/gamepass.adapter';
 import type { SyncAdapters, SyncIO } from './types';
+import type { InterestEntry } from '../db/repos/interests';
 
-const INTERESTS_FILE = './data/gamepass-interests.json';
-const OWNED_XBOX_FILE = './data/owned-xbox-games.json';
 const PLAYNITE_SNAPSHOT_FILE = './data/playnite.json';
-const OVERRIDES_FILE = './data/overrides.json';
 
 /**
  * Harvest non-Steam libraries: Heroic (default) or Playnite (legacy),
  * plus owned-Xbox entries. Extracted from the old CLI main().
  */
 const loadLibrarySources = async (
+  config: Config,
+  adapters: SyncAdapters,
+  ctx: { interests: string[]; gamePassCatalog: GamePassGame[] },
+): Promise<RawGameData[]> => {
+  const dbHandle = openDb();
+  try {
+    return await loadLibrarySourcesWithDb(
+      dbHandle.raw,
+      config,
+      adapters,
+      ctx,
+    );
+  } finally {
+    dbHandle.close();
+  }
+};
+
+const loadLibrarySourcesWithDb = async (
+  db: DatabaseSync,
   config: Config,
   adapters: SyncAdapters,
   ctx: { interests: string[]; gamePassCatalog: GamePassGame[] },
@@ -59,9 +77,9 @@ const loadLibrarySources = async (
     const filteredPlayniteGames: RawGameData[] = [];
     for (const game of playniteGames) {
       if (game.source === 'xbox') {
-        game.source = await resolveXboxSource(game.name, ctx.gamePassCatalog);
+        game.source = await resolveXboxSource(db, game.name, ctx.gamePassCatalog);
       }
-      const shouldSync = await shouldSyncToNotion(game, ctx.gamePassCatalog);
+      const shouldSync = await shouldSyncToNotion(db, game, ctx.gamePassCatalog);
       if (shouldSync) filteredPlayniteGames.push(game);
     }
 
@@ -76,9 +94,7 @@ const loadLibrarySources = async (
     const playniteGameNames = new Set(
       playniteGames.map(g => g.name.toLowerCase().trim()),
     );
-    const ownedXboxFile = await fs.readFile(OWNED_XBOX_FILE, 'utf-8');
-    const ownedXboxData = JSON.parse(ownedXboxFile);
-    const ownedGamesNames: string[] = ownedXboxData.ownedGames || [];
+    const ownedGamesNames = listOwnedGameNames(db);
     for (const gameName of ownedGamesNames) {
       if (!playniteGameNames.has(gameName.toLowerCase().trim())) {
         sourceGames.push({
@@ -95,21 +111,15 @@ const loadLibrarySources = async (
     );
 
     // All owned Xbox games (Heroic doesn't cover Xbox)
-    try {
-      const ownedXboxFile = await fs.readFile(OWNED_XBOX_FILE, 'utf-8');
-      const ownedXboxData = JSON.parse(ownedXboxFile);
-      const ownedGamesNames: string[] = ownedXboxData.ownedGames || [];
-      log.info(`🎯 Loaded ${ownedGamesNames.length} owned Xbox games`);
-      for (const gameName of ownedGamesNames) {
-        sourceGames.push({
-          name: gameName,
-          source: 'xbox',
-          externalId: `xbox-owned-${gameName.toLowerCase().replace(/\s+/g, '-')}`,
-          playtimeHours: 0,
-        });
-      }
-    } catch {
-      log.warn('⚠️  No owned Xbox games file found');
+    const ownedGamesNames = listOwnedGameNames(db);
+    log.info(`🎯 Loaded ${ownedGamesNames.length} owned Xbox games`);
+    for (const gameName of ownedGamesNames) {
+      sourceGames.push({
+        name: gameName,
+        source: 'xbox',
+        externalId: `xbox-owned-${gameName.toLowerCase().replace(/\s+/g, '-')}`,
+        playtimeHours: 0,
+      });
     }
   }
 
@@ -119,7 +129,14 @@ const loadLibrarySources = async (
 export const defaultSyncIO: SyncIO = {
   loadConfig,
 
-  loadOverrides: () => loadOverrides(OVERRIDES_FILE),
+  loadOverrides: () => {
+    const db = openDb();
+    try {
+      return loadOverrides(db.raw);
+    } finally {
+      db.close();
+    }
+  },
 
   initAdapters: async (config: Config): Promise<SyncAdapters> => {
     const protonDb = createProtonDBAdapter(
@@ -154,13 +171,12 @@ export const defaultSyncIO: SyncIO = {
     return adapters;
   },
 
-  loadInterests: async (): Promise<string[] | null> => {
+  loadInterests: async (): Promise<InterestEntry[] | null> => {
+    const db = openDb();
     try {
-      const content = await fs.readFile(INTERESTS_FILE, 'utf-8');
-      const data = JSON.parse(content);
-      return data.wantToPlay || [];
-    } catch {
-      return null;
+      return listInterestEntries(db.raw);
+    } finally {
+      db.close();
     }
   },
 
@@ -225,8 +241,14 @@ export const defaultSyncIO: SyncIO = {
     }
   },
 
-  processGamePassAvailability: (sourceGames, gamePassCatalog) =>
-    processAvailability(sourceGames, gamePassCatalog),
+  processGamePassAvailability: async (sourceGames, gamePassCatalog) => {
+    const db = openDb();
+    try {
+      return await processAvailability(db.raw, sourceGames, gamePassCatalog);
+    } finally {
+      db.close();
+    }
+  },
 
   saveUnavailableGames: (unavailable: UnavailableGame[]) =>
     saveAvailabilityReport(unavailable),

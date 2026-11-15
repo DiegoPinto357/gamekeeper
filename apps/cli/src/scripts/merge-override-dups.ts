@@ -10,7 +10,7 @@ import {
 setLogger(consoleLogger);
 
 /**
- * Force-merge duplicate rows for the rules in data/overrides.json: fold
+ * Force-merge duplicate rows for the stored forceMerge rules: fold
  * each loser row's data into the rule's canonical winner and delete the
  * loser. Only the rows still present in the database are affected — rules
  * already applied (or whose names never produced a duplicate) are skipped
@@ -42,15 +42,15 @@ if (
 }
 
 const main = async () => {
-  const overrides = await loadOverrides();
-  const rules = overrides.forceMerge ?? [];
-  if (rules.length === 0) {
-    console.log('No forceMerge rules in data/overrides.json — nothing to do.');
-    return;
-  }
-
-  const db = openDb(); // migrates on open
+  const db = openDb(); // migrates on open (incl. legacy overrides import)
   try {
+    const overrides = await loadOverrides(db.raw);
+    const rules = overrides.forceMerge ?? [];
+    if (rules.length === 0) {
+      console.log('No forceMerge rules stored — nothing to do.');
+      return;
+    }
+
     const report = applyForceMerge(db.raw, rules, {
       dryRun,
       rule: ruleFilter,

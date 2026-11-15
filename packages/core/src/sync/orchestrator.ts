@@ -2,6 +2,7 @@ import { normalizeGameName } from '../core/normalize';
 import { processRawGames } from '../core/deduplicate';
 import { generateMergeSuggestions } from '../core/suggestions';
 import { selectInterestGames } from '../core/xbox-gamepass';
+import type { InterestEntry } from '../db/repos/interests';
 import { getLogger, setLogger } from '../logger';
 import { defaultSyncIO } from './default-io';
 import type { SyncEvent, SyncIO, SyncOptions, SyncDeps, SyncStepKey, SyncSummary } from './types';
@@ -195,10 +196,10 @@ export const runSync = async (
     }
 
     // 7. Game Pass interests
-    const interests = await step<string[]>('interests', 'Game Pass interests', async () => {
+    const interests = await step<InterestEntry[]>('interests', 'Game Pass interests', async () => {
       const list = await io.loadInterests();
       if (list === null) {
-        return { value: [] as string[], skipped: true, detail: 'file not found' };
+        return { value: [] as InterestEntry[], skipped: true, detail: 'file not found' };
       }
       return { value: list, detail: `${list.length} games` };
     });
@@ -218,7 +219,7 @@ export const runSync = async (
         }
         try {
           const games = await adapters.loadLibrarySources(config, {
-            interests,
+            interests: interests.map(entry => entry.title),
             gamePassCatalog,
           });
           libraryOk = true;
