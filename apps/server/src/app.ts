@@ -9,6 +9,8 @@ import { registerOwnedGamesRoutes } from './routes/owned-games';
 import { registerSyncRoutes } from './routes/sync';
 import { registerLibraryRoutes } from './routes/library';
 import { registerDiscoverRoutes } from './routes/discover';
+import { registerStatusesRoutes } from './routes/statuses';
+import { registerForceMergeRulesRoutes } from './routes/force-merge-rules';
 import { createSyncRunManager } from './sync/run-manager';
 import type { RunSyncFn } from './sync/run-manager';
 
@@ -38,7 +40,7 @@ export const buildApp = (opts: AppOptions = {}): FastifyInstance => {
       'http://localhost:5174',
       'http://127.0.0.1:5174',
     ],
-    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
   });
 
   const db: Db = openDb(dbPath);
@@ -51,6 +53,8 @@ export const buildApp = (opts: AppOptions = {}): FastifyInstance => {
   registerOwnedGamesRoutes(app, { db });
   registerLibraryRoutes(app, { db });
   registerDiscoverRoutes(app, { db });
+  registerStatusesRoutes(app, { db });
+  registerForceMergeRulesRoutes(app, { db });
 
   const syncManager = createSyncRunManager({ runSync: opts.runSync });
   registerSyncRoutes(app, { manager: syncManager });
