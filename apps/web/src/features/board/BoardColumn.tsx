@@ -56,7 +56,7 @@ export const BoardColumn = ({
 
         <div
           ref={setNodeRef}
-          className="flex min-h-24 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain p-2"
+          className="flex min-h-24 flex-1 flex-col gap-2 overflow-y-auto overscroll-y-contain p-2"
         >
           <SortableContext
             items={visible.map(game => game.canonicalId)}

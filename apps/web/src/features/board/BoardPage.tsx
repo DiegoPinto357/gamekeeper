@@ -114,7 +114,7 @@ export const BoardPage = () => {
         onDragCancel={() => setActiveId(null)}
         onDragEnd={handleDragEnd}
       >
-        <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto pb-4">
+        <div className="flex min-h-0 flex-1 gap-4 overflow-x-auto overscroll-x-contain pb-4">
           {statuses.map(status => (
             <BoardColumn
               key={status.key}
