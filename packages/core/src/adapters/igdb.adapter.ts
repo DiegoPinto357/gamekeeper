@@ -42,6 +42,7 @@ const IGDB_API_URL = 'https://api.igdb.com/v4';
 const TOKEN_CACHE_PATH = './.cache/igdb-token.json';
 const STEAM_APP_ID_CACHE_PATH = './.cache/steam-appid-cache.json';
 const RETRY_FAILED_AFTER_DAYS = 30; // Retry null entries after 30 days
+const IGDB_TIMEOUT_MS = 5000; // fail fast — a hung request must not stall sync
 
 let authToken: IGDBAuthToken | null = null;
 let steamAppIdCache: SteamAppIdCache = {};
@@ -108,6 +109,7 @@ const authenticate = async (): Promise<string> => {
         client_secret: TWITCH_CLIENT_SECRET,
         grant_type: 'client_credentials',
       },
+      timeout: IGDB_TIMEOUT_MS,
     }
   );
 
@@ -285,6 +287,7 @@ const findSteamAppId = async (gameName: string): Promise<number | null> => {
             'Client-ID': TWITCH_CLIENT_ID,
             Authorization: `Bearer ${token}`,
           },
+          timeout: IGDB_TIMEOUT_MS,
         }
       );
 
@@ -302,9 +305,6 @@ const findSteamAppId = async (gameName: string): Promise<number | null> => {
       // Collect all game IDs to query external_games in one batch
       const gameIds = response.data.map(g => g.id).join(',');
 
-      // Small delay to avoid rate limiting (we just made 1 call for search)
-      await new Promise(resolve => setTimeout(resolve, 250));
-
       try {
         // Fetch all external_games for these games in one request
         const externalResponse = await axios.post<
@@ -317,6 +317,7 @@ const findSteamAppId = async (gameName: string): Promise<number | null> => {
               'Client-ID': TWITCH_CLIENT_ID,
               Authorization: `Bearer ${token}`,
             },
+            timeout: IGDB_TIMEOUT_MS,
           }
         );
 
@@ -381,7 +382,6 @@ const findSteamAppId = async (gameName: string): Promise<number | null> => {
                 appId,
                 lastChecked: Date.now(),
               };
-              await saveSteamAppIdCache();
               return appId;
             }
           }
@@ -399,7 +399,6 @@ const findSteamAppId = async (gameName: string): Promise<number | null> => {
                 appId,
                 lastChecked: Date.now(),
               };
-              await saveSteamAppIdCache();
               return appId;
             }
           }
@@ -422,7 +421,6 @@ const findSteamAppId = async (gameName: string): Promise<number | null> => {
               appId,
               lastChecked: Date.now(),
             };
-            await saveSteamAppIdCache();
             return appId;
           }
         }
@@ -440,7 +438,6 @@ const findSteamAppId = async (gameName: string): Promise<number | null> => {
               appId,
               lastChecked: Date.now(),
             };
-            await saveSteamAppIdCache();
             return appId;
           }
         }
@@ -452,7 +449,6 @@ const findSteamAppId = async (gameName: string): Promise<number | null> => {
       appId: null,
       lastChecked: Date.now(),
     };
-    await saveSteamAppIdCache();
     return null;
   } catch (error) {
     if (axios.isAxiosError(error)) {
@@ -466,6 +462,19 @@ const findSteamAppId = async (gameName: string): Promise<number | null> => {
     }
     return null;
   }
+};
+
+/**
+ * Whether `findSteamAppId` would do network work for this name: false for
+ * cached hits and for null entries that are not yet retriable. Lets the
+ * orchestrator skip its rate-limit pacing (and the API) entirely.
+ */
+const needsLookup = (gameName: string): boolean => {
+  const cacheKey = gameName.toLowerCase().trim();
+  if (!(cacheKey in steamAppIdCache)) return true;
+  const entry = normalizeCacheEntry(steamAppIdCache[cacheKey]);
+  if (entry.appId !== null) return false;
+  return shouldRetryEntry(entry);
 };
 
 /**
@@ -552,7 +561,7 @@ const fetchGameBySteamAppId = async (
     const externalResponse = await axios.post<Array<{ id: number; game: number }>>(
       `${IGDB_API_URL}/external_games`,
       `where uid = "${steamAppId}" & external_game_source = 1; fields id, game; limit 1;`,
-      { headers: igdbHeaders(token) },
+      { headers: igdbHeaders(token), timeout: IGDB_TIMEOUT_MS },
     );
     const external = externalResponse.data?.[0];
     if (!external?.game) return null;
@@ -560,7 +569,7 @@ const fetchGameBySteamAppId = async (
     const gameResponse = await axios.post<Array<{ id: number; name: string }>>(
       `${IGDB_API_URL}/games`,
       `where id = ${external.game}; fields id, name; limit 1;`,
-      { headers: igdbHeaders(token) },
+      { headers: igdbHeaders(token), timeout: IGDB_TIMEOUT_MS },
     );
     const game = gameResponse.data?.[0];
     if (!game) return null;
@@ -604,7 +613,7 @@ const fetchGameDetails = async (
     >(
       `${IGDB_API_URL}/games`,
       `where id = ${igdbId}; fields name, summary, genres.name, themes.name, keywords.name, similar_games.id, screenshots.image_id, involved_companies.company.name, involved_companies.developer, involved_companies.publisher; limit 1;`,
-      { headers: igdbHeaders(token) },
+      { headers: igdbHeaders(token), timeout: IGDB_TIMEOUT_MS },
     );
 
     const game = response.data?.[0];
@@ -681,7 +690,7 @@ const findByName = async (name: string): Promise<IgdbMatch | null> => {
       const response = await axios.post<Array<{ id: number; name: string }>>(
         `${IGDB_API_URL}/games`,
         `search "${term.replace(/"/g, '')}"; fields id, name; limit 10;`,
-        { headers: igdbHeaders(token) },
+        { headers: igdbHeaders(token), timeout: IGDB_TIMEOUT_MS },
       );
       const results = response.data ?? [];
       if (results.length === 0) continue;
@@ -713,6 +722,9 @@ const findByName = async (name: string): Promise<IgdbMatch | null> => {
 export const igdbAdapter = {
   initialize,
   findSteamAppId,
+  needsLookup,
+  /** Persist in-memory cache writes (lookups defer saving until this is called). */
+  flushCache: saveSteamAppIdCache,
   getCacheStats,
   clearCache,
   fetchGameBySteamAppId,

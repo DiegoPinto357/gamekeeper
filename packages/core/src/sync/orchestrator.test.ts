@@ -39,7 +39,12 @@ type Harness = {
   events: SyncEvent[];
   adapters: {
     notion: { verifyDatabase: ReturnType<typeof vi.fn>; syncGames: ReturnType<typeof vi.fn> };
-    igdb: { findSteamAppId: ReturnType<typeof vi.fn>; getCacheStats: ReturnType<typeof vi.fn> };
+    igdb: {
+      findSteamAppId: ReturnType<typeof vi.fn>;
+      needsLookup: ReturnType<typeof vi.fn>;
+      flushCache: ReturnType<typeof vi.fn>;
+      getCacheStats: ReturnType<typeof vi.fn>;
+    };
     protonDb: { init: ReturnType<typeof vi.fn>; fetchCompatibility: ReturnType<typeof vi.fn> };
     fetchSteamGames: ReturnType<typeof vi.fn>;
     loadLibrarySources: ReturnType<typeof vi.fn>;
@@ -85,6 +90,8 @@ const makeHarness = (overrides: Partial<SyncIO> = {}): Harness => {
   const igdb = {
     initialize: vi.fn().mockResolvedValue(undefined),
     findSteamAppId: vi.fn().mockResolvedValue(504230),
+    needsLookup: vi.fn().mockReturnValue(true),
+    flushCache: vi.fn().mockResolvedValue(undefined),
     getCacheStats: vi.fn().mockReturnValue({
       totalEntries: 10,
       foundEntries: 7,
@@ -266,6 +273,34 @@ describe('runSync', () => {
     expect(progress).toContainEqual({ type: 'progress', key: 'igdb-lookup', current: 1, total: 1 });
     expect(progress).toContainEqual({ type: 'progress', key: 'protondb', current: 3, total: 3 });
     expect(progress).toContainEqual({ type: 'progress', key: 'notion', current: 3, total: 3 });
+  });
+
+  it('skips igdb-lookup when every candidate already has a cached answer', async () => {
+    const h = makeHarness();
+    h.adapters.igdb.needsLookup.mockReturnValue(false);
+    await run(h);
+
+    expect(findStep(h.events, 'step:skip', 'igdb-lookup')?.detail).toBe(
+      '1 already cached',
+    );
+    expect(h.adapters.igdb.findSteamAppId).not.toHaveBeenCalled();
+    expect(h.adapters.igdb.flushCache).not.toHaveBeenCalled();
+    expect(
+      h.events.some(e => 'key' in e && e.key === 'igdb-lookup' && e.type === 'progress'),
+    ).toBe(false);
+  });
+
+  it('looks up only uncached igdb candidates and flushes the cache', async () => {
+    const h = makeHarness();
+    h.adapters.igdb.needsLookup.mockReturnValue(false);
+    h.adapters.igdb.needsLookup.mockReturnValueOnce(true);
+    await run(h);
+
+    expect(h.adapters.igdb.findSteamAppId).toHaveBeenCalledWith('Celeste');
+    expect(h.adapters.igdb.flushCache).toHaveBeenCalledTimes(1);
+    expect(findStep(h.events, 'step:done', 'igdb-lookup')?.detail).toBe(
+      '1/1 matched',
+    );
   });
 
   it('skipNotion skips notion-verify and notion steps and never calls syncGames', async () => {

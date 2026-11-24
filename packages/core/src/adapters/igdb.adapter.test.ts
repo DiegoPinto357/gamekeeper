@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import axios from 'axios';
+import fs from 'fs/promises';
 
 vi.hoisted(() => {
   process.env.IGDB_CLIENT_ID = 'test-client-id';
@@ -313,5 +314,59 @@ describe('igdbAdapter metadata', () => {
 
       expect(await igdbAdapter.fetchGameDetails(1)).toBeNull();
     });
+  });
+});
+
+describe('igdbAdapter steam app id cache', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockAuth();
+  });
+
+  const mockLookup = (games: unknown[], external: unknown[] = []) => {
+    mockedAxios.post.mockImplementation((url: string) => {
+      if (url.includes('oauth2/token'))
+        return Promise.resolve({
+          data: { access_token: 'tok', expires_in: 3600, token_type: 'bearer' },
+        });
+      if (url.includes('/external_games')) return Promise.resolve({ data: external });
+      if (url.includes('/games')) return Promise.resolve({ data: games });
+      return Promise.resolve({ data: [] });
+    });
+  };
+
+  it('needsLookup is true for unknown names', () => {
+    expect(igdbAdapter.needsLookup('Never Seen Before Quest')).toBe(true);
+  });
+
+  it('needsLookup turns false after a successful lookup caches an app id', async () => {
+    mockLookup([{ id: 42, name: 'Cache Hit Game' }], [
+      { game: 42, external_game_source: 1, uid: '777' },
+    ]);
+
+    expect(await igdbAdapter.findSteamAppId('Cache Hit Game')).toBe(777);
+    expect(igdbAdapter.needsLookup('Cache Hit Game')).toBe(false);
+  });
+
+  it('needsLookup stays false for a fresh no-match entry', async () => {
+    mockLookup([]);
+
+    expect(await igdbAdapter.findSteamAppId('Fresh No Match Game')).toBeNull();
+    expect(igdbAdapter.needsLookup('Fresh No Match Game')).toBe(false);
+  });
+
+  it('flushCache persists deferred cache writes', async () => {
+    mockLookup([{ id: 7, name: 'Flushed Game' }], [
+      { game: 7, external_game_source: 1, uid: '888' },
+    ]);
+    expect(await igdbAdapter.findSteamAppId('Flushed Game')).toBe(888);
+
+    vi.mocked(fs.writeFile).mockClear();
+    await igdbAdapter.flushCache();
+
+    expect(fs.writeFile).toHaveBeenCalledWith(
+      './.cache/steam-appid-cache.json',
+      expect.stringContaining('"flushed game"'),
+    );
   });
 });

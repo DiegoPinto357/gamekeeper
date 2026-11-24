@@ -86,6 +86,10 @@ export interface SyncAdapters {
   igdb: {
     initialize(): Promise<void>;
     findSteamAppId(name: string): Promise<number | null>;
+    /** True when `findSteamAppId` would hit the network (cache miss / retriable). */
+    needsLookup(name: string): boolean;
+    /** Persist deferred cache writes. */
+    flushCache(): Promise<void>;
     getCacheStats(): {
       totalEntries: number;
       foundEntries: number;

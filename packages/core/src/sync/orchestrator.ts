@@ -285,12 +285,24 @@ export const runSync = async (
       if (nonSteamPcGames.length === 0) {
         return { value: 0, skipped: true, detail: 'no non-Steam PC games' };
       }
+      // Cache-first: only games without a fresh answer pay the rate-limit
+      // pacing (and touch the network). Fully-cached runs finish instantly.
+      const toLookup = nonSteamPcGames.filter(g =>
+        adapters.igdb.needsLookup(g.name),
+      );
+      if (toLookup.length === 0) {
+        return {
+          value: 0,
+          skipped: true,
+          detail: `${nonSteamPcGames.length} already cached`,
+        };
+      }
       const IGDB_BATCH_SIZE = 2; // 2 API calls per game → 2 games = 4 req/s
       const IGDB_DELAY = 1000;
       let matches = 0;
 
-      for (let i = 0; i < nonSteamPcGames.length; i += IGDB_BATCH_SIZE) {
-        const batch = nonSteamPcGames.slice(i, i + IGDB_BATCH_SIZE);
+      for (let i = 0; i < toLookup.length; i += IGDB_BATCH_SIZE) {
+        const batch = toLookup.slice(i, i + IGDB_BATCH_SIZE);
         await Promise.all(
           batch.map(async game => {
             try {
@@ -310,12 +322,18 @@ export const runSync = async (
           }),
         );
 
-        const processed = Math.min(i + IGDB_BATCH_SIZE, nonSteamPcGames.length);
-        emit({ type: 'progress', key: 'igdb-lookup', current: processed, total: nonSteamPcGames.length });
+        const processed = Math.min(i + IGDB_BATCH_SIZE, toLookup.length);
+        emit({ type: 'progress', key: 'igdb-lookup', current: processed, total: toLookup.length });
 
-        if (i + IGDB_BATCH_SIZE < nonSteamPcGames.length) {
+        if (i + IGDB_BATCH_SIZE < toLookup.length) {
           await new Promise(resolve => setTimeout(resolve, IGDB_DELAY));
         }
+      }
+
+      try {
+        await adapters.igdb.flushCache();
+      } catch (error) {
+        deps.logger.warn('Failed to flush IGDB Steam App ID cache:', error);
       }
 
       const cacheStats = adapters.igdb.getCacheStats();
@@ -328,9 +346,10 @@ export const runSync = async (
         );
       }
 
+      const cached = nonSteamPcGames.length - toLookup.length;
       return {
         value: matches,
-        detail: `${matches}/${nonSteamPcGames.length} matched`,
+        detail: `${matches}/${toLookup.length} matched${cached > 0 ? `, ${cached} cached` : ''}`,
       };
     });
 
